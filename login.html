@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>학부모 로그인 · 교사 선교사</title>
+<link rel="icon" href="icon-192.png">
+<style>
+:root{
+  --sb-house:#1E3932; --sb-green:#00704A; --sb-green-h:#005C3D; --sb-dark:#006241;
+  --sb-mint:#D4E9E2; --sb-mint-2:#E8F3EF; --sb-cream:#F2F0EB;
+  --gold:#8A6410; --gold-bg:#F7EFD8;
+  --white:#FFFFFF; --surface:#FFFFFF; --line:#E3E1DA;
+  --ink:#1F2320; --ink-2:#5A6560; --ink-3:#93A09A;
+  --ok:#16A34A; --ok-bg:#DCFCE7; --danger:#C0392B; --danger-bg:#FDECEA;
+  --info:#2563EB; --info-bg:#DBEAFE;
+  --radius:12px;
+  --wh:#FFFFFF; --iv:#F2F0EB; --ivd:#E3E1DA; --gm:#00704A; --gd:#1E3932;
+  --gp:#E8F3EF; --gl:#D4E9E2; --tl:#93A09A; --ts:#5A6560;
+}
+html[data-theme="dark"]{
+  color-scheme:dark;
+  --sb-house:#08100D; --sb-green:#2BAE7E; --sb-green-h:#3FCB96; --sb-dark:#2BAE7E;
+  --sb-mint:#1C3129; --sb-mint-2:#16241E; --sb-cream:#0C1512;
+  --gold:#E3C878; --gold-bg:#2A2416;
+  --white:#131F1A; --surface:#131F1A; --line:#26382F;
+  --ink:#D8E5DF; --ink-2:#A9BDB4; --ink-3:#6E837A;
+  --ok:#3FCB96; --ok-bg:#123326; --danger:#F87171; --danger-bg:#3A1B1B;
+  --info:#7EB3FF; --info-bg:#152B4A;
+  --wh:#131F1A; --iv:#0F1915; --ivd:#2A3F35; --gm:#2BAE7E; --gd:#DCEFE6;
+  --gp:#16241E; --gl:#2E463B; --tl:#7E948B; --ts:#C7D8D0;
+}
+@media (prefers-color-scheme:dark){ html:not([data-theme="light"]){ color-scheme:dark; } }
+*{box-sizing:border-box}
+body{
+  margin:0; min-height:100vh;
+  font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+  background:var(--sb-cream); color:var(--ink);
+  display:flex; align-items:center; justify-content:center; padding:20px;
+  -webkit-font-smoothing:antialiased;
+}
+.card{
+  width:100%; max-width:400px; background:var(--surface);
+  border:1px solid var(--ivd); border-radius:18px; padding:32px 26px;
+  box-shadow:0 4px 24px rgba(30,57,50,.08);
+}
+.brand{ text-align:center; margin-bottom:24px; }
+.brand img{ width:64px; height:64px; border-radius:16px; margin-bottom:12px; }
+.brand h1{ font-size:19px; font-weight:800; margin:0 0 4px; color:var(--gd); }
+.brand p{ font-size:13px; color:var(--tl); margin:0; }
+.step{ display:none; }
+.step.on{ display:block; animation:fade .2s ease; }
+@keyframes fade{ from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+label{ display:block; font-size:13px; font-weight:700; color:var(--ts); margin:14px 0 6px; }
+input[type=email],input[type=text]{
+  width:100%; padding:13px 14px; font-size:15px; font-family:inherit;
+  border:1.5px solid var(--ivd); border-radius:10px;
+  background:var(--wh); color:var(--ink); transition:border-color .15s;
+}
+input:focus{ outline:none; border-color:var(--gm); }
+.code-input{ letter-spacing:2px; font-weight:800; text-transform:uppercase; }
+.btn{
+  width:100%; margin-top:18px; padding:14px; font-size:15px; font-weight:800;
+  font-family:inherit; border:none; border-radius:10px; cursor:pointer;
+  background:var(--gm); color:#fff; transition:filter .12s;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+}
+html[data-theme="dark"] .btn{ color:#06130E; }
+.btn:hover{ filter:brightness(1.06); }
+.btn:disabled{ opacity:.55; cursor:not-allowed; }
+.btn-ghost{ background:none; color:var(--gm); border:1.5px solid var(--gm); }
+html[data-theme="dark"] .btn-ghost{ color:var(--gm); }
+.msg{ font-size:13px; line-height:1.6; color:var(--ts); margin:14px 0 0; }
+.msg.center{ text-align:center; }
+.note{ font-size:12px; color:var(--tl); margin-top:8px; line-height:1.6; }
+.alert{ font-size:13px; padding:11px 13px; border-radius:9px; margin-top:14px; display:none; }
+.alert.on{ display:block; }
+.alert.err{ background:var(--danger-bg); color:var(--danger); }
+.alert.ok{ background:var(--ok-bg); color:var(--ok); }
+.bigicon{ text-align:center; font-size:44px; margin:6px 0 4px; }
+.child-list{ margin:14px 0 0; }
+.child-chip{
+  display:inline-flex; align-items:center; gap:6px; background:var(--gp);
+  color:var(--gm); border:1px solid var(--gm); border-radius:100px;
+  padding:6px 13px; font-size:13.5px; font-weight:700; margin:0 6px 6px 0;
+}
+.foot{ text-align:center; margin-top:22px; font-size:12px; color:var(--tl); }
+.foot a{ color:var(--gm); text-decoration:none; font-weight:700; }
+.spin{ width:18px; height:18px; border:2.5px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:sp .6s linear infinite; }
+html[data-theme="dark"] .spin{ border-color:rgba(6,19,14,.35); border-top-color:#06130E; }
+@keyframes sp{ to{transform:rotate(360deg)} }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="brand">
+    <img src="logo-daniel.png" alt="" onerror="this.style.display='none'">
+    <h1>학부모 서비스</h1>
+    <p>다니엘 아마츠 · 지혜빛 선교원</p>
+  </div>
+
+  <!-- STEP 1: 이메일 입력 -->
+  <div class="step on" id="step-email">
+    <label for="email">이메일 주소</label>
+    <input type="email" id="email" placeholder="parent@example.com" autocomplete="email" inputmode="email">
+    <div class="alert err" id="email-err"></div>
+    <button class="btn" id="btn-send" onclick="sendLink()">
+      <span>로그인 링크 받기</span>
+    </button>
+    <p class="note">비밀번호가 없습니다. 입력하신 이메일로 로그인 링크를 보내드립니다. 링크를 누르면 로그인돼요.</p>
+  </div>
+
+  <!-- STEP 2: 메일 확인 대기 -->
+  <div class="step" id="step-sent">
+    <div class="bigicon">📬</div>
+    <p class="msg center"><b id="sent-email"></b> 주소로<br>로그인 링크를 보냈어요.</p>
+    <p class="msg center">받은 메일에서 <b>로그인 링크</b>를 눌러주세요.<br>이 창은 그대로 두셔도 됩니다.</p>
+    <p class="note center">메일이 안 보이면 스팸함을 확인하거나, 잠시 후 다시 시도해 주세요.</p>
+    <button class="btn btn-ghost" onclick="backToEmail()">다른 이메일로 다시 받기</button>
+  </div>
+
+  <!-- STEP 3: 로그인 처리 중 -->
+  <div class="step" id="step-verify">
+    <div class="bigicon">🔓</div>
+    <p class="msg center">로그인 중입니다…</p>
+  </div>
+
+  <!-- STEP 4: 자녀 연결 -->
+  <div class="step" id="step-link">
+    <div class="bigicon">👨‍👩‍👧</div>
+    <p class="msg center" id="link-hello">로그인되었습니다.<br>자녀를 연결해 주세요.</p>
+    <div class="child-list" id="child-list"></div>
+    <label for="code">자녀 가입코드</label>
+    <input type="text" id="code" class="code-input" placeholder="예: DA-3B-7K2P" autocapitalize="characters" autocomplete="off">
+    <div class="alert err" id="code-err"></div>
+    <div class="alert ok" id="code-ok"></div>
+    <button class="btn" id="btn-link" onclick="linkChild()">
+      <span>자녀 연결하기</span>
+    </button>
+    <p class="note">학교에서 받은 자녀별 가입코드를 입력하세요. 자녀가 여럿이면 하나씩 연결할 수 있어요.</p>
+    <button class="btn btn-ghost" id="btn-go-home" style="display:none" onclick="goHome()">홈으로 이동 →</button>
+  </div>
+
+  <div class="foot">
+    <a href="index.html">← 공개 홈페이지로</a>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
+         onAuthStateChanged, setPersistence, browserLocalPersistence }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs,
+         addDoc, Timestamp }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCtgr79jKqkec6HwqkxYNxSubWAhfEkM7g",
+  authDomain: "daniel-amatz.firebaseapp.com",
+  projectId: "daniel-amatz",
+  storageBucket: "daniel-amatz.firebasestorage.app",
+  messagingSenderId: "455744290312",
+  appId: "1:455744290312:web:3ce7e7d3e58f6f1d185bbd",
+  measurementId: "G-E91V0S88T8"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+setPersistence(auth, browserLocalPersistence).catch(()=>{});
+
+const EMAIL_KEY = 'gyosa_parent_email';
+const $ = id => document.getElementById(id);
+const show = id => { document.querySelectorAll('.step').forEach(s=>s.classList.remove('on')); $(id).classList.add('on'); };
+const alertShow = (id, msg) => { const e=$(id); e.textContent=msg; e.classList.add('on'); };
+const alertHide = id => $(id).classList.remove('on');
+
+function validEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+
+// ── STEP 1: 로그인 링크 발송 ──
+window.sendLink = async function(){
+  alertHide('email-err');
+  const email = $('email').value.trim().toLowerCase();
+  if(!validEmail(email)){ alertShow('email-err','올바른 이메일 주소를 입력해 주세요.'); return; }
+  const btn = $('btn-send'); btn.disabled = true;
+  const orig = btn.innerHTML; btn.innerHTML = '<span class="spin"></span>';
+  try {
+    const actionCodeSettings = { url: location.origin + location.pathname, handleCodeInApp: true };
+    await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+    localStorage.setItem(EMAIL_KEY, email);
+    // 인증 요청 로그 (관리자 모니터링용)
+    try {
+      await addDoc(collection(db,'parentAuthLogs'), {
+        email, requestedAt: Timestamp.now(), clicked:false,
+        ua: navigator.userAgent || ''
+      });
+    } catch(e){}
+    $('sent-email').textContent = email;
+    show('step-sent');
+  } catch(e){
+    alertShow('email-err', '링크 발송에 실패했습니다: ' + (e.code || e.message));
+  } finally {
+    btn.disabled = false; btn.innerHTML = orig;
+  }
+};
+
+window.backToEmail = function(){ show('step-email'); };
+
+// ── STEP 3: 링크로 돌아왔을 때 로그인 처리 ──
+async function completeSignInFromLink(){
+  if(!isSignInWithEmailLink(auth, location.href)) return false;
+  show('step-verify');
+  let email = localStorage.getItem(EMAIL_KEY);
+  if(!email){
+    email = window.prompt('로그인을 완료하려면 링크를 요청한 이메일을 다시 입력해 주세요.');
+    if(email) email = email.trim().toLowerCase();
+  }
+  if(!email){ show('step-email'); return true; }
+  try {
+    await signInWithEmailLink(auth, email, location.href);
+    localStorage.removeItem(EMAIL_KEY);
+    // 로그인 성공 로그 갱신
+    try {
+      const q = query(collection(db,'parentAuthLogs'), where('email','==',email), where('clicked','==',false));
+      const snap = await getDocs(q);
+      const latest = snap.docs.sort((a,b)=>(b.data().requestedAt?.seconds||0)-(a.data().requestedAt?.seconds||0))[0];
+      if(latest) await updateDoc(doc(db,'parentAuthLogs',latest.id), { clicked:true, clickedAt:Timestamp.now() });
+    } catch(e){}
+    history.replaceState(null,'',location.pathname);   // URL의 인증 파라미터 제거
+  } catch(e){
+    show('step-email');
+    alertShow('email-err','로그인에 실패했습니다. 링크가 만료되었을 수 있어요. 다시 시도해 주세요.');
+    return true;
+  }
+  return true;
+}
+
+// ── 부모 프로필 보장 + 자녀 연결 현황 ──
+async function ensureParentDoc(user){
+  const ref = doc(db,'parents',user.uid);
+  const s = await getDoc(ref);
+  if(!s.exists()){
+    await setDoc(ref, {
+      uid:user.uid, email:user.email||'', role:'parent',
+      createdAt:Timestamp.now(), lastSeen:Timestamp.now()
+    });
+  } else {
+    try { await updateDoc(ref, { lastSeen:Timestamp.now() }); } catch(e){}
+  }
+}
+
+async function myActiveChildren(uid){
+  const out = [];
+  try {
+    const q = query(collection(db,'parentLinks'), where('parentUid','==',uid), where('status','==','active'));
+    const snap = await getDocs(q);
+    snap.forEach(d => out.push(d.data()));
+  } catch(e){}
+  return out;
+}
+
+function renderChildren(children){
+  const box = $('child-list');
+  if(!children.length){ box.innerHTML=''; $('btn-go-home').style.display='none'; return; }
+  box.innerHTML = '<div style="font-size:12px;color:var(--tl);margin-bottom:8px">연결된 자녀</div>'
+    + children.map(c=>`<span class="child-chip">👦 ${c.studentName||'학생'}</span>`).join('');
+  $('btn-go-home').style.display='flex';
+}
+
+// ── STEP 4: 가입코드로 자녀 연결 ──
+window.linkChild = async function(){
+  alertHide('code-err'); alertHide('code-ok');
+  const user = auth.currentUser;
+  if(!user){ alertShow('code-err','로그인이 필요합니다.'); return; }
+  const code = $('code').value.trim().toUpperCase();
+  if(!code){ alertShow('code-err','가입코드를 입력해 주세요.'); return; }
+
+  const btn = $('btn-link'); btn.disabled = true;
+  const orig = btn.innerHTML; btn.innerHTML = '<span class="spin"></span>';
+  try {
+    const cSnap = await getDoc(doc(db,'joinCodes',code));
+    if(!cSnap.exists() || cSnap.data().active === false){
+      alertShow('code-err','유효하지 않은 코드입니다. 학교에서 받은 코드를 다시 확인해 주세요.');
+      return;
+    }
+    const cd = cSnap.data();
+    // 이미 연결됐는지 확인
+    const linkId = `${user.uid}_${cd.studentId}`;
+    const exist = await getDoc(doc(db,'parentLinks',linkId));
+    if(exist.exists() && exist.data().status === 'active'){
+      alertShow('code-ok', `${cd.studentName} 은(는) 이미 연결되어 있어요.`);
+    } else {
+      await setDoc(doc(db,'parentLinks',linkId), {
+        parentUid:user.uid, parentEmail:user.email||'',
+        studentId:cd.studentId, studentName:cd.studentName||'', org:cd.org||'',
+        status:'active', linkedVia:'code', linkedAt:Timestamp.now()
+      });
+      alertShow('code-ok', `${cd.studentName} 연결 완료!`);
+    }
+    $('code').value = '';
+    renderChildren(await myActiveChildren(user.uid));
+  } catch(e){
+    alertShow('code-err','연결에 실패했습니다: ' + (e.code || e.message));
+  } finally {
+    btn.disabled = false; btn.innerHTML = orig;
+  }
+};
+
+window.goHome = function(){ location.href = 'home.html'; };
+
+// ── 시작 ──
+(async () => {
+  const handled = await completeSignInFromLink();
+
+  onAuthStateChanged(auth, async (user) => {
+    if(user){
+      await ensureParentDoc(user);
+      const children = await myActiveChildren(user.uid);
+      if(children.length && !handled){
+        // 이미 연결된 자녀가 있는 재방문자 → 바로 홈
+        location.href = 'home.html';
+        return;
+      }
+      // 로그인은 됐지만 연결 화면을 보여줌 (신규 또는 링크 직후)
+      $('link-hello').innerHTML = children.length
+        ? '로그인되었습니다.<br>자녀를 추가하거나 홈으로 이동하세요.'
+        : '로그인되었습니다.<br>자녀를 연결해 주세요.';
+      renderChildren(children);
+      show('step-link');
+    } else {
+      if(!handled) show('step-email');
+    }
+  });
+})();
+</script>
+</body>
+</html>
