@@ -35,19 +35,24 @@ html[data-theme="dark"]{
 body{
   margin:0; min-height:100vh;
   font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
-  background:var(--sb-cream); color:var(--ink);
+  background:#B9DCF2; color:var(--ink);
   display:flex; align-items:center; justify-content:center; padding:20px;
-  -webkit-font-smoothing:antialiased;
+  -webkit-font-smoothing:antialiased; position:relative; overflow:hidden;
 }
+/* 밝은 낮 배경 (캔버스) */
+.sky{ position:fixed; inset:0; z-index:0; pointer-events:none; display:block; width:100%; height:100%; }
 .card{
-  width:100%; max-width:400px; background:var(--surface);
-  border:1px solid var(--ivd); border-radius:18px; padding:32px 26px;
-  box-shadow:0 4px 24px rgba(30,57,50,.08);
+  position:relative; z-index:2;
+  width:100%; max-width:400px;
+  background:rgba(255,255,255,0.82);
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border:1px solid rgba(94,75,139,0.18); border-radius:20px; padding:34px 28px;
+  box-shadow:0 16px 50px rgba(58,80,110,0.22);
 }
 .brand{ text-align:center; margin-bottom:24px; }
-.brand img{ width:64px; height:64px; border-radius:16px; margin-bottom:12px; }
+.brand img{ width:64px; height:64px; border-radius:16px; margin-bottom:12px; background:rgba(94,75,139,0.08); border:1px solid rgba(94,75,139,0.2); padding:4px; }
 .brand h1{ font-size:19px; font-weight:800; margin:0 0 4px; color:var(--gd); }
-.brand p{ font-size:13px; color:var(--tl); margin:0; }
+.brand p{ font-size:13px; color:var(--ts); margin:0; }
 .step{ display:none; }
 .step.on{ display:block; animation:fade .2s ease; }
 @keyframes fade{ from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
@@ -92,6 +97,7 @@ html[data-theme="dark"] .spin{ border-color:rgba(6,19,14,.35); border-top-color:
 </style>
 </head>
 <body>
+<canvas class="sky" id="skyCanvas" aria-hidden="true"></canvas>
 <div class="card">
   <div class="brand">
     <img src="logo-jihyebit.png" alt="지혜빛 선교원" onerror="this.style.display='none'">
@@ -146,6 +152,91 @@ html[data-theme="dark"] .spin{ border-color:rgba(6,19,14,.35); border-top-color:
   </div>
 </div>
 
+<script>
+(function(){try{
+
+const cv=document.getElementById('skyCanvas'); if(!cv) throw 0; const ctx=cv.getContext('2d');
+let W,H,DPR,cloudCanvas,sparkles=[];
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+const rnd=mulberry(77777);
+const perm=[];for(let i=0;i<256;i++)perm[i]=i;
+for(let i=255;i>0;i--){const j=(rnd()*(i+1))|0;const t=perm[i];perm[i]=perm[j];perm[j]=t;}
+const P=new Uint8Array(512);for(let i=0;i<512;i++)P[i]=perm[i&255];
+const fade=t=>t*t*t*(t*(t*6-15)+10),lerp=(a,b,t)=>a+t*(b-a);
+function grad(h,x,y){const u=(h&1)?x:-x,v=(h&2)?y:-y;return u+v;}
+function noise(x,y){const X=Math.floor(x)&255,Y=Math.floor(y)&255;x-=Math.floor(x);y-=Math.floor(y);const u=fade(x),v=fade(y);const a=P[X]+Y,b=P[X+1]+Y;return lerp(lerp(grad(P[a],x,y),grad(P[b],x-1,y),u),lerp(grad(P[a+1],x,y-1),grad(P[b+1],x-1,y-1),u),v);}
+function fbm(x,y){let s=0,amp=0.5,f=1;for(let i=0;i<5;i++){s+=amp*noise(x*f,y*f);f*=2;amp*=0.5;}return s;}
+
+function build(){
+  // 구름 레이어 (프랙탈, 상단)
+  const nw=Math.max(2,Math.ceil(W/4)),nh=Math.max(2,Math.ceil(H/4));
+  cloudCanvas=document.createElement('canvas');cloudCanvas.width=nw;cloudCanvas.height=nh;
+  const nc=cloudCanvas.getContext('2d'),img=nc.createImageData(nw,nh),d=img.data;
+  for(let y=0;y<nh;y++)for(let x=0;x<nw;x++){
+    const nx=x/nw,ny=y/nh;
+    // 구름은 상단 60%에만, 위로 갈수록 옅게
+    let cloud=fbm(nx*3+5,ny*3+2)*0.5+0.5;
+    cloud=Math.pow(cloud,1.8);
+    const band=Math.max(0,1-Math.abs(ny-0.28)*2.4); // 중상단에 구름대
+    let a=cloud*band;
+    a=Math.max(0,Math.min(1,(a-0.15)*1.6));
+    const i=(y*nw+x)*4;
+    d[i]=255;d[i+1]=255;d[i+2]=255;d[i+3]=a*200;
+  }
+  nc.putImageData(img,0,0);
+  // 샘물 반짝임
+  sparkles=[];const n=Math.floor(W/DPR/4);
+  for(let i=0;i<n;i++){
+    const nearSun=rnd()<0.62; const sx=nearSun?(W*0.76+(rnd()-0.5)*W*0.28):rnd()*W;
+    const yy=H*(0.65+rnd()*0.33);
+    sparkles.push({x:sx,y:yy,r:(0.7+rnd()*2.2)*DPR,ph:rnd()*Math.PI*2,sp:0.9+rnd()*2.4});
+  }
+}
+function frame(t){
+  t*=0.001;
+  // 하늘 그라데이션 (위 밝은 하늘 → 아래 물)
+  const sky=ctx.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,'#8FC4EC'); sky.addColorStop(0.32,'#B9DCF2'); sky.addColorStop(0.5,'#E8F3F9');
+  sky.addColorStop(0.6,'#EAF4EE'); sky.addColorStop(0.66,'#AEDDE8'); sky.addColorStop(0.78,'#6FC0D4'); sky.addColorStop(1,'#3FA0C4');
+  ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
+  // 태양 (우상단) + 햇무리
+  const sunX=W*0.76,sunY=H*0.2,sunR=Math.min(W,H)*0.5;
+  const halo=ctx.createRadialGradient(sunX,sunY,0,sunX,sunY,sunR);
+  halo.addColorStop(0,'rgba(255,246,210,0.98)'); halo.addColorStop(0.1,'rgba(255,235,165,0.85)');
+  halo.addColorStop(0.32,'rgba(255,228,150,0.30)'); halo.addColorStop(1,'rgba(255,228,150,0)');
+  ctx.fillStyle=halo; ctx.fillRect(0,0,W,H);
+  ctx.save(); ctx.fillStyle='#FFEFB0'; ctx.beginPath(); ctx.arc(sunX,sunY,sunR*0.13,0,7); ctx.fill();
+  ctx.fillStyle='#FFF9E0'; ctx.beginPath(); ctx.arc(sunX,sunY,sunR*0.075,0,7); ctx.fill(); ctx.restore();
+  // 구름
+  if(cloudCanvas){ ctx.imageSmoothingEnabled=true; ctx.drawImage(cloudCanvas,0,0,W,H); }
+  // 숲 실루엣 (양옆 하단) — 부드러운 언덕+나무
+  function forest(baseY,color,seedoff,scale){
+    ctx.fillStyle=color; ctx.beginPath(); ctx.moveTo(0,H);
+    for(let x=0;x<=W;x+=6*DPR){ const y=baseY+(fbm(x/W*6+seedoff,0.5)*0.5+0.5)*scale*DPR - scale*0.5*DPR; ctx.lineTo(x,y); }
+    ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
+  }
+  forest(H*0.585,'rgba(96,146,100,0.42)',3,46);
+  forest(H*0.62,'rgba(58,108,74,0.62)',12,34);
+  // 물 위 태양 반사 기둥
+  const wtop=H*0.64;
+  const refl=ctx.createLinearGradient(sunX,wtop,sunX,H);
+  refl.addColorStop(0,'rgba(255,244,200,0.7)'); refl.addColorStop(0.5,'rgba(255,240,190,0.3)'); refl.addColorStop(1,'rgba(255,240,190,0)');
+  ctx.save(); ctx.globalAlpha=0.85; ctx.fillStyle=refl;
+  ctx.beginPath(); ctx.moveTo(sunX-14*DPR,wtop); ctx.lineTo(sunX+14*DPR,wtop); ctx.lineTo(sunX+90*DPR,H); ctx.lineTo(sunX-90*DPR,H); ctx.closePath(); ctx.fill(); ctx.restore();
+  // 샘물 반짝임
+  for(const s of sparkles){
+    const tw=0.25+0.75*Math.abs(Math.sin(t*s.sp+s.ph));
+    ctx.save(); ctx.globalAlpha=tw; ctx.fillStyle='#FFFEF4';
+    ctx.beginPath(); ctx.ellipse(s.x,s.y,s.r*1.9,s.r*0.55,0,0,7); ctx.fill();
+    ctx.globalAlpha=tw*0.4; ctx.beginPath(); ctx.ellipse(s.x,s.y,s.r*4,s.r*1.1,0,0,7); ctx.fill(); ctx.restore();
+  }
+  requestAnimationFrame(frame);
+}
+function resize(){DPR=Math.min(devicePixelRatio||1,2);W=cv.width=innerWidth*DPR;H=cv.height=innerHeight*DPR;cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';build();}
+addEventListener('resize',resize);resize();requestAnimationFrame(frame);
+
+}catch(e){}})();
+</script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
