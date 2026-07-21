@@ -284,19 +284,14 @@ window.linkChild = async function(){
       return;
     }
     const cd = cSnap.data();
-    // 이미 연결됐는지 확인
+    // 연결 저장 (setDoc은 있으면 덮어쓰기 — 중복 연결도 안전)
     const linkId = `${user.uid}_${cd.studentId}`;
-    const exist = await getDoc(doc(db,'parentLinks',linkId));
-    if(exist.exists() && exist.data().status === 'active'){
-      alertShow('code-ok', `${cd.studentName} 은(는) 이미 연결되어 있어요.`);
-    } else {
-      await setDoc(doc(db,'parentLinks',linkId), {
-        parentUid:user.uid, parentEmail:user.email||'',
-        studentId:cd.studentId, studentName:cd.studentName||'', org:cd.org||'',
-        status:'active', linkedVia:'code', linkedAt:Timestamp.now()
-      });
-      alertShow('code-ok', `${cd.studentName} 연결 완료!`);
-    }
+    await setDoc(doc(db,'parentLinks',linkId), {
+      parentUid:user.uid, parentEmail:user.email||'',
+      studentId:cd.studentId, studentName:cd.studentName||'', org:cd.org||'',
+      status:'active', linkedVia:'code', linkedAt:Timestamp.now()
+    });
+    alertShow('code-ok', `${cd.studentName} 연결 완료!`);
     $('code').value = '';
     renderChildren(await myActiveChildren(user.uid));
   } catch(e){
