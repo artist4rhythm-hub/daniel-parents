@@ -35,19 +35,19 @@ html[data-theme="dark"]{
 body{
   margin:0; min-height:100vh;
   font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
-  background:#B9DCF2; color:var(--ink);
+  background:#4A4266; color:var(--ink);
   display:flex; align-items:center; justify-content:center; padding:20px;
   -webkit-font-smoothing:antialiased; position:relative; overflow:hidden;
 }
-/* 밝은 낮 배경 (캔버스) */
+/* 물안개 호수 배경 (캔버스) */
 .sky{ position:fixed; inset:0; z-index:0; pointer-events:none; display:block; width:100%; height:100%; }
 .card{
   position:relative; z-index:2;
   width:100%; max-width:400px;
-  background:rgba(255,255,255,0.82);
-  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-  border:1px solid rgba(94,75,139,0.18); border-radius:20px; padding:34px 28px;
-  box-shadow:0 16px 50px rgba(58,80,110,0.22);
+  background:rgba(255,255,255,0.88);
+  backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  border:1px solid rgba(255,255,255,0.5); border-radius:20px; padding:34px 28px;
+  box-shadow:0 18px 55px rgba(40,35,60,0.35);
 }
 .brand{ text-align:center; margin-bottom:24px; }
 .brand img{ width:64px; height:64px; border-radius:16px; margin-bottom:12px; background:rgba(94,75,139,0.08); border:1px solid rgba(94,75,139,0.2); padding:4px; }
@@ -156,80 +156,79 @@ html[data-theme="dark"] .spin{ border-color:rgba(6,19,14,.35); border-top-color:
 (function(){try{
 
 const cv=document.getElementById('skyCanvas'); if(!cv) throw 0; const ctx=cv.getContext('2d');
-let W,H,DPR,cloudCanvas,sparkles=[];
+let W,H,DPR,mist=[],ripples=[];
 function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
-const rnd=mulberry(77777);
+const rnd=mulberry(31313);
 const perm=[];for(let i=0;i<256;i++)perm[i]=i;
 for(let i=255;i>0;i--){const j=(rnd()*(i+1))|0;const t=perm[i];perm[i]=perm[j];perm[j]=t;}
 const P=new Uint8Array(512);for(let i=0;i<512;i++)P[i]=perm[i&255];
 const fade=t=>t*t*t*(t*(t*6-15)+10),lerp=(a,b,t)=>a+t*(b-a);
 function grad(h,x,y){const u=(h&1)?x:-x,v=(h&2)?y:-y;return u+v;}
-function noise(x,y){const X=Math.floor(x)&255,Y=Math.floor(y)&255;x-=Math.floor(x);y-=Math.floor(y);const u=fade(x),v=fade(y);const a=P[X]+Y,b=P[X+1]+Y;return lerp(lerp(grad(P[a],x,y),grad(P[b],x-1,y),u),lerp(grad(P[a+1],x,y-1),grad(P[b+1],x-1,y-1),u),v);}
-function fbm(x,y){let s=0,amp=0.5,f=1;for(let i=0;i<5;i++){s+=amp*noise(x*f,y*f);f*=2;amp*=0.5;}return s;}
+function vnoise(x,y){const X=Math.floor(x)&255,Y=Math.floor(y)&255;x-=Math.floor(x);y-=Math.floor(y);const u=fade(x),v=fade(y);const a=P[X]+Y,b=P[X+1]+Y;return lerp(lerp(grad(P[a],x,y),grad(P[b],x-1,y),u),lerp(grad(P[a+1],x,y-1),grad(P[b+1],x-1,y-1),u),v);}
+function fbm(x,y){let s=0,amp=0.5,f=1;for(let i=0;i<5;i++){s+=amp*vnoise(x*f,y*f);f*=2;amp*=0.5;}return s;}
 
+let hillCanvas;
 function build(){
-  // 구름 레이어 (프랙탈, 상단)
-  const nw=Math.max(2,Math.ceil(W/4)),nh=Math.max(2,Math.ceil(H/4));
-  cloudCanvas=document.createElement('canvas');cloudCanvas.width=nw;cloudCanvas.height=nh;
-  const nc=cloudCanvas.getContext('2d'),img=nc.createImageData(nw,nh),d=img.data;
-  for(let y=0;y<nh;y++)for(let x=0;x<nw;x++){
-    const nx=x/nw,ny=y/nh;
-    // 구름은 상단 60%에만, 위로 갈수록 옅게
-    let cloud=fbm(nx*3+5,ny*3+2)*0.5+0.5;
-    cloud=Math.pow(cloud,1.8);
-    const band=Math.max(0,1-Math.abs(ny-0.28)*2.4); // 중상단에 구름대
-    let a=cloud*band;
-    a=Math.max(0,Math.min(1,(a-0.15)*1.6));
-    const i=(y*nw+x)*4;
-    d[i]=255;d[i+1]=255;d[i+2]=255;d[i+3]=a*200;
+  // 안개 층 (여러 겹, 부드러운 타원 띠)
+  mist=[];
+  for(let i=0;i<7;i++){
+    mist.push({ y:H*(0.30+i*0.055+rnd()*0.02), x:rnd()*W, w:W*(0.5+rnd()*0.6), h:H*(0.04+rnd()*0.05),
+      a:0.05+rnd()*0.09, sp:(0.4+rnd()*0.6)*(rnd()<0.5?1:-1), ph:rnd()*1000 });
   }
-  nc.putImageData(img,0,0);
-  // 샘물 반짝임
-  sparkles=[];const n=Math.floor(W/DPR/4);
+  // 수면 잔물결 빛
+  ripples=[];
+  const n=Math.floor(W/DPR/10);
   for(let i=0;i<n;i++){
-    const nearSun=rnd()<0.62; const sx=nearSun?(W*0.76+(rnd()-0.5)*W*0.28):rnd()*W;
-    const yy=H*(0.65+rnd()*0.33);
-    sparkles.push({x:sx,y:yy,r:(0.7+rnd()*2.2)*DPR,ph:rnd()*Math.PI*2,sp:0.9+rnd()*2.4});
+    ripples.push({ x:rnd()*W, y:H*(0.6+rnd()*0.38), w:(8+rnd()*40)*DPR, ph:rnd()*Math.PI*2, sp:0.4+rnd()*1.1 });
   }
+  // 먼 산 실루엣 (안개에 잠긴)
+  const hw=Math.max(2,Math.ceil(W)), hh=Math.max(2,Math.ceil(H));
+  hillCanvas=document.createElement('canvas'); hillCanvas.width=hw; hillCanvas.height=hh;
+  const hc=hillCanvas.getContext('2d');
+  function hill(baseY,amp,seed,col,alpha){
+    hc.fillStyle=col; hc.globalAlpha=alpha; hc.beginPath(); hc.moveTo(0,hh);
+    for(let x=0;x<=hw;x+=4){ const y=baseY+(fbm(x/hw*5+seed,0.3)*0.5+0.5)*amp-amp*0.5; hc.lineTo(x,y); }
+    hc.lineTo(hw,hh); hc.closePath(); hc.fill();
+  }
+  hill(H*0.44,H*0.06,2,'#3E3A5E',0.5);
+  hill(H*0.48,H*0.05,9,'#35324F',0.55);
+  hc.globalAlpha=1;
 }
+
 function frame(t){
   t*=0.001;
-  // 하늘 그라데이션 (위 밝은 하늘 → 아래 물)
-  const sky=ctx.createLinearGradient(0,0,0,H);
-  sky.addColorStop(0,'#8FC4EC'); sky.addColorStop(0.32,'#B9DCF2'); sky.addColorStop(0.5,'#E8F3F9');
-  sky.addColorStop(0.6,'#EAF4EE'); sky.addColorStop(0.66,'#AEDDE8'); sky.addColorStop(0.78,'#6FC0D4'); sky.addColorStop(1,'#3FA0C4');
-  ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
-  // 태양 (우상단) + 햇무리
-  const sunX=W*0.76,sunY=H*0.2,sunR=Math.min(W,H)*0.5;
-  const halo=ctx.createRadialGradient(sunX,sunY,0,sunX,sunY,sunR);
-  halo.addColorStop(0,'rgba(255,246,210,0.98)'); halo.addColorStop(0.1,'rgba(255,235,165,0.85)');
-  halo.addColorStop(0.32,'rgba(255,228,150,0.30)'); halo.addColorStop(1,'rgba(255,228,150,0)');
-  ctx.fillStyle=halo; ctx.fillRect(0,0,W,H);
-  ctx.save(); ctx.fillStyle='#FFEFB0'; ctx.beginPath(); ctx.arc(sunX,sunY,sunR*0.13,0,7); ctx.fill();
-  ctx.fillStyle='#FFF9E0'; ctx.beginPath(); ctx.arc(sunX,sunY,sunR*0.075,0,7); ctx.fill(); ctx.restore();
-  // 구름
-  if(cloudCanvas){ ctx.imageSmoothingEnabled=true; ctx.drawImage(cloudCanvas,0,0,W,H); }
-  // 숲 실루엣 (양옆 하단) — 부드러운 언덕+나무
-  function forest(baseY,color,seedoff,scale){
-    ctx.fillStyle=color; ctx.beginPath(); ctx.moveTo(0,H);
-    for(let x=0;x<=W;x+=6*DPR){ const y=baseY+(fbm(x/W*6+seedoff,0.5)*0.5+0.5)*scale*DPR - scale*0.5*DPR; ctx.lineTo(x,y); }
-    ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
+  // 여명 보랏빛 하늘 → 호수
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#3A3557'); g.addColorStop(0.28,'#4A4266'); g.addColorStop(0.46,'#6E6488');
+  g.addColorStop(0.54,'#8B7FA0'); g.addColorStop(0.6,'#7C7392'); g.addColorStop(0.72,'#5A5473'); g.addColorStop(1,'#3C3852');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  // 여명 빛무리 (수평선 부근, 은은한 따뜻함)
+  const dawn=ctx.createRadialGradient(W*0.5,H*0.54,0,W*0.5,H*0.54,W*0.6);
+  dawn.addColorStop(0,'rgba(230,210,225,0.30)'); dawn.addColorStop(0.4,'rgba(210,195,220,0.10)'); dawn.addColorStop(1,'rgba(210,195,220,0)');
+  ctx.fillStyle=dawn; ctx.fillRect(0,0,W,H);
+  // 먼 산 (수평선 위)
+  if(hillCanvas) ctx.drawImage(hillCanvas,0,0,W,H);
+  // 산의 물 반영 (뒤집힌 흐릿한 띠)
+  ctx.save(); ctx.globalAlpha=0.18; ctx.translate(0,H*1.08); ctx.scale(1,-0.5);
+  if(hillCanvas) ctx.drawImage(hillCanvas,0,0,W,H); ctx.restore();
+  // 수면 잔물결 빛
+  for(const r of ripples){
+    const tw=0.2+0.5*Math.abs(Math.sin(t*r.sp+r.ph));
+    ctx.save(); ctx.globalAlpha=tw*0.28; ctx.strokeStyle='rgba(220,212,232,1)'; ctx.lineWidth=1*DPR;
+    ctx.beginPath(); ctx.moveTo(r.x-r.w/2,r.y); ctx.lineTo(r.x+r.w/2,r.y); ctx.stroke(); ctx.restore();
   }
-  forest(H*0.585,'rgba(96,146,100,0.42)',3,46);
-  forest(H*0.62,'rgba(58,108,74,0.62)',12,34);
-  // 물 위 태양 반사 기둥
-  const wtop=H*0.64;
-  const refl=ctx.createLinearGradient(sunX,wtop,sunX,H);
-  refl.addColorStop(0,'rgba(255,244,200,0.7)'); refl.addColorStop(0.5,'rgba(255,240,190,0.3)'); refl.addColorStop(1,'rgba(255,240,190,0)');
-  ctx.save(); ctx.globalAlpha=0.85; ctx.fillStyle=refl;
-  ctx.beginPath(); ctx.moveTo(sunX-14*DPR,wtop); ctx.lineTo(sunX+14*DPR,wtop); ctx.lineTo(sunX+90*DPR,H); ctx.lineTo(sunX-90*DPR,H); ctx.closePath(); ctx.fill(); ctx.restore();
-  // 샘물 반짝임
-  for(const s of sparkles){
-    const tw=0.25+0.75*Math.abs(Math.sin(t*s.sp+s.ph));
-    ctx.save(); ctx.globalAlpha=tw; ctx.fillStyle='#FFFEF4';
-    ctx.beginPath(); ctx.ellipse(s.x,s.y,s.r*1.9,s.r*0.55,0,0,7); ctx.fill();
-    ctx.globalAlpha=tw*0.4; ctx.beginPath(); ctx.ellipse(s.x,s.y,s.r*4,s.r*1.1,0,0,7); ctx.fill(); ctx.restore();
+  // 안개 층 (부드럽게 흐르는)
+  for(const m of mist){
+    const mx=m.x+Math.sin(t*0.1*m.sp+m.ph)*W*0.04;
+    const grd=ctx.createRadialGradient(mx,m.y,0,mx,m.y,m.w);
+    grd.addColorStop(0,'rgba(226,222,236,'+m.a+')'); grd.addColorStop(0.6,'rgba(220,216,232,'+(m.a*0.5)+')'); grd.addColorStop(1,'rgba(220,216,232,0)');
+    ctx.save(); ctx.fillStyle=grd;
+    ctx.beginPath(); ctx.ellipse(mx,m.y,m.w,m.h,0,0,7); ctx.fill(); ctx.restore();
   }
+  // 하단 물안개 (전경, 더 짙게)
+  const fog=ctx.createLinearGradient(0,H*0.72,0,H);
+  fog.addColorStop(0,'rgba(210,205,226,0)'); fog.addColorStop(1,'rgba(200,196,220,0.22)');
+  ctx.fillStyle=fog; ctx.fillRect(0,H*0.7,W,H*0.3);
   requestAnimationFrame(frame);
 }
 function resize(){DPR=Math.min(devicePixelRatio||1,2);W=cv.width=innerWidth*DPR;H=cv.height=innerHeight*DPR;cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';build();}
