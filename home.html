@@ -160,7 +160,7 @@ function renderMenu(){
     mi(`board.html?org=${ORG}&scope=class`, '💬', '우리 반 게시판',
        hasClass ? '같은 반 학부모·담임 선생님과 소통해요' : '반 연결 후 이용할 수 있어요 (담임께 새 가입 코드를 받아 자녀를 다시 연결)')
     + mi(`board.html?org=${ORG}&scope=org`, '📢', `${ORG==='jihyebit'?'선교원':'아마츠'} 전체 게시판`, '기관 전체 학부모와 함께 소통해요')
-    + mi(`${GYOSA}/share-family.html`, '📨', '가정통신문', '학교에서 보낸 안내장을 모아 봐요')
+    + mi(`${GYOSA}/share-family.html?org=${ORG}`, '📨', '가정통신문', '학교에서 보낸 안내장을 모아 봐요')
     + (L.academic ? mi(L.academic, '📅', '학사일정', '방학·행사 등 학교 일정을 확인해요') : off('📅','학사일정','학교에서 링크를 연결하면 열려요'))
     + (L.timetable ? mi(L.timetable, '🗓', '시간표', '우리 아이 시간표를 확인해요') : off('🗓','시간표','학교에서 링크를 연결하면 열려요'))
     + mi(`${GYOSA}/parent-expense.html`, '💳', '환급 계좌', '경비 환급 받을 계좌를 등록해요');
