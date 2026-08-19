@@ -222,7 +222,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getAuth, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
          onAuthStateChanged, setPersistence, browserLocalPersistence }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs,
+import { getFirestore, initializeFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs,
          addDoc, Timestamp }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
@@ -237,7 +237,7 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true })   /* 🔌 막히는 네트워크 자동 우회 */;
 setPersistence(auth, browserLocalPersistence).catch(()=>{});
 
 const EMAIL_KEY = 'gyosa_parent_email';
