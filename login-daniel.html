@@ -360,8 +360,11 @@ window.linkChild = async function(){
     await setDoc(doc(db,'parentLinks',linkId), {
       parentUid:user.uid, parentEmail:user.email||'',
       studentId:cd.studentId, studentName:cd.studentName||'', org:cd.org||'',
+      grade:cd.grade||'', className:cd.className||'',   // 👨‍👩‍👧 반별 게시판용
       status:'active', linkedVia:'code', linkedAt:Timestamp.now()
     });
+    // 내 프로필에 기관 기록 (게시판 읽기 권한용)
+    try { await updateDoc(doc(db,'parents',user.uid), { orgs: arrayUnion(cd.org||'') }); } catch(e){}
     alertShow('code-ok', `${cd.studentName} 연결 완료!`);
     $('code').value = '';
     renderChildren(await myActiveChildren(user.uid));

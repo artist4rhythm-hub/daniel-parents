@@ -293,8 +293,10 @@ window.linkChild = async function(){
       await setDoc(doc(db,'parentLinks',linkId), {
         parentUid:user.uid, parentEmail:user.email||'',
         studentId:cd.studentId, studentName:cd.studentName||'', org:cd.org||'',
+        grade:cd.grade||'', className:cd.className||'',
         status:'active', linkedVia:'code', linkedAt:Timestamp.now()
       });
+      try { await updateDoc(doc(db,'parents',user.uid), { orgs: arrayUnion(cd.org||'') }); } catch(e){}
       alertShow('code-ok', `${cd.studentName} 연결 완료!`);
     }
     $('code').value = '';

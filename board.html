@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>학부모 게시판 · 교사 선교사</title>
+<style>
+:root{
+  --pt:#0C2A44; --pt-h:#071E31;
+  --mint:#D4E9E2; --mint2:#E8F3EF; --cream:#F2F0EB;
+  --white:#fff; --line:#E3E1DA;
+  --ink:#1F2320; --ink2:#5A6560; --ink3:#93A09A;
+  --gold:#8A6410; --gold-bg:#F7EFD8;
+  --ok:#16A34A; --ok-bg:#DCFCE7; --danger:#C0392B; --danger-bg:#FDECEA;
+}
+body.org-jihyebit{ --pt:#332A5E; --pt-h:#4A3A70; }
+*{box-sizing:border-box;margin:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+  background:var(--cream);color:var(--ink);font-size:15px;min-height:100vh}
+.top{background:var(--pt);color:#fff;padding:16px;transition:background .3s}
+.top-in{max-width:640px;margin:0 auto;display:flex;align-items:center;gap:10px}
+.back{color:#fff;text-decoration:none;font-size:19px;padding:2px 6px}
+.top-t{font-size:16px;font-weight:900;flex:1}
+.top-t small{display:block;font-size:11px;font-weight:600;opacity:.75;margin-top:1px}
+.wrap{max-width:640px;margin:0 auto;padding:14px 14px 60px}
+.tabs{display:flex;gap:7px;margin-bottom:12px;overflow-x:auto}
+.tab{padding:9px 15px;border-radius:100px;border:1.5px solid var(--line);background:var(--white);
+  font-size:13px;font-weight:800;color:var(--ink2);cursor:pointer;font-family:inherit;white-space:nowrap}
+.tab.on{background:var(--pt);border-color:var(--pt);color:#fff}
+.card{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:14px;
+  box-shadow:0 1px 6px rgba(0,0,0,.04);margin-bottom:11px}
+/* 글쓰기 */
+.wr input,.wr textarea,.wr select{width:100%;border:1.5px solid var(--line);border-radius:10px;
+  padding:11px 12px;font-size:14px;font-family:inherit;outline:none;background:var(--white)}
+.wr input:focus,.wr textarea:focus{border-color:var(--pt)}
+.wr textarea{min-height:92px;resize:vertical;margin-top:8px;line-height:1.6}
+.wr-row{display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap}
+.wr-row select{width:auto;flex:1;min-width:150px;font-size:12.5px;padding:9px 10px}
+.bp{background:var(--pt);color:#fff;border:none;border-radius:10px;padding:10px 18px;
+  font-size:13.5px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap}
+.bp:disabled{opacity:.5}
+.alert{border-radius:10px;padding:10px 12px;font-size:12.5px;font-weight:700;margin-top:8px;display:none;line-height:1.6;word-break:keep-all}
+.alert.err{display:block;background:var(--danger-bg);color:var(--danger)}
+.alert.ok{display:block;background:var(--ok-bg);color:var(--ok)}
+/* 글 */
+.post-h{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.post-t{font-size:14.5px;font-weight:900;color:var(--ink);flex:1;min-width:0;word-break:keep-all}
+.post-pin{font-size:9.5px;font-weight:900;color:var(--gold);background:var(--gold-bg);border-radius:100px;padding:2px 8px}
+.post-meta{font-size:11px;color:var(--ink3);margin-top:3px}
+.post-meta b{color:var(--pt);font-weight:800}
+.post-b{font-size:13.5px;line-height:1.75;margin-top:9px;white-space:pre-wrap;word-break:break-word}
+.post-ft{display:flex;gap:10px;margin-top:10px;align-items:center}
+.pbtn{background:none;border:none;font-size:11.5px;font-weight:700;color:var(--ink3);cursor:pointer;font-family:inherit;padding:3px 4px}
+.pbtn:hover{color:var(--pt)}
+/* 댓글 */
+.cmts{margin-top:10px;border-top:1px solid var(--mint2);padding-top:9px;display:none}
+.cmts.open{display:block}
+.cmt{padding:7px 0;border-bottom:1px solid var(--cream)}
+.cmt-m{font-size:10.5px;color:var(--ink3)}
+.cmt-m b{color:var(--pt)}
+.cmt-b{font-size:13px;line-height:1.6;margin-top:2px;white-space:pre-wrap;word-break:break-word}
+.cmt-in{display:flex;gap:7px;margin-top:8px}
+.cmt-in input{flex:1;border:1.5px solid var(--line);border-radius:9px;padding:9px 11px;font-size:13px;font-family:inherit;outline:none}
+.bs{background:var(--mint2);color:var(--pt);border:1px solid var(--mint);border-radius:9px;
+  padding:9px 13px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap}
+.empty{text-align:center;padding:44px 0;color:var(--ink3);font-size:13px;line-height:1.8}
+.load{text-align:center;padding:70px 0;color:var(--ink3);font-size:13px}
+.notice{background:var(--mint2);border:1px solid var(--mint);border-radius:11px;padding:10px 13px;
+  font-size:11.5px;color:var(--pt);line-height:1.65;margin-bottom:12px;word-break:keep-all}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-in">
+  <a class="back" href="home.html">←</a>
+  <div class="top-t" id="hd-t">게시판<small id="hd-s"></small></div>
+</div></div>
+
+<div class="wrap">
+  <div id="loading" class="load">불러오는 중…</div>
+  <div id="main" style="display:none">
+    <div class="tabs" id="tabs"></div>
+    <div class="notice">💬 서로를 존중하는 고운 말로 소통해 주세요. 비방·욕설이 담긴 글은 등록되지 않으며,
+      학교가 필요 시 글을 관리할 수 있습니다.</div>
+
+    <div class="card wr" id="writer">
+      <input id="w-title" placeholder="제목" maxlength="60">
+      <textarea id="w-body" placeholder="내용을 입력해 주세요" maxlength="2000"></textarea>
+      <div class="wr-row">
+        <select id="w-child"></select>
+        <button class="bp" id="w-go" onclick="submitPost()">글 올리기</button>
+      </div>
+      <div class="alert" id="w-msg"></div>
+    </div>
+
+    <div id="posts"></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, getDoc, updateDoc, addDoc, deleteDoc, collection, query, where, getDocs, Timestamp }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCtgr79jKqkec6HwqkxYNxSubWAhfEkM7g",
+  authDomain: "daniel-amatz.firebaseapp.com",
+  projectId: "daniel-amatz",
+  storageBucket: "daniel-amatz.firebasestorage.app",
+  messagingSenderId: "455744290312",
+  appId: "1:455744290312:web:3ce7e7d3e58f6f1d185bbd"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const $ = id => document.getElementById(id);
+const esc = t => String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const qs = new URLSearchParams(location.search);
+const ORG = qs.get('org')==='jihyebit' ? 'jihyebit' : 'daniel';
+const SCOPE = qs.get('scope')==='class' ? 'class' : 'org';
+const ORG_L = { daniel:'다니엘 아마츠', jihyebit:'지혜빛 선교원' };
+document.body.classList.toggle('org-jihyebit', ORG==='jihyebit');
+
+let ME=null, LINKS=[], CLASSKEY='', POSTS=[], CMTS={};
+
+/* ═══ 🚫 고운 말 필터 ═══
+   기본 금칙어 + 학교가 parentConfig/badwords {words:[…]}에 추가한 단어를 함께 검사.
+   공백·기호·숫자를 끼워 넣은 변형(예: "바!보")도 잡습니다. */
+const BAD_BASE = ['씨발','시발','씨팔','시팔','씨빨','ㅆㅂ','ㅅㅂ','병신','ㅂㅅ','ㅄ','지랄','ㅈㄹ',
+  '개새끼','개새기','새끼','썅','좆','좇','니미','느금','미친놈','미친년','또라이','돌아이',
+  '엿먹','꺼져','닥쳐','죽어버려','죽여버린','쓰레기같','한심한것','멍청한것','fuck','fucking','shit','bitch'];
+let BAD = [...BAD_BASE];
+const norm = s => String(s||'').toLowerCase().replace(/[\s\d~!@#$%^&*()_\-+=\[\]{};:'",.<>/?\\|·ㆍ‥…♥♡★☆]/g,'');
+function findBad(text){
+  const n = norm(text);
+  for(const w of BAD){ const nw = norm(w); if(nw && n.includes(nw)) return w; }
+  return null;
+}
+const mask = w => w.length<=1 ? '＊' : w[0] + '＊'.repeat(Math.max(1, w.length-1));
+
+const fmt = ts => { if(!ts?.seconds) return ''; const d=new Date(ts.seconds*1000);
+  const p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}.${p(d.getMonth()+1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+
+function myClassKids(){ return LINKS.filter(l=>(l.org||'daniel')===ORG && l.className); }
+function kidLabel(k){ return `${k.grade?esc(k.grade)+' ':''}${esc(k.studentName||'학생')}`; }
+
+function renderTabs(){
+  if(SCOPE==='org'){
+    $('hd-t').childNodes[0].textContent = '📢 전체 게시판';
+    $('hd-s').textContent = ORG_L[ORG];
+    $('tabs').style.display='none';
+    return;
+  }
+  const kids = myClassKids();
+  const keys = [...new Set(kids.map(k=>k.className))];
+  $('hd-t').childNodes[0].textContent = '💬 우리 반 게시판';
+  $('hd-s').textContent = ORG_L[ORG];
+  if(!keys.length){ $('tabs').style.display='none'; return; }
+  if(!CLASSKEY) CLASSKEY = keys[0];
+  $('tabs').innerHTML = keys.map(k=>{
+    const g = kids.find(x=>x.className===k)?.grade || '';
+    return `<button class="tab ${k===CLASSKEY?'on':''}" onclick="pickClass('${esc(k)}')">${g?esc(g)+' · ':''}${esc(k)}</button>`;
+  }).join('');
+  $('tabs').style.display = keys.length>1 ? 'flex' : 'none';
+}
+window.pickClass = k => { CLASSKEY=k; renderTabs(); loadPosts(); };
+
+function renderChildSelect(){
+  const kids = LINKS.filter(l=>(l.org||'daniel')===ORG);
+  $('w-child').innerHTML = kids.map((k,i)=>
+    `<option value="${i}">✍️ ${kidLabel(k)} 학부모로 쓰기</option>`).join('');
+}
+
+async function loadPosts(){
+  $('posts').innerHTML = '<div class="load">글을 불러오는 중…</div>';
+  try{
+    const conds = [where('org','==',ORG), where('scope','==',SCOPE)];
+    if(SCOPE==='class') conds.push(where('classKey','==',CLASSKEY));
+    const snap = await getDocs(query(collection(db,'parentPosts'), ...conds));
+    POSTS = []; snap.forEach(d=>POSTS.push({id:d.id, ...d.data()}));
+    POSTS.sort((a,b)=> (b.pinned?1:0)-(a.pinned?1:0) || (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    renderPosts();
+  }catch(e){
+    $('posts').innerHTML = `<div class="empty">글을 불러오지 못했습니다.<br><small>${esc(e.message||'')}</small></div>`;
+  }
+}
+
+function renderPosts(){
+  if(!POSTS.length){
+    $('posts').innerHTML = `<div class="empty">아직 글이 없어요.<br>첫 이야기를 남겨 보세요 ☺️</div>`;
+    return;
+  }
+  $('posts').innerHTML = POSTS.map(p=>`
+    <div class="card" id="post-${p.id}">
+      <div class="post-h">
+        ${p.pinned?'<span class="post-pin">📌 공지</span>':''}
+        <div class="post-t">${esc(p.title)}</div>
+      </div>
+      <div class="post-meta"><b>${esc(p.authorName||'학부모')}</b>${p.childLabel?` · ${esc(p.childLabel)} 학부모`:''}${p.byStaff?' · <b style="color:var(--gold)">선생님</b>':''} · ${fmt(p.createdAt)}</div>
+      <div class="post-b">${esc(p.body)}</div>
+      <div class="post-ft">
+        <button class="pbtn" onclick="toggleCmts('${p.id}')">💬 댓글 ${p.commentCount||0}</button>
+        ${p.authorUid===auth.currentUser?.uid?`<button class="pbtn" onclick="delPost('${p.id}')">지우기</button>`:''}
+      </div>
+      <div class="cmts" id="cmts-${p.id}">
+        <div id="cmt-list-${p.id}"></div>
+        <div class="cmt-in">
+          <input id="cmt-in-${p.id}" placeholder="따뜻한 댓글을 남겨 주세요" maxlength="500">
+          <button class="bs" onclick="submitCmt('${p.id}')">등록</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+window.toggleCmts = async (pid)=>{
+  const box = $('cmts-'+pid);
+  box.classList.toggle('open');
+  if(box.classList.contains('open') && !CMTS[pid]) await loadCmts(pid);
+};
+async function loadCmts(pid){
+  const list = $('cmt-list-'+pid);
+  list.innerHTML = '<div style="font-size:11px;color:var(--ink3);padding:6px 0">불러오는 중…</div>';
+  try{
+    const snap = await getDocs(query(collection(db,'parentComments'), where('postId','==',pid)));
+    const arr=[]; snap.forEach(d=>arr.push({id:d.id, ...d.data()}));
+    arr.sort((a,b)=>(a.createdAt?.seconds||0)-(b.createdAt?.seconds||0));
+    CMTS[pid]=arr; renderCmts(pid);
+  }catch(e){ list.innerHTML = `<div style="font-size:11px;color:var(--danger)">댓글을 불러오지 못했어요.</div>`; }
+}
+function renderCmts(pid){
+  const arr = CMTS[pid]||[];
+  $('cmt-list-'+pid).innerHTML = arr.map(c=>`
+    <div class="cmt">
+      <div class="cmt-m"><b>${esc(c.authorName||'학부모')}</b>${c.childLabel?` · ${esc(c.childLabel)} 학부모`:''} · ${fmt(c.createdAt)}
+        ${c.authorUid===auth.currentUser?.uid?` <button class="pbtn" style="padding:0 3px" onclick="delCmt('${pid}','${c.id}')">지우기</button>`:''}</div>
+      <div class="cmt-b">${esc(c.body)}</div>
+    </div>`).join('') || '<div style="font-size:11px;color:var(--ink3);padding:4px 0">첫 댓글을 남겨 보세요.</div>';
+}
+
+function authorBits(){
+  const kids = LINKS.filter(l=>(l.org||'daniel')===ORG);
+  const k = kids[Number($('w-child')?.value||0)] || kids[0] || {};
+  return {
+    authorUid: auth.currentUser.uid,
+    authorName: ME.name || '학부모',
+    childLabel: k.studentName ? `${k.grade?k.grade+' ':''}${k.studentName}` : '',
+    childStudentId: k.studentId || '',
+    linkId: k.studentId ? `${auth.currentUser.uid}_${k.studentId}` : ''
+  };
+}
+
+window.submitPost = async ()=>{
+  const msg=$('w-msg'); msg.className='alert';
+  const title=$('w-title').value.trim(), body=$('w-body').value.trim();
+  if(!ME.name){ msg.className='alert err'; msg.textContent='먼저 홈 화면에서 보호자 성함을 등록해 주세요.'; return; }
+  if(!title || !body){ msg.className='alert err'; msg.textContent='제목과 내용을 입력해 주세요.'; return; }
+  const bad = findBad(title+' '+body);
+  if(bad){ msg.className='alert err';
+    msg.textContent=`🙏 고운 말을 부탁드려요 — 「${mask(bad)}」이(가) 포함된 글은 올릴 수 없어요.`; return; }
+  if(SCOPE==='class' && !CLASSKEY){ msg.className='alert err'; msg.textContent='반 정보가 연결된 자녀가 없어요 — 담임께 새 가입 코드를 받아 다시 연결해 주세요.'; return; }
+  const btn=$('w-go'); btn.disabled=true;
+  try{
+    const a = authorBits();
+    await addDoc(collection(db,'parentPosts'), {
+      org: ORG, scope: SCOPE, classKey: SCOPE==='class'?CLASSKEY:'',
+      title, body, ...a,
+      pinned:false, byStaff:false, commentCount:0, createdAt: Timestamp.now()
+    });
+    $('w-title').value=''; $('w-body').value='';
+    msg.className='alert ok'; msg.textContent='올렸습니다 ✓';
+    setTimeout(()=>{ msg.className='alert'; }, 1500);
+    await loadPosts();
+  }catch(e){ msg.className='alert err'; msg.textContent='올리지 못했습니다: '+(e.message||''); }
+  finally{ btn.disabled=false; }
+};
+
+window.submitCmt = async (pid)=>{
+  const inp=$('cmt-in-'+pid); const body=(inp.value||'').trim();
+  if(!body) return;
+  const bad = findBad(body);
+  if(bad){ inp.value=''; inp.placeholder=`🙏 고운 말을 부탁드려요 — 「${mask(bad)}」은(는) 쓸 수 없어요`; return; }
+  try{
+    const a = authorBits();
+    const p = POSTS.find(x=>x.id===pid);
+    await addDoc(collection(db,'parentComments'), {
+      postId: pid, org: ORG, body, ...a, createdAt: Timestamp.now()
+    });
+    try{ await updateDoc(doc(db,'parentPosts',pid), { commentCount:(p?.commentCount||0)+1 }); }catch(e){}
+    inp.value=''; delete CMTS[pid]; await loadCmts(pid);
+    if(p){ p.commentCount=(p.commentCount||0)+1; }
+    const btn = document.querySelector(`#post-${pid} .pbtn`); if(btn) btn.textContent=`💬 댓글 ${p?.commentCount||1}`;
+  }catch(e){ inp.placeholder='등록하지 못했어요: '+(e.message||''); inp.value=''; }
+};
+
+window.delPost = async (pid)=>{
+  if(!confirm('이 글을 지울까요?')) return;
+  try{ await deleteDoc(doc(db,'parentPosts',pid)); await loadPosts(); }
+  catch(e){ alert('지우지 못했습니다: '+(e.message||'')); }
+};
+window.delCmt = async (pid, cid)=>{
+  if(!confirm('이 댓글을 지울까요?')) return;
+  try{
+    await deleteDoc(doc(db,'parentComments',cid));
+    const p=POSTS.find(x=>x.id===pid);
+    try{ await updateDoc(doc(db,'parentPosts',pid), { commentCount: Math.max(0,(p?.commentCount||1)-1) }); }catch(e){}
+    delete CMTS[pid]; await loadCmts(pid);
+  }catch(e){ alert('지우지 못했습니다: '+(e.message||'')); }
+};
+
+onAuthStateChanged(auth, async (user)=>{
+  if(!user){ location.href='login.html'; return; }
+  try{
+    const ps = await getDoc(doc(db,'parents',user.uid));
+    ME = ps.exists()? ps.data() : {};
+    const snap = await getDocs(query(collection(db,'parentLinks'),
+      where('parentUid','==',user.uid), where('status','==','active')));
+    LINKS=[]; snap.forEach(d=>LINKS.push(d.data()));
+    if(!LINKS.some(l=>(l.org||'daniel')===ORG)){ location.href='home.html'; return; }
+
+    // 학교가 추가한 금칙어 불러오기
+    try{ const bw = await getDoc(doc(db,'parentConfig','badwords'));
+      if(bw.exists() && Array.isArray(bw.data().words)) BAD = [...BAD_BASE, ...bw.data().words]; }catch(e){}
+
+    renderTabs(); renderChildSelect();
+    $('loading').style.display='none'; $('main').style.display='';
+    if(SCOPE==='class' && !myClassKids().length){
+      $('writer').style.display='none';
+      $('posts').innerHTML = `<div class="empty">아직 반 정보가 연결된 자녀가 없어요.<br>
+        담임 선생님께 <b>새 가입 코드</b>를 받아 자녀를 다시 연결하면<br>우리 반 게시판이 열립니다 ☺️</div>`;
+      return;
+    }
+    await loadPosts();
+  }catch(e){ $('loading').textContent='불러오지 못했습니다: '+(e.message||''); }
+});
+</script>
+</body>
+</html>
