@@ -355,6 +355,11 @@ window.linkChild = async function(){
       return;
     }
     const cd = cSnap.data();
+    // 🔒 기관 확인 — 다니엘 아마츠 코드만 이 입구에서 연결할 수 있다
+    if((cd.org||'daniel') !== 'daniel'){
+      alertShow('code-err','이 코드는 다니엘 아마츠 코드가 아닙니다. 지혜빛 선교원 학부모 페이지에서 연결해 주세요.');
+      return;
+    }
     // 연결 저장 (setDoc은 있으면 덮어쓰기 — 중복 연결도 안전)
     const linkId = `${user.uid}_${cd.studentId}`;
     await setDoc(doc(db,'parentLinks',linkId), {
