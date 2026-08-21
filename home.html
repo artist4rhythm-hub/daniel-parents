@@ -132,6 +132,7 @@ window.logout = async () => { await signOut(auth); location.href='login.html'; }
 
 window.setOrg = (o) => {
   ORG = o;
+  try{ localStorage.setItem('parent_org', o); }catch(e){}   // 진입 기관 기억 갱신
   document.body.classList.toggle('org-jihyebit', o==='jihyebit');
   document.querySelectorAll('.orgtab').forEach(b=>b.classList.toggle('on', b.dataset.org===o));
   $('hd-s').textContent = ORG_L[o] || '교사 선교사';
@@ -188,7 +189,13 @@ onAuthStateChanged(auth, async (user)=>{
     const snap = await getDocs(query(collection(db,'parentLinks'),
       where('parentUid','==',user.uid), where('status','==','active')));
     LINKS = []; snap.forEach(d=>LINKS.push(d.data()));
-    if(!LINKS.length){ location.href='login.html'; return; }   // 자녀 미연결 → 연결 화면으로
+    if(!LINKS.length){
+      // 자녀 미연결 → 자기 기관 연결 화면으로 (기관 기억이 없으면 갈림길)
+      let po=null; try{ po=localStorage.getItem('parent_org'); }catch(e){}
+      location.href = po==='jihyebit' ? 'login-jihyebit.html'
+                    : po==='daniel'   ? 'login-daniel.html' : 'index.html';
+      return;
+    }
 
     // 내 프로필에 기관 목록 보정 (게시판 읽기 권한용)
     const orgs = [...new Set(LINKS.map(l=>l.org||'daniel'))];
@@ -199,9 +206,11 @@ onAuthStateChanged(auth, async (user)=>{
       try{ const ls = await getDoc(doc(db,'parentConfig','links_'+o)); if(ls.exists()) PLINKS[o]=ls.data(); }catch(e){}
     }
 
-    // 기관 탭 (두 기관 자녀가 있을 때만)
+    // 기관 탭 (두 기관 자녀가 있을 때만 — 그 외에는 타 기관 흔적이 보이지 않음)
     if(orgs.length>1) $('orgtabs').classList.add('show');
-    setOrg(orgs.includes('daniel') ? 'daniel' : orgs[0]);
+    // 시작 기관: 들어온 입구(기관 기억) 최우선 → 없으면 자녀 기관
+    let po=null; try{ po=localStorage.getItem('parent_org'); }catch(e){}
+    setOrg(orgs.includes(po) ? po : orgs[0]);
 
     if(!ME.name) $('name-card').style.display='';
     $('loading').style.display='none';
