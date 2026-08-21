@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>학부모 서비스</title>
+<meta name="theme-color" content="#3A4148">
+<style>
+:root{
+  --daniel:#0C2A44; --daniel-h:#071E31; --daniel-soft:#E4EAEC;
+  --jihye:#5E4B8B; --jihye-d:#332A5E; --jihye-soft:#EAE6F4;
+  --bg:#F2F3F5; --ink:#2A3138; --ts:#6A737B; --wh:#fff; --line:#E0E4E8;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+  background:var(--bg);color:var(--ink);min-height:100vh;display:flex;
+  align-items:center;justify-content:center;padding:24px;word-break:keep-all}
+.card{width:100%;max-width:460px;text-align:center}
+h1{font-size:21px;font-weight:900;letter-spacing:-.3px}
+.d{font-size:13px;color:var(--ts);margin:8px 0 26px;line-height:1.7}
+.orgs{display:flex;flex-direction:column;gap:12px}
+a.org{display:flex;align-items:center;gap:14px;background:var(--wh);border:1.5px solid var(--line);
+  border-radius:18px;padding:18px 20px;text-decoration:none;color:inherit;text-align:left;
+  transition:transform .12s,box-shadow .12s}
+a.org:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.10)}
+a.org img{width:52px;height:52px;object-fit:contain;border-radius:12px;flex:none}
+a.org .nm{font-size:16px;font-weight:900}
+a.org .go{margin-left:auto;font-weight:900;font-size:18px}
+a.org.o-daniel{border-color:var(--daniel-soft)}
+a.org.o-daniel .nm{color:var(--daniel)} a.org.o-daniel .go{color:var(--daniel)}
+a.org.o-daniel:hover{border-color:var(--daniel)}
+a.org.o-jihye{border-color:var(--jihye-soft)}
+a.org.o-jihye .nm{color:var(--jihye-d)} a.org.o-jihye .go{color:var(--jihye)}
+a.org.o-jihye:hover{border-color:var(--jihye)}
+.note{font-size:11.5px;color:var(--ts);margin-top:22px;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>학부모 서비스</h1>
+  <p class="d">자녀가 다니는 곳을 선택해 주세요.<br>다음부터는 이 화면 없이 바로 이동합니다.</p>
+  <div class="orgs">
+    <a class="org o-daniel" href="daniel.html" onclick="try{localStorage.setItem('parent_org','daniel')}catch(e){}">
+      <img src="logo-daniel.png" alt="" onerror="this.style.display='none'">
+      <span class="nm">다니엘 아마츠</span><span class="go">→</span>
+    </a>
+    <a class="org o-jihye" href="jihyebit.html" onclick="try{localStorage.setItem('parent_org','jihyebit')}catch(e){}">
+      <img src="logo-jihyebit.png" alt="" onerror="this.style.display='none'">
+      <span class="nm">지혜빛 선교원</span><span class="go">→</span>
+    </a>
+  </div>
+  <p class="note">잘못 선택하셨다면 각 페이지 맨 아래 「처음 화면」으로 돌아올 수 있어요.</p>
+</div>
+<script>
+// 이전에 기관을 고른 적이 있으면 바로 그 기관 안내 페이지로 직행
+// (?stay=1 로 오면 갈림길에 머무름 — 「처음 화면」 링크용)
+(function(){
+  try{
+    if(new URLSearchParams(location.search).get('stay')==='1') return;
+    var o = localStorage.getItem('parent_org');
+    if(o==='daniel')   location.replace('daniel.html');
+    if(o==='jihyebit') location.replace('jihyebit.html');
+  }catch(e){}
+})();
+</script>
+</body>
+</html>

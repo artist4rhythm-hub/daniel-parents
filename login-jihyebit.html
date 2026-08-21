@@ -148,7 +148,7 @@ html[data-theme="dark"] .spin{ border-color:rgba(6,19,14,.35); border-top-color:
   </div>
 
   <div class="foot">
-    <a href="index.html">← 공개 홈페이지로</a>
+    <a href="jihyebit.html">← 안내 페이지로</a>
   </div>
 </div>
 
@@ -401,6 +401,7 @@ window.linkChild = async function(){
 
 window.goHome = function(){ location.href = 'home.html'; };
 
+try{localStorage.setItem('parent_org','jihyebit')}catch(e){}
 // ── 시작 ──
 (async () => {
   const handled = await completeSignInFromLink();
