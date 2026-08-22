@@ -336,6 +336,11 @@ onAuthStateChanged(auth, async (user)=>{
       // 이 기관 자녀가 없는 계정 — 자동으로 서로 던지지 않는다 (무한 왕복 방지)
       // ① 다른 기관 자녀가 있으면: 10초 안에 이미 옮긴 적이 없을 때만 한 번 이동
       // ② 그 외: 이 기관 연결 화면(add 모드 = 자동 이동 없음)으로
+      // 👩‍🏫 교직원 계정이면 자녀 연결 대신 교사 모드 게시판으로
+      try {
+        const st = await getDoc(doc(db,'staff',user.uid));
+        if(st.exists()){ location.replace(`board.html?org=${ORG}&scope=org`); return; }
+      } catch(e){}
       const otherOrg = (LINKS.find(l=>(l.org||'daniel')!==ORG)||{}).org;
       let hops = 0; try{
         const now = Date.now();

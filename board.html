@@ -146,6 +146,7 @@ document.body.classList.toggle('org-jihyebit', ORG==='jihyebit');
 document.getElementById('back-home').href = 'home-'+ORG+'.html';
 
 let ME=null, LINKS=[], CLASSKEY='', POSTS=[], CMTS={};
+let TMODE=false, TME=null;   // 👩‍🏫 교사 모드
 
 /* ═══ 🚫 고운 말 필터 ═══
    기본 금칙어 + 학교가 parentConfig/badwords {words:[…]}에 추가한 단어를 함께 검사.
@@ -169,7 +170,34 @@ const fmt = ts => { if(!ts?.seconds) return ''; const d=new Date(ts.seconds*1000
 function myClassKids(){ return LINKS.filter(l=>(l.org||'daniel')===ORG && l.className); }
 function kidLabel(k){ return `${k.grade?esc(k.grade)+' ':''}${esc(k.studentName||'학생')}`; }
 
+async function setupTeacherBanner(){
+  let classes = [];
+  try {
+    const ss = await getDocs(query(collection(db,'students'), where('org','==',ORG)));
+    const set = new Set(); ss.forEach(d=>{ const c=(d.data().className||'').trim(); if(c) set.add(c); });
+    classes = [...set].sort((a,b)=>a.localeCompare(b,'ko'));
+  } catch(e){}
+  const bar = document.createElement('div');
+  bar.style.cssText = 'position:sticky;top:0;z-index:60;background:var(--pt,#0C2A44);color:#fff;padding:9px 14px;display:flex;align-items:center;gap:9px;font-size:12.5px;flex-wrap:wrap';
+  bar.innerHTML = `👩‍🏫 <b>교사 모드</b> — 학부모에게 보이는 그대로 봅니다
+    <select id="tm-cls" style="margin-left:auto;padding:5px 9px;border-radius:8px;border:none;font-size:12px">
+      <option value="">📢 기관 전체</option>
+      ${classes.map(c=>`<option value="${esc(c)}" ${SCOPE==='class'&&CLASSKEY===c?'selected':''}>${esc(c)} 게시판</option>`).join('')}
+    </select>`;
+  document.body.insertBefore(bar, document.body.firstChild);
+  document.getElementById('tm-cls').addEventListener('change', e=>{
+    const c = e.target.value;
+    location.href = c ? `board.html?org=${ORG}&scope=class&cls=${encodeURIComponent(c)}`
+                      : `board.html?org=${ORG}&scope=org`;
+  });
+}
 function renderTabs(){
+  if(TMODE && SCOPE==='class'){
+    $('hd-t').childNodes[0].textContent = `💬 ${CLASSKEY||''} 게시판`;
+    $('hd-s').textContent = ORG_L[ORG] + ' · 교사 모드';
+    $('tabs').style.display='none';
+    return;
+  }
   if(SCOPE==='org'){
     $('hd-t').childNodes[0].textContent = '📢 전체 게시판';
     $('hd-s').textContent = ORG_L[ORG];
@@ -192,7 +220,10 @@ window.pickClass = k => { CLASSKEY=k; renderTabs(); loadPosts(); };
 
 function renderChildSelect(){
   const kids = LINKS.filter(l=>(l.org||'daniel')===ORG);
-  $('w-child').innerHTML = kids.map((k,i)=>
+    if(TMODE){
+    $('w-child').innerHTML = `<option>👩‍🏫 ${esc(TME?.name||'선생님')} 선생님으로 쓰기</option>`;
+    $('w-child').disabled = true;
+  } else $('w-child').innerHTML = kids.map((k,i)=>
     `<option value="${i}">✍️ ${kidLabel(k)} 학부모로 쓰기</option>`).join('');
 }
 
@@ -265,6 +296,11 @@ function renderCmts(pid){
 }
 
 function authorBits(){
+  if(TMODE){
+    return { authorUid: auth.currentUser.uid, authorName: (TME?.name||'선생님'),
+      authorAvatar: TME?.avatar||'', authorPhoto: (typeof TME?.photo==='string'&&TME.photo.startsWith('data:image/'))?TME.photo:'',
+      childLabel:'', childStudentId:'', linkId:'' };
+  }
   const kids = LINKS.filter(l=>(l.org||'daniel')===ORG);
   const k = kids[Number($('w-child')?.value||0)] || kids[0] || {};
   return {
@@ -286,14 +322,16 @@ window.submitPost = async ()=>{
   const bad = findBad(title+' '+body);
   if(bad){ msg.className='alert err';
     msg.textContent=`🙏 고운 말을 부탁드려요 — 「${mask(bad)}」이(가) 포함된 글은 올릴 수 없어요.`; return; }
-  if(SCOPE==='class' && !CLASSKEY){ msg.className='alert err'; msg.textContent='반 정보가 연결된 자녀가 없어요 — 담임께 새 가입 코드를 받아 다시 연결해 주세요.'; return; }
+  if(SCOPE==='class' && !CLASSKEY){ msg.className='alert err';
+    msg.textContent = TMODE ? '위 배너에서 반을 먼저 선택해 주세요.'
+      : '반 정보가 연결된 자녀가 없어요 — 담임께 새 가입 코드를 받아 다시 연결해 주세요.'; return; }
   const btn=$('w-go'); btn.disabled=true;
   try{
     const a = authorBits();
     await addDoc(collection(db,'parentPosts'), {
       org: ORG, scope: SCOPE, classKey: SCOPE==='class'?CLASSKEY:'',
       title, body, ...a,
-      pinned:false, byStaff:false, commentCount:0, createdAt: Timestamp.now()
+      pinned:false, byStaff: TMODE, commentCount:0, createdAt: Timestamp.now()
     });
     $('w-title').value=''; $('w-body').value='';
     msg.className='alert ok'; msg.textContent='올렸습니다 ✓';
@@ -344,7 +382,20 @@ onAuthStateChanged(auth, async (user)=>{
     const snap = await getDocs(query(collection(db,'parentLinks'),
       where('parentUid','==',user.uid), where('status','==','active')));
     LINKS=[]; snap.forEach(d=>LINKS.push(d.data()));
-    if(!LINKS.some(l=>(l.org||'daniel')===ORG)){ location.replace('home-'+ORG+'.html'); return; }
+    // 👩‍🏫 교사 모드 — 교직원 계정이면 학부모 연결 없이도 «학부모에게 보이는 그대로» 열람·참여
+    if(!LINKS.some(l=>(l.org||'daniel')===ORG)){
+      let isTeacher = false;
+      try {
+        const st = await getDoc(doc(db,'staff',user.uid));
+        if(st.exists()){
+          isTeacher = true; TMODE = true; TME = { uid:user.uid, ...st.data() };
+          ME = { name: TME.name||'선생님', avatar: TME.avatar||'', photo: TME.photo||'' };
+          const uc = qs.get('cls'); if(SCOPE==='class' && uc) CLASSKEY = uc;
+          await setupTeacherBanner();
+        }
+      } catch(e){}
+      if(!isTeacher){ location.replace('home-'+ORG+'.html'); return; }
+    }
 
     // 학교가 추가한 금칙어 불러오기
     try{ const bw = await getDoc(doc(db,'parentConfig','badwords'));
