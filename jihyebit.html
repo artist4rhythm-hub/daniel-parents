@@ -141,5 +141,29 @@ a{text-decoration:none;color:inherit}
   <div class="foot">지혜빛 선교원 학부모 서비스 · <a href="index.html">처음 화면</a></div>
 </div>
 
+
+<script type="module">
+// 이미 로그인된 학부모 감지 — 버튼을 «내 홈으로»로 바꿔 재로그인 없이 바로 입장
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+const app = initializeApp({
+  apiKey: "AIzaSyCtgr79jKqkec6HwqkxYNxSubWAhfEkM7g",
+  authDomain: "daniel-amatz.firebaseapp.com",
+  projectId: "daniel-amatz",
+  storageBucket: "daniel-amatz.firebasestorage.app",
+  messagingSenderId: "455744290312",
+  appId: "1:455744290312:web:3ce7e7d3e58f6f1d185bbd"
+});
+onAuthStateChanged(getAuth(app), user => {
+  if(!user) return;
+  document.querySelectorAll('a.cta').forEach(a => {
+    a.href = 'home.html';
+    a.textContent = '🏠 내 홈으로 바로가기';
+  });
+  document.querySelectorAll('.hero .sub').forEach(s => {
+    s.textContent = '이미 로그인되어 있어요 — 다시 로그인할 필요 없이 바로 들어가세요';
+  });
+});
+</script>
 </body>
 </html>
