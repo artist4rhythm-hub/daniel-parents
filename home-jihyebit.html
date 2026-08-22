@@ -155,6 +155,18 @@ input[type=text]{width:100%;border:1.5px solid var(--line);border-radius:10px;pa
     <div class="row" id="me-edit" style="display:none;flex-direction:column;align-items:stretch;gap:7px">
       <input type="text" id="me-name-in" placeholder="보호자 성함 (예: 김은혜)" maxlength="10">
       <div style="display:flex;gap:5px;flex-wrap:wrap" id="rel-chips"></div>
+      <div style="border-top:1px solid #F0EDE5;padding-top:8px">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px">
+          <span id="av-preview"></span>
+          <small style="color:var(--ink3)">프로필 — 이모지를 고르거나 사진을 올려 보세요</small>
+        </div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px" id="av-emojis"></div>
+        <div style="display:flex;gap:7px;align-items:center">
+          <label class="btnline" style="cursor:pointer">📷 사진 올리기
+            <input type="file" id="av-file" accept="image/*" style="display:none"></label>
+          <button class="btnline" onclick="clearAvatar()">기본으로</button>
+        </div>
+      </div>
       <div style="display:flex;gap:7px;justify-content:flex-end">
         <button class="btnline" onclick="document.getElementById('me-edit').style.display='none'">취소</button>
         <button class="btnline" style="color:var(--pt);border-color:var(--pt)" onclick="saveMe()">저장</button>
@@ -219,11 +231,63 @@ window.saveName = async () => {
 };
 
 function myKids(){ return LINKS.filter(l => (l.org||'daniel') === ORG); }
+// ── 프로필 아바타: 사진 > 이모지 > 이니셜(이름 기반 자동 배색) ──
+const AV_EMOJIS = ['🕊','🦉','🌿','🫒','🌊','⚓','🎻','🎹','📖','✒️','🕯','🌙','⭐','🏔','🌾','🍇'];
+const AV_BGS    = ['#EAF1F7','#F1EDE3','#E7F1EA','#EFEAE0','#E4EEF2','#E9EDF2','#F2EAE6','#EDE9F2',
+                   '#F0EDE4','#EAE7F0','#F5EFE2','#E6E9F0','#F4F0E2','#E9EFEA','#F1EFE4','#EFE7EE'];
+function avColor(name){ let h=0; for(const c of String(name||'')) h=(h*31+c.charCodeAt(0))>>>0; return AV_BGS[h%AV_BGS.length]; }
+function avatarHTML(p, size){
+  const s = size||34, f = Math.round(s*0.46);
+  const ph = (p&&typeof p.photo==='string' && p.photo.startsWith('data:image/')) ? p.photo : '';
+  if(ph) return `<img src="${ph}" alt="" style="width:${s}px;height:${s}px;border-radius:50%;object-fit:cover;flex:none">`;
+  if(p&&p.avatar) return `<span style="width:${s}px;height:${s}px;border-radius:50%;background:${avColor(p.name)};display:inline-flex;align-items:center;justify-content:center;font-size:${f}px;flex:none">${p.avatar}</span>`;
+  const ini = (p&&p.name||'?').trim().charAt(0)||'?';
+  return `<span style="width:${s}px;height:${s}px;border-radius:50%;background:var(--hero);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:${Math.round(s*0.4)}px;font-weight:800;flex:none">${ini}</span>`;
+}
+// 사진 압축 — 128px 정사각 JPEG (문서에 안전하게 내장되는 크기)
+function compressAvatar(file){
+  return new Promise((res, rej)=>{
+    const img = new Image();
+    img.onload = ()=>{ try{
+      const S=128, cv=document.createElement('canvas'); cv.width=S; cv.height=S;
+      const cx=cv.getContext('2d');
+      const m=Math.min(img.width,img.height);
+      cx.drawImage(img,(img.width-m)/2,(img.height-m)/2,m,m,0,0,S,S);
+      const url=cv.toDataURL('image/jpeg',0.82);
+      if(url.length>140000) rej(new Error('사진이 너무 복잡해요 — 다른 사진으로 시도해 주세요.'));
+      else res(url);
+    }catch(e){rej(e);} };
+    img.onerror = ()=>rej(new Error('사진을 읽지 못했습니다.'));
+    img.src = URL.createObjectURL(file);
+  });
+}
 // 호칭(관계) — 강제하지 않는다: 안 고르면 «보호자»로 표기
 const RELS = ['어머니','아버지','할머니','할아버지','보호자'];
+let AV_SEL = null;   // {avatar, photo} 편집 중 선택값
+function paintAvEditor(){
+  const cur = { name: $('me-name-in').value || ME.name, avatar: AV_SEL.avatar, photo: AV_SEL.photo };
+  $('av-preview').innerHTML = avatarHTML(cur, 44);
+  $('av-emojis').innerHTML = AV_EMOJIS.map(e=>`<button type="button" class="btnline"
+    style="width:34px;height:34px;padding:0;border-radius:50%;font-size:16px;background:${avColor($('me-name-in').value||ME.name)};${AV_SEL.avatar===e&&!AV_SEL.photo?'border:2px solid var(--pt)':''}"
+    onclick="pickAvEmoji('${e}')">${e}</button>`).join('');
+}
+window.pickAvEmoji = (e)=>{ AV_SEL.avatar = (AV_SEL.avatar===e && !AV_SEL.photo) ? '' : e; AV_SEL.photo=''; paintAvEditor(); };
+window.clearAvatar = ()=>{ AV_SEL = { avatar:'', photo:'' }; paintAvEditor(); };
 window.openMeEdit = () => {
   $('me-edit').style.display='flex';
+  AV_SEL = { avatar: ME.avatar||'', photo: ME.photo||'' };
   $('me-name-in').value = ME.name || '';
+  paintAvEditor();
+  const fi = $('av-file');
+  if(fi && !fi._wired){ fi._wired = true;
+    fi.addEventListener('change', async ()=>{
+      const f = fi.files && fi.files[0]; if(!f) return;
+      const msg = $('me-msg'); msg.className='alert';
+      try { AV_SEL.photo = await compressAvatar(f); AV_SEL.avatar=''; paintAvEditor(); }
+      catch(e){ msg.className='alert err'; msg.textContent = e.message||'사진 처리에 실패했습니다.'; }
+      fi.value='';
+    });
+  }
   $('rel-chips').innerHTML = RELS.map(r=>`<button type="button" class="btnline rel-chip" data-rel="${r}"
     style="padding:6px 12px;font-size:12px;${(ME.relation||'')===r?'color:var(--pt);border-color:var(--pt);font-weight:800':''}"
     onclick="pickRel(this)">${r}</button>`).join('');
@@ -240,8 +304,9 @@ window.saveMe = async () => {
   if(n.length < 2){ msg.className='alert err'; msg.textContent='성함을 두 글자 이상 입력해 주세요.'; return; }
   const rel = window._selRel !== undefined ? window._selRel : (ME.relation||'');
   try{
-    await updateDoc(doc(db,'parents',auth.currentUser.uid), { name:n, relation:rel });
-    ME.name=n; ME.relation=rel;
+    await updateDoc(doc(db,'parents',auth.currentUser.uid),
+      { name:n, relation:rel, avatar: AV_SEL?.avatar||'', photo: AV_SEL?.photo||'' });
+    ME.name=n; ME.relation=rel; ME.avatar=AV_SEL?.avatar||''; ME.photo=AV_SEL?.photo||'';
     $('me-name').textContent = n + (rel?` (${rel})`:'');
     paintGreet();
     msg.className='alert ok'; msg.textContent='저장했습니다 ✓';
@@ -252,6 +317,8 @@ function paintGreet(){
   const kid1 = myKids()[0];
   $('greet').textContent = (ME.relation && kid1) ? `${kid1.studentName} ${ME.relation}, 안녕하세요`
     : ME.name ? `${ME.name}님, 안녕하세요` : '안녕하세요 👋';
+  const hb = document.querySelector('.hero-me');
+  if(hb) hb.innerHTML = avatarHTML(ME, 34);
   $('kidsline').textContent = myKids().map(k=>`${k.studentName||'학생'}${k.grade?' · '+k.grade:''}${k.className?' '+k.className:''}`).join('  ·  ');
 }
 

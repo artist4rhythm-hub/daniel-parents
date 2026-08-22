@@ -124,6 +124,19 @@ const esc = t => String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>
 // 이미 esc() 처리된 문자열에서 https 주소만 눌러서 열 수 있게 (통신문 링크용)
 const linkify = t => String(t??'').replace(/(https:\/\/[^\s<]+)/g,
   '<a href="$1" target="_blank" rel="noopener" style="color:var(--pt,#2C6E54);font-weight:700;word-break:break-all">$1</a>');
+// ── 프로필 아바타: 사진 > 이모지 > 이니셜 (글에 실린 값 사용 — 남의 프로필 문서 조회 불필요) ──
+const AV_BGS = ['#EAF1F7','#F1EDE3','#E7F1EA','#EFEAE0','#E4EEF2','#E9EDF2','#F2EAE6','#EDE9F2',
+                '#F0EDE4','#EAE7F0','#F5EFE2','#E6E9F0','#F4F0E2','#E9EFEA','#F1EFE4','#EFE7EE'];
+const avColor = n => { let h=0; for(const c of String(n||'')) h=(h*31+c.charCodeAt(0))>>>0; return AV_BGS[h%AV_BGS.length]; };
+function avatarHTML(o, size){
+  const s=size||30, name=o.authorName||o.name||'?';
+  const ph = (typeof o.authorPhoto==='string' && o.authorPhoto.startsWith('data:image/')) ? o.authorPhoto : '';
+  if(ph) return `<img src="${ph}" alt="" style="width:${s}px;height:${s}px;border-radius:50%;object-fit:cover;flex:none">`;
+  if(o.authorAvatar) return `<span style="width:${s}px;height:${s}px;border-radius:50%;background:${avColor(name)};display:inline-flex;align-items:center;justify-content:center;font-size:${Math.round(s*0.5)}px;flex:none">${o.authorAvatar}</span>`;
+  const bg = o.byStaff ? 'var(--pt,#0C2A44)' : avColor(name);
+  const fg = o.byStaff ? '#fff' : '#3C3830';
+  return `<span style="width:${s}px;height:${s}px;border-radius:50%;background:${bg};color:${fg};display:inline-flex;align-items:center;justify-content:center;font-size:${Math.round(s*0.42)}px;font-weight:800;flex:none">${esc(String(name).trim().charAt(0)||'?')}</span>`;
+}
 
 const qs = new URLSearchParams(location.search);
 const ORG = qs.get('org')==='jihyebit' ? 'jihyebit' : 'daniel';
@@ -208,7 +221,8 @@ function renderPosts(){
         ${p.pinned?'<span class="post-pin">📌 공지</span>':''}
         <div class="post-t">${esc(p.title)}</div>
       </div>
-      <div class="post-meta"><b>${esc(p.authorName||'학부모')}</b>${p.childLabel?` · ${esc(p.childLabel)} 학부모`:''}${p.byStaff?' · <b style="color:var(--gold)">선생님</b>':''} · ${fmt(p.createdAt)}</div>
+      <div class="post-meta" style="display:flex;align-items:center;gap:7px">${avatarHTML(p,30)}
+        <span><b>${esc(p.authorName||'학부모')}</b>${p.childLabel?` · ${esc(p.childLabel)} 학부모`:''}${p.byStaff?' · <b style="color:var(--gold)">선생님</b>':''} · ${fmt(p.createdAt)}</span></div>
       <div class="post-b">${linkify(esc(p.body))}</div>
       <div class="post-ft">
         <button class="pbtn" onclick="toggleCmts('${p.id}')">💬 댓글 ${p.commentCount||0}</button>
@@ -243,8 +257,9 @@ function renderCmts(pid){
   const arr = CMTS[pid]||[];
   $('cmt-list-'+pid).innerHTML = arr.map(c=>`
     <div class="cmt">
-      <div class="cmt-m"><b>${esc(c.authorName||'학부모')}</b>${c.childLabel?` · ${esc(c.childLabel)} 학부모`:''} · ${fmt(c.createdAt)}
-        ${c.authorUid===auth.currentUser?.uid?` <button class="pbtn" style="padding:0 3px" onclick="delCmt('${pid}','${c.id}')">지우기</button>`:''}</div>
+      <div class="cmt-m" style="display:flex;align-items:center;gap:6px">${avatarHTML(c,22)}
+        <span><b>${esc(c.authorName||'학부모')}</b>${c.childLabel?` · ${esc(c.childLabel)} 학부모`:''} · ${fmt(c.createdAt)}</span>
+        ${c.authorUid===auth.currentUser?.uid?` <button class="pbtn" style="padding:0 3px" onclick="delCmt('${pid}','${c.id}')">지우기</button>`:''}</span></div>
       <div class="cmt-b">${esc(c.body)}</div>
     </div>`).join('') || '<div style="font-size:11px;color:var(--ink3);padding:4px 0">첫 댓글을 남겨 보세요.</div>';
 }
@@ -255,6 +270,8 @@ function authorBits(){
   return {
     authorUid: auth.currentUser.uid,
     authorName: ME.name || '학부모',
+    authorAvatar: ME.avatar || '',
+    authorPhoto: (typeof ME.photo==='string' && ME.photo.startsWith('data:image/')) ? ME.photo : '',
     childLabel: k.studentName ? `${k.grade?k.grade+' ':''}${k.studentName}` : '',
     childStudentId: k.studentId || '',
     linkId: k.studentId ? `${auth.currentUser.uid}_${k.studentId}` : ''
