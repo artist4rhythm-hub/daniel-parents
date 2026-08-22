@@ -361,14 +361,22 @@ window.linkChild = async function(){
       alertShow('code-err','이 코드는 다니엘 아마츠 코드가 아닙니다. 지혜빛 선교원 학부모 페이지에서 연결해 주세요.');
       return;
     }
-    // 연결 저장 (setDoc은 있으면 덮어쓰기 — 중복 연결도 안전)
+    // 연결 저장 — ⚠️ 같은 문서가 이미 있으면 규칙상 «update»로 판정되므로
+    //    상황을 먼저 확인한다 (이미 활성이면 쓰기 없이 성공 처리)
     const linkId = `${user.uid}_${cd.studentId}`;
-    await setDoc(doc(db,'parentLinks',linkId), {
+    const linkRef = doc(db,'parentLinks',linkId);
+    const prev = await getDoc(linkRef);
+    const payload = {
       parentUid:user.uid, parentEmail:user.email||'',
       studentId:cd.studentId, studentName:cd.studentName||'', org:cd.org||'',
       grade:cd.grade||'', className:cd.className||'',   // 👨‍👩‍👧 반별 게시판용
       status:'active', linkedVia:'code', linkedAt:Timestamp.now()
-    });
+    };
+    if(prev.exists() && prev.data().status === 'active'){
+      // 이미 연결되어 있음 — 다시 쓸 필요 없음
+    } else {
+      await setDoc(linkRef, payload);   // 신규 create 또는 (v9 규칙에서) 본인 문서 재활성화
+    }
     // 내 프로필에 기관 기록 (게시판 읽기 권한용)
     try { await updateDoc(doc(db,'parents',user.uid), { orgs: arrayUnion(cd.org||'') }); } catch(e){}
     alertShow('code-ok', `${cd.studentName} 연결 완료!`);
@@ -377,7 +385,10 @@ window.linkChild = async function(){
       .concat([{ studentId:cd.studentId, studentName:cd.studentName||'', grade:cd.grade||'', className:cd.className||'', org:cd.org||'' }]);
     renderChildren(window.__kids);
   } catch(e){
-    alertShow('code-err','연결에 실패했습니다: ' + (e.code || e.message));
+    const why = (e.code==='permission-denied')
+      ? '연결 권한이 거부되었습니다. 잠시 후 다시 시도하시고, 계속 안 되면 학교에 «규칙 최신본(v9) 게시»를 요청해 주세요.'
+      : (e.code || e.message);
+    alertShow('code-err','연결에 실패했습니다: ' + why);
   } finally {
     btn.disabled = false; btn.innerHTML = orig;
   }
