@@ -81,6 +81,20 @@ a{text-decoration:none;color:inherit}
 input[type=text]{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;
   font-size:14px;font-family:inherit;outline:none}
 #loading{min-height:100vh;display:flex;align-items:center;justify-content:center;color:var(--ink3);font-size:13px}
+/* ── 반응형: 패드·컴퓨터 ── */
+@media (min-width:760px){
+  .wrap{max-width:960px}
+  .hero{border-radius:0 0 26px 26px;padding:26px 28px 20px}
+  .hero h1{font-size:23px}
+  .newsbar{max-width:560px}
+  .quick{max-width:560px}
+  .main{padding:16px 20px 40px;display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+  .main .card{margin:0}
+  #name-card{grid-column:1 / -1}
+  .more{grid-column:1 / -1;grid-template-columns:repeat(4,1fr)}
+  .me-sec{grid-column:1 / -1}
+}
+@media (min-width:1200px){ .wrap{max-width:1080px} }
 </style>
 </head>
 <body>
@@ -130,7 +144,18 @@ input[type=text]{width:100%;border:1.5px solid var(--line);border-radius:10px;pa
 
   <div class="card me-sec" id="me-sec">
     <div class="card-h"><b>👤 내 정보</b></div>
-    <div class="row"><span id="me-name">보호자</span><small id="me-email"></small></div>
+    <div class="row"><span id="me-name">보호자</span>
+      <span style="display:flex;gap:8px;align-items:center"><small id="me-email"></small>
+        <button class="btnline" style="padding:5px 10px;font-size:11px" onclick="openMeEdit()">수정</button></span></div>
+    <div class="row" id="me-edit" style="display:none;flex-direction:column;align-items:stretch;gap:7px">
+      <input type="text" id="me-name-in" placeholder="보호자 성함 (예: 김은혜)" maxlength="10">
+      <div style="display:flex;gap:5px;flex-wrap:wrap" id="rel-chips"></div>
+      <div style="display:flex;gap:7px;justify-content:flex-end">
+        <button class="btnline" onclick="document.getElementById('me-edit').style.display='none'">취소</button>
+        <button class="btnline" style="color:var(--pt);border-color:var(--pt)" onclick="saveMe()">저장</button>
+      </div>
+      <div class="alert" id="me-msg"></div>
+    </div>
     <div class="row" style="display:block">
       <small>연결된 자녀</small>
       <div id="kids" style="margin-top:4px"></div>
@@ -189,8 +214,39 @@ window.saveName = async () => {
 };
 
 function myKids(){ return LINKS.filter(l => (l.org||'daniel') === ORG); }
+// 호칭(관계) — 강제하지 않는다: 안 고르면 «보호자»로 표기
+const RELS = ['어머니','아버지','할머니','할아버지','보호자'];
+window.openMeEdit = () => {
+  $('me-edit').style.display='flex';
+  $('me-name-in').value = ME.name || '';
+  $('rel-chips').innerHTML = RELS.map(r=>`<button type="button" class="btnline rel-chip" data-rel="${r}"
+    style="padding:6px 12px;font-size:12px;${(ME.relation||'')===r?'color:var(--pt);border-color:var(--pt);font-weight:800':''}"
+    onclick="pickRel(this)">${r}</button>`).join('');
+};
+window.pickRel = (el) => {
+  document.querySelectorAll('.rel-chip').forEach(b=>{ b.style.color=''; b.style.borderColor=''; b.style.fontWeight=''; });
+  if(el.dataset.rel === (window._selRel||ME.relation)){ window._selRel=''; return; }   // 다시 누르면 해제
+  window._selRel = el.dataset.rel;
+  el.style.color='var(--pt)'; el.style.borderColor='var(--pt)'; el.style.fontWeight='800';
+};
+window.saveMe = async () => {
+  const n = $('me-name-in').value.trim();
+  const msg = $('me-msg'); msg.className='alert';
+  if(n.length < 2){ msg.className='alert err'; msg.textContent='성함을 두 글자 이상 입력해 주세요.'; return; }
+  const rel = window._selRel !== undefined ? window._selRel : (ME.relation||'');
+  try{
+    await updateDoc(doc(db,'parents',auth.currentUser.uid), { name:n, relation:rel });
+    ME.name=n; ME.relation=rel;
+    $('me-name').textContent = n + (rel?` (${rel})`:'');
+    paintGreet();
+    msg.className='alert ok'; msg.textContent='저장했습니다 ✓';
+    setTimeout(()=>{ $('me-edit').style.display='none'; }, 800);
+  }catch(e){ msg.className='alert err'; msg.textContent='저장하지 못했습니다: '+(e.message||''); }
+};
 function paintGreet(){
-  $('greet').textContent = ME.name ? `${ME.name}님, 안녕하세요` : '안녕하세요 👋';
+  const kid1 = myKids()[0];
+  $('greet').textContent = (ME.relation && kid1) ? `${kid1.studentName} ${ME.relation}, 안녕하세요`
+    : ME.name ? `${ME.name}님, 안녕하세요` : '안녕하세요 👋';
   $('kidsline').textContent = myKids().map(k=>`${k.studentName||'학생'}${k.grade?' · '+k.grade:''}${k.className?' '+k.className:''}`).join('  ·  ');
 }
 
@@ -226,7 +282,7 @@ onAuthStateChanged(auth, async (user)=>{
     // 학교 등록 링크 (학사일정·시간표)
     let PL = {};
     try{ const ls = await getDoc(doc(db,'parentConfig','links_'+ORG)); if(ls.exists()) PL = ls.data(); }catch(e){}
-    if(PL.academic){ $('q-cal').href = PL.academic; $('q-cal').target='_blank'; }
+    if(PL.academic){ $('q-cal').href = PL.academic; }
     else { $('q-cal').style.opacity='.45'; $('q-cal').onclick = e=>{ e.preventDefault(); alert('학사일정 링크가 아직 연결되지 않았어요.'); }; }
 
     // ── 데이터 로드: 통신문 목록 + 반/전체 게시판 ──
@@ -279,18 +335,18 @@ onAuthStateChanged(auth, async (user)=>{
     }
 
     // 더 보기
-    const mi=(href,t,d,blank)=>`<a href="${href}" ${blank?'target="_blank" rel="noopener"':''}><div class="mt">${t}</div><div class="md">${d}</div></a>`;
+    const mi=(href,t,d)=>`<a href="${href}"><div class="mt">${t}</div><div class="md">${d}</div></a>`;
     $('more').innerHTML =
       mi(`board.html?org=${ORG}&scope=org`, '📢 전체 게시판', '기관 전체 학부모와 소통해요')
-      + (PL.timetable ? mi(PL.timetable,'🗓 시간표','우리 아이 시간표 확인',1) : `<div class="off"><div class="mt">🗓 시간표</div><div class="md">학교에서 링크 연결 시 열려요</div></div>`)
-      + mi(`${GYOSA}/parent-expense.html`, '💳 환급 계좌', '경비 환급 계좌 등록', 1)
-      + mi(`login-jihyebit.html`, '🎫 자녀 추가 연결', '가입코드로 자녀를 더 연결해요');
+      + (PL.timetable ? mi(PL.timetable,'🗓 시간표','우리 아이 시간표 확인') : `<div class="off"><div class="mt">🗓 시간표</div><div class="md">학교에서 링크 연결 시 열려요</div></div>`)
+      + mi(`${GYOSA}/parent-expense.html`, '💳 환급 계좌', '경비 환급 계좌 등록')
+      + mi(`login-jihyebit.html?add=1`, '🎫 자녀 추가 연결', '가입코드로 자녀를 더 연결해요');
 
     // 내 정보
-    $('me-name').textContent = ME.name || '보호자';
+    $('me-name').textContent = (ME.name || '보호자') + (ME.relation?` (${ME.relation})`:'');
     $('me-email').textContent = user.email || '';
     $('kids').innerHTML = kids.map(k=>`<span class="kid">👦 ${esc(k.studentName||'학생')}<small>${k.grade?'· '+esc(k.grade):''} ${esc(k.className||'')}</small></span>`).join('')
-      + `<a class="kid-add" href="login-jihyebit.html">＋ 자녀 추가</a>`;
+      + `<a class="kid-add" href="login-jihyebit.html?add=1">＋ 자녀 추가</a>`;
 
     // 이번 방문을 «확인 시각»으로 기록 → 다음 방문부터는 이 이후 글만 새 소식
     try{ localStorage.setItem(SEEN_KEY, String(Date.now())); }catch(e){}
