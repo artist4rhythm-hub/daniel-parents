@@ -6,6 +6,11 @@
 <title>다니엘 아마츠 학부모</title>
 <meta name="theme-color" content="#0C2A44">
 <link rel="icon" type="image/png" href="logo-daniel-color.png">
+<link rel="manifest" href="manifest-daniel.json">
+<link rel="apple-touch-icon" href="logo-daniel-color.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="다니엘 아마츠 학부모">
 <style>
 :root{
   --hero:#0C2A44; --hero-sub:#9FB3C8; --tile:#173A5C;
@@ -251,7 +256,7 @@ function paintGreet(){
 }
 
 onAuthStateChanged(auth, async (user)=>{
-  if(!user){ location.href='login-daniel.html'; return; }
+  if(!user){ location.replace('login-daniel.html'); return; }
   try{
     const pref = doc(db,'parents',user.uid);
     const ps = await getDoc(pref);
@@ -291,7 +296,8 @@ onAuthStateChanged(auth, async (user)=>{
 
     // 빠른 이동
     const cls = kids.find(k=>k.className)?.className || '';
-    $('q-fam').href  = `${GYOSA}/share-family.html?org=${ORG}`;
+    const addP = u => u + (u.includes('?')?'&':'?') + 'pfrom=' + ORG;   // 복귀 바 신호
+    $('q-fam').href  = addP(`${GYOSA}/share-family.html?org=${ORG}`);
     $('q-board').href = cls ? `board.html?org=${ORG}&scope=class` : `board.html?org=${ORG}&scope=org`;
     $('fam-all').href = $('q-fam').href;
     $('board-all').href = $('q-board').href;
@@ -300,7 +306,7 @@ onAuthStateChanged(auth, async (user)=>{
     // 학교 등록 링크 (학사일정·시간표)
     let PL = {};
     try{ const ls = await getDoc(doc(db,'parentConfig','links_'+ORG)); if(ls.exists()) PL = ls.data(); }catch(e){}
-    if(PL.academic){ $('q-cal').href = PL.academic; }
+    if(PL.academic){ $('q-cal').href = addP(PL.academic); }
     else { $('q-cal').style.opacity='.45'; $('q-cal').onclick = e=>{ e.preventDefault(); alert('학사일정 링크가 아직 연결되지 않았어요.'); }; }
 
     // ── 데이터 로드: 통신문 목록 + 반/전체 게시판 ──
@@ -322,7 +328,7 @@ onAuthStateChanged(auth, async (user)=>{
     // ── 카드 채우기 ──
     const isNewF = it => (it.at||0) > prevSeen;
     $('fam-list').innerHTML = famItems.length ? famItems.map(it=>`
-      <a class="item ${isNewF(it)?'':'read'}" href="${GYOSA}/share-family.html?id=${esc(it.id)}">
+      <a class="item ${isNewF(it)?'':'read'}" href="${addP(`${GYOSA}/share-family.html?id=${it.id}`)}">
         <div class="t">${esc(it.title||'(제목 없음)')}${isNewF(it)?'<span class="dot">●</span>':''}</div>
         <div class="m">${fmt(it.at)}${isNewF(it)?' · 안 읽음':''}</div>
       </a>`).join('')
@@ -339,7 +345,7 @@ onAuthStateChanged(auth, async (user)=>{
     // ── 새 소식 배너 ──
     NEWS = [
       ...famItems.filter(isNewF).map(it=>({ icon:'📨', t:it.title||'가정통신문', at:it.at,
-        href:`${GYOSA}/share-family.html?id=${it.id}` })),
+        href:addP(`${GYOSA}/share-family.html?id=${it.id}`) })),
       ...posts.filter(isNewP).slice(0,3).map(p=>({ icon:'💬', t:p.title, at:(p.createdAt?.seconds||0)*1000,
         href:`board.html?org=${ORG}&scope=${cls?'class':'org'}#post-${p.id}` })),
     ].sort((a,b)=>(b.at||0)-(a.at||0)).slice(0,4);
@@ -356,8 +362,8 @@ onAuthStateChanged(auth, async (user)=>{
     const mi=(href,t,d)=>`<a href="${href}"><div class="mt">${t}</div><div class="md">${d}</div></a>`;
     $('more').innerHTML =
       mi(`board.html?org=${ORG}&scope=org`, '📢 전체 게시판', '기관 전체 학부모와 소통해요')
-      + (PL.timetable ? mi(PL.timetable,'🗓 시간표','우리 아이 시간표 확인') : `<div class="off"><div class="mt">🗓 시간표</div><div class="md">학교에서 링크 연결 시 열려요</div></div>`)
-      + mi(`${GYOSA}/parent-expense.html`, '💳 환급 계좌', '경비 환급 계좌 등록')
+      + (PL.timetable ? mi(addP(PL.timetable),'🗓 시간표','우리 아이 시간표 확인') : `<div class="off"><div class="mt">🗓 시간표</div><div class="md">학교에서 링크 연결 시 열려요</div></div>`)
+      + mi(addP(`${GYOSA}/parent-expense.html`), '💳 환급 계좌', '경비 환급 계좌 등록')
       + mi(`login-daniel.html?add=1`, '🎫 자녀 추가 연결', '가입코드로 자녀를 더 연결해요');
 
     // 내 정보

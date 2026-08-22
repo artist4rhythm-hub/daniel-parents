@@ -1,0 +1,23 @@
+{
+  "name": "지혜빛 선교원 학부모",
+  "short_name": "지혜빛 학부모",
+  "start_url": "home-jihyebit.html",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#F7F5EF",
+  "theme_color": "#5E4B8B",
+  "icons": [
+    {
+      "src": "logo-jihyebit.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "logo-jihyebit.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

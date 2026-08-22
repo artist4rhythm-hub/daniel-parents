@@ -320,14 +320,14 @@ window.delCmt = async (pid, cid)=>{
 };
 
 onAuthStateChanged(auth, async (user)=>{
-  if(!user){ location.href='login.html?next='+encodeURIComponent(location.pathname.split('/').pop()+location.search); return; }
+  if(!user){ location.replace('login.html?next='+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
   try{
     const ps = await getDoc(doc(db,'parents',user.uid));
     ME = ps.exists()? ps.data() : {};
     const snap = await getDocs(query(collection(db,'parentLinks'),
       where('parentUid','==',user.uid), where('status','==','active')));
     LINKS=[]; snap.forEach(d=>LINKS.push(d.data()));
-    if(!LINKS.some(l=>(l.org||'daniel')===ORG)){ location.href='home-'+ORG+'.html'; return; }
+    if(!LINKS.some(l=>(l.org||'daniel')===ORG)){ location.replace('home-'+ORG+'.html'); return; }
 
     // 학교가 추가한 금칙어 불러오기
     try{ const bw = await getDoc(doc(db,'parentConfig','badwords'));

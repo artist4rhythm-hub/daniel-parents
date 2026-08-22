@@ -392,7 +392,9 @@ window.linkChild = async function(){
     try { await updateDoc(doc(db,'parents',user.uid), { orgs: arrayUnion(cd.org||'') }); } catch(e){}
     alertShow('code-ok', `${cd.studentName} 연결 완료!`);
     $('code').value = '';
-    renderChildren(await myActiveChildren(user.uid));
+    window.__kids = (window.__kids||[]).filter(k=>k.studentId!==cd.studentId)
+      .concat([{ studentId:cd.studentId, studentName:cd.studentName||'', grade:cd.grade||'', className:cd.className||'', org:cd.org||'' }]);
+    renderChildren(window.__kids);
   } catch(e){
     alertShow('code-err','연결에 실패했습니다: ' + (e.code || e.message));
   } finally {
@@ -409,7 +411,7 @@ function nextUrl(){
   return '';
 }
 const ADD_MODE = new URLSearchParams(location.search).get('add') === '1';   // 자녀 추가로 들어온 경우
-window.goHome = function(){ location.href = nextUrl() || 'home-jihyebit.html'; };
+window.goHome = function(){ location.replace(nextUrl() || 'home-jihyebit.html'); };
 
 try{localStorage.setItem('parent_org','jihyebit')}catch(e){}
 // ── 시작 ──
@@ -425,7 +427,7 @@ try{localStorage.setItem('parent_org','jihyebit')}catch(e){}
       const children = childrenAll.filter(c => (c.org||'daniel') === 'jihyebit');
       if(children.length && !handled && !ADD_MODE){
         // 이 기관 자녀가 있는 재방문자 → 가려던 곳(next) 또는 홈으로
-        location.href = nextUrl() || 'home-jihyebit.html';
+        location.replace(nextUrl() || 'home-jihyebit.html');
         return;
       }
       // 로그인은 됐지만 연결 화면을 보여줌 (신규·자녀 추가·이 기관 자녀 없음)
@@ -435,6 +437,7 @@ try{localStorage.setItem('parent_org','jihyebit')}catch(e){}
         : (hasOther
           ? '이 계정에는 다니엘 아마츠 자녀만 연결되어 있어요.<br>지혜빛 선교원 자녀가 있다면 가입코드로 연결해 주세요.'
           : '로그인되었습니다.<br>자녀를 연결해 주세요.');
+      window.__kids = children;
       renderChildren(children);
       show('step-link');
     } else {
