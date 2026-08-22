@@ -157,7 +157,7 @@ const app = initializeApp({
 onAuthStateChanged(getAuth(app), user => {
   if(!user) return;
   document.querySelectorAll('a.cta').forEach(a => {
-    a.href = 'home.html';
+    a.href = 'home-daniel.html';
     a.textContent = '🏠 내 홈으로 바로가기';
   });
   document.querySelectorAll('.hero .sub').forEach(s => {

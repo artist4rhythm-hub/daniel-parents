@@ -71,7 +71,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sa
 </head>
 <body>
 <div class="top"><div class="top-in">
-  <a class="back" href="home.html">←</a>
+  <a class="back" href="home.html" id="back-home">←</a>
   <div class="top-t" id="hd-t">게시판<small id="hd-s"></small></div>
 </div></div>
 
@@ -124,6 +124,7 @@ const ORG = qs.get('org')==='jihyebit' ? 'jihyebit' : 'daniel';
 const SCOPE = qs.get('scope')==='class' ? 'class' : 'org';
 const ORG_L = { daniel:'다니엘 아마츠', jihyebit:'지혜빛 선교원' };
 document.body.classList.toggle('org-jihyebit', ORG==='jihyebit');
+document.getElementById('back-home').href = 'home-'+ORG+'.html';
 
 let ME=null, LINKS=[], CLASSKEY='', POSTS=[], CMTS={};
 
@@ -320,7 +321,7 @@ onAuthStateChanged(auth, async (user)=>{
     const snap = await getDocs(query(collection(db,'parentLinks'),
       where('parentUid','==',user.uid), where('status','==','active')));
     LINKS=[]; snap.forEach(d=>LINKS.push(d.data()));
-    if(!LINKS.some(l=>(l.org||'daniel')===ORG)){ location.href='home.html'; return; }
+    if(!LINKS.some(l=>(l.org||'daniel')===ORG)){ location.href='home-'+ORG+'.html'; return; }
 
     // 학교가 추가한 금칙어 불러오기
     try{ const bw = await getDoc(doc(db,'parentConfig','badwords'));

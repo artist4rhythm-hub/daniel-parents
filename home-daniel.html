@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>다니엘 아마츠 학부모</title>
+<meta name="theme-color" content="#0C2A44">
+<link rel="icon" type="image/png" href="logo-daniel-color.png">
+<style>
+:root{
+  --hero:#0C2A44; --hero-sub:#9FB3C8; --tile:#173A5C;
+  --acc-bg:#D8B45A; --acc-tx:#0C2A44;
+  --pt:#0C2A44; --cream:#F7F5EF; --card:#fff; --line:#E4E0D5;
+  --ink:#1E2530; --ink2:#57534A; --ink3:#8A8F98; --dot:#D85A30;
+}
+*{box-sizing:border-box;margin:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+  background:var(--cream);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased}
+a{text-decoration:none;color:inherit}
+.wrap{max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+/* ── 히어로 ── */
+.hero{background:var(--hero);padding:20px 18px 16px;border-radius:0 0 22px 22px}
+.hero-top{display:flex;justify-content:space-between;align-items:center}
+.hero-org{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--hero-sub);letter-spacing:.03em;font-weight:600}
+.hero-org img{width:22px;height:22px;object-fit:contain;border-radius:6px;background:#fff;padding:2px}
+.hero-me{width:34px;height:34px;border-radius:50%;background:var(--tile);border:none;color:#fff;
+  font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.hero h1{font-size:19px;font-weight:800;color:#fff;margin-top:12px;letter-spacing:-.01em}
+.hero .kidsline{font-size:11.5px;color:var(--hero-sub);margin-top:4px}
+.newsbar{margin-top:13px;background:var(--acc-bg);border-radius:12px;padding:11px 13px;width:100%;
+  display:flex;justify-content:space-between;align-items:center;border:none;cursor:pointer;font-family:inherit;text-align:left}
+.newsbar b{font-size:12.5px;color:var(--acc-tx);font-weight:800}
+.newsbar span{font-size:13px;color:var(--acc-tx)}
+.newsbar.quiet{background:rgba(255,255,255,.12)}
+.newsbar.quiet b, .newsbar.quiet span{color:var(--hero-sub)}
+.quick{display:flex;gap:7px;margin-top:10px}
+.quick a{flex:1;background:var(--tile);border-radius:11px;padding:9px 4px;text-align:center;color:#fff}
+.quick a .qi{font-size:16px;display:block}
+.quick a .qt{font-size:10px;margin-top:3px;display:block;opacity:.88;font-weight:600}
+/* ── 새 소식 펼침 ── */
+.newslist{display:none;margin-top:9px;background:rgba(255,255,255,.1);border-radius:12px;padding:4px 2px}
+.newslist.show{display:block}
+.newslist a{display:flex;gap:8px;align-items:baseline;padding:8px 11px;font-size:12px;color:#fff;border-radius:9px}
+.newslist a:active{background:rgba(255,255,255,.12)}
+.newslist small{color:var(--hero-sub);font-size:10px;margin-left:auto;white-space:nowrap}
+/* ── 본문 카드 ── */
+.main{padding:12px 12px 30px;display:flex;flex-direction:column;gap:9px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 14px}
+.card-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
+.card-h b{font-size:13px;font-weight:800;color:var(--pt)}
+.card-h a{font-size:11px;color:var(--ink3);font-weight:600}
+.item{display:block;padding:7px 0;border-top:1px solid #F0EDE5}
+.item:first-of-type{border-top:none;padding-top:0}
+.item .t{font-size:13px;font-weight:700;color:var(--ink);line-height:1.45}
+.item.read .t{color:#5A5F66;font-weight:600}
+.item .m{font-size:10.5px;color:var(--ink3);margin-top:2px}
+.dot{color:var(--dot);font-size:11px;margin-left:3px}
+.empty-line{font-size:12px;color:var(--ink3);padding:4px 0}
+/* 더 보기 그리드 */
+.more{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.more a,.more .off{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 12px}
+.more .mt{font-size:12.5px;font-weight:800;color:var(--ink)}
+.more .md{font-size:10px;color:var(--ink3);margin-top:3px;line-height:1.45}
+.more .off{opacity:.55}
+/* 내 정보 */
+.me-sec .row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-top:1px solid #F0EDE5;font-size:13px}
+.me-sec .row:first-of-type{border-top:none;padding-top:0}
+.me-sec .row small{color:var(--ink3);font-size:11px}
+.kid{display:inline-flex;align-items:center;gap:4px;background:var(--cream);border:1px solid var(--line);
+  border-radius:100px;padding:5px 11px;font-size:12px;font-weight:700;margin:3px 4px 0 0}
+.kid small{font-weight:500;color:var(--ink2)}
+.kid-add{display:inline-block;border:1.5px dashed var(--line);border-radius:100px;padding:5px 11px;
+  font-size:12px;color:var(--ink3);margin-top:3px;font-weight:600}
+.btnline{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:9px 14px;
+  font-size:12.5px;font-weight:700;color:var(--ink2);cursor:pointer;font-family:inherit}
+.cross{font-size:11px;color:#B0AA9C;text-align:center;padding:6px 0 0;display:none}
+.cross a{color:#5E4B8B;font-weight:700}
+.alert{display:none;border-radius:9px;padding:8px 11px;font-size:12px;font-weight:700;margin-top:8px}
+.alert.ok{display:block;background:#DCFCE7;color:#16A34A}
+.alert.err{display:block;background:#FDECEA;color:#C0392B}
+input[type=text]{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;
+  font-size:14px;font-family:inherit;outline:none}
+#loading{min-height:100vh;display:flex;align-items:center;justify-content:center;color:var(--ink3);font-size:13px}
+</style>
+</head>
+<body>
+<div id="loading">불러오는 중…</div>
+<div class="wrap" id="main" style="display:none">
+
+<div class="hero">
+  <div class="hero-top">
+    <div class="hero-org"><img src="logo-daniel-color.png" onerror="this.style.display='none'">다니엘 아마츠</div>
+    <button class="hero-me" onclick="document.getElementById('me-sec').scrollIntoView({behavior:'smooth'})" title="내 정보">👤</button>
+  </div>
+  <h1 id="greet">안녕하세요</h1>
+  <div class="kidsline" id="kidsline"></div>
+  <button class="newsbar" id="newsbar" onclick="toggleNews()">
+    <b id="news-t">🔔 새 소식을 확인하는 중…</b><span>→</span>
+  </button>
+  <div class="newslist" id="newslist"></div>
+  <div class="quick">
+    <a id="q-fam" href="#"><span class="qi">📨</span><span class="qt">통신문</span></a>
+    <a id="q-board" href="#"><span class="qi">💬</span><span class="qt">게시판</span></a>
+    <a id="q-cal" href="#"><span class="qi">📅</span><span class="qt">일정</span></a>
+  </div>
+</div>
+
+<div class="main">
+  <div class="card" id="name-card" style="display:none">
+    <div class="card-h"><b>👋 처음 오셨네요</b></div>
+    <div style="font-size:12px;color:var(--ink2);margin-bottom:8px">게시판에서 쓸 보호자 성함을 알려주세요. (예: 김은혜)</div>
+    <div style="display:flex;gap:7px">
+      <input type="text" id="p-name" placeholder="보호자 성함" maxlength="10">
+      <button class="btnline" style="white-space:nowrap;color:var(--pt)" onclick="saveName()">저장</button>
+    </div>
+    <div class="alert" id="name-msg"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><b>📨 가정통신문</b><a id="fam-all" href="#">전체 보기 →</a></div>
+    <div id="fam-list"><div class="empty-line">불러오는 중…</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><b id="board-title">💬 우리 반 게시판</b><a id="board-all" href="#">더 보기 →</a></div>
+    <div id="board-list"><div class="empty-line">불러오는 중…</div></div>
+  </div>
+
+  <div class="more" id="more"></div>
+
+  <div class="card me-sec" id="me-sec">
+    <div class="card-h"><b>👤 내 정보</b></div>
+    <div class="row"><span id="me-name">보호자</span><small id="me-email"></small></div>
+    <div class="row" style="display:block">
+      <small>연결된 자녀</small>
+      <div id="kids" style="margin-top:4px"></div>
+    </div>
+    <div class="row"><span style="font-size:12.5px;color:var(--ink2)">📲 홈 화면에 앱으로 설치하면 더 빨라요</span>
+      <small>공유 → 홈 화면에 추가</small></div>
+    <div class="row"><button class="btnline" onclick="logout()">로그아웃</button></div>
+    <div class="cross" id="cross">지혜빛 선교원 자녀가 있으신가요? <a href="home-jihyebit.html">지혜빛 사이트 열기 →</a></div>
+  </div>
+</div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, initializeFirestore, doc, getDoc, updateDoc, collection, query, where, getDocs, arrayUnion, Timestamp }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const app = initializeApp({
+  apiKey: "AIzaSyCtgr79jKqkec6HwqkxYNxSubWAhfEkM7g",
+  authDomain: "daniel-amatz.firebaseapp.com",
+  projectId: "daniel-amatz",
+  storageBucket: "daniel-amatz.firebasestorage.app",
+  messagingSenderId: "455744290312",
+  appId: "1:455744290312:web:3ce7e7d3e58f6f1d185bbd"
+});
+const auth = getAuth(app);
+const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+setPersistence(auth, browserLocalPersistence).catch(()=>{});
+
+const ORG = 'daniel';
+const GYOSA = 'https://artist4rhythm-hub.github.io/gyosa-seongyosa';
+const $ = id => document.getElementById(id);
+const esc = t => String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = ts => { const d = ts?.seconds ? new Date(ts.seconds*1000) : new Date(ts); return `${d.getMonth()+1}/${d.getDate()}`; };
+
+let ME=null, LINKS=[], NEWS=[];
+// «마지막으로 확인한 시각» — 이 시각 이후 글에 ● 이 붙는다 (기기별, 서버 비용 0)
+const SEEN_KEY = 'parent_seen_daniel';
+let prevSeen = 0; try{ prevSeen = Number(localStorage.getItem(SEEN_KEY)||0); }catch(e){}
+
+window.logout = async () => { await signOut(auth); location.href='login.html'; };
+window.toggleNews = () => { $('newslist').classList.toggle('show'); };
+
+window.saveName = async () => {
+  const n = $('p-name').value.trim();
+  const msg = $('name-msg'); msg.className='alert';
+  if(n.length < 2){ msg.className='alert err'; msg.textContent='성함을 두 글자 이상 입력해 주세요.'; return; }
+  try{
+    await updateDoc(doc(db,'parents',auth.currentUser.uid), { name:n });
+    ME.name = n; paintGreet();
+    msg.className='alert ok'; msg.textContent='저장했습니다 ✓';
+    setTimeout(()=>{ $('name-card').style.display='none'; }, 900);
+  }catch(e){ msg.className='alert err'; msg.textContent='저장하지 못했습니다: '+(e.message||''); }
+};
+
+function myKids(){ return LINKS.filter(l => (l.org||'daniel') === ORG); }
+function paintGreet(){
+  $('greet').textContent = ME.name ? `${ME.name}님, 안녕하세요` : '안녕하세요 👋';
+  $('kidsline').textContent = myKids().map(k=>`${k.studentName||'학생'}${k.grade?' · '+k.grade:''}${k.className?' '+k.className:''}`).join('  ·  ');
+}
+
+onAuthStateChanged(auth, async (user)=>{
+  if(!user){ location.href='login-daniel.html'; return; }
+  try{
+    const pref = doc(db,'parents',user.uid);
+    const ps = await getDoc(pref);
+    ME = ps.exists() ? ps.data() : {};
+    const snap = await getDocs(query(collection(db,'parentLinks'),
+      where('parentUid','==',user.uid), where('status','==','active')));
+    LINKS=[]; snap.forEach(d=>LINKS.push(d.data()));
+    const kids = myKids();
+    if(!kids.length){ location.href='login-daniel.html'; return; }   // 이 기관 자녀 없음 → 연결 화면
+
+    try{ localStorage.setItem('parent_org', ORG); }catch(e){}
+    const orgs = [...new Set(LINKS.map(l=>l.org||'daniel'))];
+    try{ await updateDoc(pref, { orgs: arrayUnion(...orgs), lastSeen: Timestamp.now() }); }catch(e){}
+
+    // 두 기관 자녀 가정에게만 교차 링크
+    if(orgs.length>1) $('cross').style.display='block';
+    if(!ME.name) $('name-card').style.display='';
+    paintGreet();
+
+    // 빠른 이동
+    const cls = kids.find(k=>k.className)?.className || '';
+    $('q-fam').href  = `${GYOSA}/share-family.html?org=${ORG}`;
+    $('q-board').href = cls ? `board.html?org=${ORG}&scope=class` : `board.html?org=${ORG}&scope=org`;
+    $('fam-all').href = $('q-fam').href;
+    $('board-all').href = $('q-board').href;
+    $('board-title').textContent = cls ? `💬 ${cls} 게시판` : '💬 전체 게시판';
+
+    // 학교 등록 링크 (학사일정·시간표)
+    let PL = {};
+    try{ const ls = await getDoc(doc(db,'parentConfig','links_'+ORG)); if(ls.exists()) PL = ls.data(); }catch(e){}
+    if(PL.academic){ $('q-cal').href = PL.academic; $('q-cal').target='_blank'; }
+    else { $('q-cal').style.opacity='.45'; $('q-cal').onclick = e=>{ e.preventDefault(); alert('학사일정 링크가 아직 연결되지 않았어요.'); }; }
+
+    // ── 데이터 로드: 통신문 목록 + 반/전체 게시판 ──
+    let famItems = [];
+    try{
+      const ix = await getDoc(doc(db,'sharedFamily','_index'));
+      const items = ix.exists() && Array.isArray(ix.data().items) ? ix.data().items : [];
+      famItems = items.filter(it=>(it.org||'daniel')===ORG).slice(0,3);
+    }catch(e){}
+    let posts = [];
+    try{
+      const conds = [where('org','==',ORG), where('scope','==', cls?'class':'org')];
+      if(cls) conds.push(where('classKey','==',cls));
+      const psnap = await getDocs(query(collection(db,'parentPosts'), ...conds));
+      psnap.forEach(d=>posts.push({id:d.id, ...d.data()}));
+      posts.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    }catch(e){}
+
+    // ── 카드 채우기 ──
+    const isNewF = it => (it.at||0) > prevSeen;
+    $('fam-list').innerHTML = famItems.length ? famItems.map(it=>`
+      <a class="item ${isNewF(it)?'':'read'}" href="${GYOSA}/share-family.html?id=${esc(it.id)}">
+        <div class="t">${esc(it.title||'(제목 없음)')}${isNewF(it)?'<span class="dot">●</span>':''}</div>
+        <div class="m">${fmt(it.at)}${isNewF(it)?' · 안 읽음':''}</div>
+      </a>`).join('')
+      : '<div class="empty-line">아직 발행된 통신문이 없어요.</div>';
+
+    const isNewP = p => ((p.createdAt?.seconds||0)*1000) > prevSeen;
+    $('board-list').innerHTML = posts.length ? posts.slice(0,2).map(p=>`
+      <a class="item ${isNewP(p)?'':'read'}" href="board.html?org=${ORG}&scope=${cls?'class':'org'}#post-${esc(p.id)}">
+        <div class="t">${p.pinned?'📌 ':''}${esc(p.title)}${isNewP(p)?'<span class="dot">●</span>':''}</div>
+        <div class="m">${esc(p.authorName||'')}${p.byStaff?' 선생님':''} · 💬 ${p.commentCount||0} · ${fmt(p.createdAt)}</div>
+      </a>`).join('')
+      : '<div class="empty-line">아직 글이 없어요 — 첫 이야기를 남겨 보세요.</div>';
+
+    // ── 새 소식 배너 ──
+    NEWS = [
+      ...famItems.filter(isNewF).map(it=>({ icon:'📨', t:it.title||'가정통신문', at:it.at,
+        href:`${GYOSA}/share-family.html?id=${it.id}` })),
+      ...posts.filter(isNewP).slice(0,3).map(p=>({ icon:'💬', t:p.title, at:(p.createdAt?.seconds||0)*1000,
+        href:`board.html?org=${ORG}&scope=${cls?'class':'org'}#post-${p.id}` })),
+    ].sort((a,b)=>(b.at||0)-(a.at||0)).slice(0,4);
+    if(NEWS.length){
+      $('news-t').textContent = `🔔 새 소식 ${NEWS.length}건이 도착했어요`;
+      $('newslist').innerHTML = NEWS.map(n=>`<a href="${esc(n.href)}">${n.icon} <span style="flex:1">${esc(n.t)}</span><small>${fmt(n.at)}</small></a>`).join('');
+    } else {
+      $('newsbar').classList.add('quiet');
+      $('news-t').textContent = '새 소식이 없어요 — 오늘도 평안한 하루 되세요 🕊';
+      $('newsbar').onclick = null;
+    }
+
+    // 더 보기
+    const mi=(href,t,d,blank)=>`<a href="${href}" ${blank?'target="_blank" rel="noopener"':''}><div class="mt">${t}</div><div class="md">${d}</div></a>`;
+    $('more').innerHTML =
+      mi(`board.html?org=${ORG}&scope=org`, '📢 전체 게시판', '기관 전체 학부모와 소통해요')
+      + (PL.timetable ? mi(PL.timetable,'🗓 시간표','우리 아이 시간표 확인',1) : `<div class="off"><div class="mt">🗓 시간표</div><div class="md">학교에서 링크 연결 시 열려요</div></div>`)
+      + mi(`${GYOSA}/parent-expense.html`, '💳 환급 계좌', '경비 환급 계좌 등록', 1)
+      + mi(`login-daniel.html`, '🎫 자녀 추가 연결', '가입코드로 자녀를 더 연결해요');
+
+    // 내 정보
+    $('me-name').textContent = ME.name || '보호자';
+    $('me-email').textContent = user.email || '';
+    $('kids').innerHTML = kids.map(k=>`<span class="kid">👦 ${esc(k.studentName||'학생')}<small>${k.grade?'· '+esc(k.grade):''} ${esc(k.className||'')}</small></span>`).join('')
+      + `<a class="kid-add" href="login-daniel.html">＋ 자녀 추가</a>`;
+
+    // 이번 방문을 «확인 시각»으로 기록 → 다음 방문부터는 이 이후 글만 새 소식
+    try{ localStorage.setItem(SEEN_KEY, String(Date.now())); }catch(e){}
+
+    $('loading').style.display='none';
+    $('main').style.display='';
+  }catch(e){
+    $('loading').textContent = '불러오지 못했습니다: ' + (e.message||'');
+  }
+});
+</script>
+</body>
+</html>

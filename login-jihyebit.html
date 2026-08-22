@@ -400,7 +400,7 @@ window.linkChild = async function(){
   }
 };
 
-window.goHome = function(){ location.href = 'home.html'; };
+window.goHome = function(){ location.href = 'home-jihyebit.html'; };
 
 try{localStorage.setItem('parent_org','jihyebit')}catch(e){}
 // ── 시작 ──
@@ -413,7 +413,7 @@ try{localStorage.setItem('parent_org','jihyebit')}catch(e){}
       const children = await myActiveChildren(user.uid);
       if(children.length && !handled){
         // 이미 연결된 자녀가 있는 재방문자 → 바로 홈
-        location.href = 'home.html';
+        location.href = 'home-jihyebit.html';
         return;
       }
       // 로그인은 됐지만 연결 화면을 보여줌 (신규 또는 링크 직후)
