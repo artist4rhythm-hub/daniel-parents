@@ -115,6 +115,9 @@ const auth = getAuth(app);
 const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true })   /* 🔌 막히는 네트워크 자동 우회 */;
 const $ = id => document.getElementById(id);
 const esc = t => String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// 이미 esc() 처리된 문자열에서 https 주소만 눌러서 열 수 있게 (통신문 링크용)
+const linkify = t => String(t??'').replace(/(https:\/\/[^\s<]+)/g,
+  '<a href="$1" target="_blank" rel="noopener" style="color:var(--pt,#2C6E54);font-weight:700;word-break:break-all">$1</a>');
 
 const qs = new URLSearchParams(location.search);
 const ORG = qs.get('org')==='jihyebit' ? 'jihyebit' : 'daniel';
@@ -199,7 +202,7 @@ function renderPosts(){
         <div class="post-t">${esc(p.title)}</div>
       </div>
       <div class="post-meta"><b>${esc(p.authorName||'학부모')}</b>${p.childLabel?` · ${esc(p.childLabel)} 학부모`:''}${p.byStaff?' · <b style="color:var(--gold)">선생님</b>':''} · ${fmt(p.createdAt)}</div>
-      <div class="post-b">${esc(p.body)}</div>
+      <div class="post-b">${linkify(esc(p.body))}</div>
       <div class="post-ft">
         <button class="pbtn" onclick="toggleCmts('${p.id}')">💬 댓글 ${p.commentCount||0}</button>
         ${p.authorUid===auth.currentUser?.uid?`<button class="pbtn" onclick="delPost('${p.id}')">지우기</button>`:''}
