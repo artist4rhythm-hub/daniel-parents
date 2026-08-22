@@ -400,16 +400,22 @@ try{localStorage.setItem('parent_org','daniel')}catch(e){}
   onAuthStateChanged(auth, async (user) => {
     if(user){
       await ensureParentDoc(user);
-      const children = await myActiveChildren(user.uid);
+      const childrenAll = await myActiveChildren(user.uid);
+      // ⚠️ 이 기관 자녀만으로 판단한다 — 다른 기관 자녀만 있는 계정을
+      //    이 기관 홈으로 보내면 홈↔로그인 무한 왕복이 생긴다.
+      const children = childrenAll.filter(c => (c.org||'daniel') === 'daniel');
       if(children.length && !handled && !ADD_MODE){
-        // 이미 연결된 자녀가 있는 재방문자 → 가려던 곳(next) 또는 홈으로
+        // 이 기관 자녀가 있는 재방문자 → 가려던 곳(next) 또는 홈으로
         location.href = nextUrl() || 'home-daniel.html';
         return;
       }
-      // 로그인은 됐지만 연결 화면을 보여줌 (신규 또는 링크 직후)
+      // 로그인은 됐지만 연결 화면을 보여줌 (신규·자녀 추가·이 기관 자녀 없음)
+      const hasOther = childrenAll.length > children.length;
       $('link-hello').innerHTML = children.length
         ? '로그인되었습니다.<br>자녀를 추가하거나 홈으로 이동하세요.'
-        : '로그인되었습니다.<br>자녀를 연결해 주세요.';
+        : (hasOther
+          ? '이 계정에는 지혜빛 선교원 자녀만 연결되어 있어요.<br>다니엘 아마츠 자녀가 있다면 가입코드로 연결해 주세요.'
+          : '로그인되었습니다.<br>자녀를 연결해 주세요.');
       renderChildren(children);
       show('step-link');
     } else {
