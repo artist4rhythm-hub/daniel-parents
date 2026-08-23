@@ -375,7 +375,7 @@ window.delCmt = async (pid, cid)=>{
 };
 
 onAuthStateChanged(auth, async (user)=>{
-  if(!user){ location.replace('login.html?next='+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
+  if(!user){ location.replace('login-'+ORG+'.html?next='+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
   try{
     const ps = await getDoc(doc(db,'parents',user.uid));
     ME = ps.exists()? ps.data() : {};

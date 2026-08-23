@@ -239,7 +239,7 @@ addEventListener('resize',resize);resize();requestAnimationFrame(frame);
 </script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
+import { getAuth, signOut, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
          onAuthStateChanged, setPersistence, browserLocalPersistence }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, initializeFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs,
@@ -440,6 +440,36 @@ try{localStorage.setItem('parent_org','jihyebit')}catch(e){}
         // 이 기관 자녀가 있는 재방문자 → 가려던 곳(next) 또는 홈으로
         location.replace(nextUrl() || 'home-jihyebit.html');
         return;
+      }
+      // 👩‍🏫 교사 계정 감지 — 같은 브라우저는 교사·학부모 로그인이 한 자리를 쓴다.
+      //    교사 세션인데 학부모 연결 화면이 뜨면 혼란스러우니, 상태를 정직하게 안내한다.
+      if(!children.length && !ADD_MODE){
+        try {
+          const st = await getDoc(doc(db,'staff',user.uid));
+          if(st.exists()){
+            const tn = st.data().name || '선생님';
+            $('link-hello').innerHTML =
+              `지금 <b>교사 계정(${tn})</b>으로 로그인되어 있어요.<br>` +
+              `<span style="font-size:12.5px">같은 브라우저에서는 교사·학부모 로그인이 한 자리를 함께 씁니다.</span>`;
+            const kb = $('kids-box') || $('link-kids');
+            const host = document.getElementById('step-link');
+            const div = document.createElement('div');
+            div.style.cssText = 'display:flex;flex-direction:column;gap:9px;margin-top:14px';
+            div.innerHTML =
+              `<button type="button" class="btn" onclick="location.href='board.html?org=jihyebit&scope=org'">👩‍🏫 교사 모드로 게시판 보기</button>` +
+              `<button type="button" class="btn btn-ghost" id="tout-btn">학부모로 로그인하기 (교사 로그아웃)</button>`;
+            // 기존 코드 입력·홈 버튼은 숨긴다
+            ['code','btn-link','btn-go-home','link-kids','code-label'].forEach(i=>{
+              const el = document.getElementById(i); if(el) el.style.display='none'; });
+            host.appendChild(div);
+            document.getElementById('tout-btn').onclick = async ()=>{
+              await signOut(auth);            // 교사 세션을 내리고 —
+              location.replace('login-jihyebit.html');   // 학부모 이메일 로그인 화면으로 깨끗하게
+            };
+            show('step-link');
+            return;
+          }
+        } catch(e){}
       }
       // 로그인은 됐지만 연결 화면을 보여줌 (신규·자녀 추가·이 기관 자녀 없음)
       const hasOther = childrenAll.length > children.length;

@@ -8,13 +8,19 @@
 // 옛 링크 호환 — 기관을 이미 고른 학부모는 그 기관 로그인으로,
 // 처음이면 기관 선택 화면으로 보낸다. (두 기관이 한 화면에 섞이지 않도록)
 (function(){
-  // 로그인 후 돌아갈 주소(next)를 잃지 않고 기관 로그인으로 넘긴다
+  // 로그인 후 돌아갈 주소(next)를 잃지 않고 «올바른 기관» 로그인으로 넘긴다.
+  // ⚠️ next 안에 기관(org=)이 있으면 그것이 최우선 — 마지막 선택 기관으로 보내면
+  //    지혜빛 화면 ↔ 다니엘 로그인 교차가 생긴다.
   var q = location.search || '';
+  var target = '';
   try{
-    var o = localStorage.getItem('parent_org');
-    if(o==='daniel'){ location.replace('login-daniel.html'+q); return; }
-    if(o==='jihyebit'){ location.replace('login-jihyebit.html'+q); return; }
+    var n = new URLSearchParams(location.search).get('next') || '';
+    var m = /[?&]org=(daniel|jihyebit)/.exec(n);
+    if(m) target = m[1];
   }catch(e){}
+  if(!target){ try{ var o = localStorage.getItem('parent_org');
+    if(o==='daniel'||o==='jihyebit') target = o; }catch(e){} }
+  if(target){ location.replace('login-'+target+'.html'+q); return; }
   location.replace('index.html');
 })();
 </script>
