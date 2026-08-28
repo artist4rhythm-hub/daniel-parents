@@ -110,10 +110,19 @@ html[data-theme="dark"] .spin{ border-color:rgba(6,19,14,.35); border-top-color:
     <label for="email">이메일 주소</label>
     <input type="email" id="email" placeholder="parent@example.com" autocomplete="email" inputmode="email">
     <div class="alert err" id="email-err"></div>
+    <div id="pw-wrap" style="display:none;margin-top:2px">
+      <label for="pw-in">비밀번호</label>
+      <input type="password" id="pw-in" autocomplete="current-password" placeholder="설정해 둔 비밀번호">
+    </div>
     <button class="btn" id="btn-send" onclick="sendLink()">
       <span>로그인 링크 받기</span>
     </button>
-    <p class="note">비밀번호가 없습니다. 입력하신 이메일로 로그인 링크를 보내드립니다. 링크를 누르면 로그인돼요.</p>
+    <button class="btn" id="btn-pw" style="display:none" onclick="pwLogin()">
+      <span>비밀번호로 로그인</span>
+    </button>
+    <button class="btn btn-ghost" id="btn-mode" onclick="togglePwMode()">🔑 비밀번호로 로그인하기</button>
+    <p class="note" id="mode-note">비밀번호가 없어도 됩니다 — 이메일로 로그인 링크를 보내드려요.
+      <b>홈 화면에 설치한 앱</b>에서는 비밀번호 로그인이 편해요 (아래에서 전환).</p>
   </div>
 
   <!-- STEP 2: 메일 확인 대기 -->
@@ -239,7 +248,7 @@ addEventListener('resize',resize);resize();requestAnimationFrame(frame);
 </script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, signOut, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
+import { getAuth, signOut, signInWithEmailAndPassword, updatePassword, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
          onAuthStateChanged, setPersistence, browserLocalPersistence }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, initializeFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs,
@@ -269,6 +278,34 @@ const alertHide = id => $(id).classList.remove('on');
 function validEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
 
 // ── STEP 1: 로그인 링크 발송 ──
+let PW_MODE = false;
+window.togglePwMode = function(){
+  PW_MODE = !PW_MODE;
+  $('pw-wrap').style.display = PW_MODE ? '' : 'none';
+  $('btn-pw').style.display  = PW_MODE ? '' : 'none';
+  $('btn-send').style.display = PW_MODE ? 'none' : '';
+  $('btn-mode').innerHTML = PW_MODE ? '✉️ 이메일 링크로 로그인하기' : '🔑 비밀번호로 로그인하기';
+  $('mode-note').innerHTML = PW_MODE
+    ? '처음이시거나 비밀번호를 아직 안 만드셨다면 <b>이메일 링크</b>로 로그인해 주세요. 로그인 후 비밀번호를 만들 수 있어요.'
+    : '비밀번호가 없어도 됩니다 — 이메일로 로그인 링크를 보내드려요. <b>홈 화면에 설치한 앱</b>에서는 비밀번호 로그인이 편해요 (아래에서 전환).';
+  if(PW_MODE) $('pw-in').focus();
+};
+window.pwLogin = async function(){
+  const email = $('email').value.trim(), pw = $('pw-in').value;
+  const err = $('email-err'); err.classList.remove('on');
+  if(!email || !pw){ err.textContent='이메일과 비밀번호를 입력해 주세요.'; err.classList.add('on'); return; }
+  const btn = $('btn-pw'); btn.disabled = true;
+  try{
+    await signInWithEmailAndPassword(auth, email, pw);
+    // 이후 흐름은 onAuthStateChanged가 처리 (자녀 있으면 홈, 없으면 연결 화면)
+  }catch(e){
+    btn.disabled = false;
+    err.textContent = (e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'||e.code==='auth/user-not-found')
+      ? '이메일 또는 비밀번호가 맞지 않아요. 비밀번호를 아직 안 만드셨다면 이메일 링크로 로그인해 주세요.'
+      : '로그인에 실패했습니다: ' + (e.code||e.message);
+    err.classList.add('on');
+  }
+};
 window.sendLink = async function(){
   alertHide('email-err');
   const email = $('email').value.trim().toLowerCase();
@@ -340,6 +377,43 @@ async function ensureParentDoc(user){
   }
 }
 
+/* 🔑 비밀번호 만들기 — 설치한 앱에서 링크 없이 로그인하기 위한 열쇠 */
+function injectPwSetup(){
+  if(document.getElementById('pwset-card')) return;
+  const host = document.getElementById('step-link'); if(!host) return;
+  const div = document.createElement('div');
+  div.id = 'pwset-card';
+  div.style.cssText = 'margin-top:16px;border-top:1px solid rgba(255,255,255,.15);padding-top:14px;text-align:left';
+  div.innerHTML = `
+    <div style="font-size:13px;font-weight:800;margin-bottom:4px">🔑 비밀번호 만들기 <span style="font-weight:400;opacity:.75">(선택)</span></div>
+    <div style="font-size:12px;opacity:.8;line-height:1.55;margin-bottom:9px">
+      만들어 두면 다음부터는 메일 링크 없이,<br><b>홈 화면에 설치한 앱 안에서</b> 이메일+비밀번호로 바로 로그인돼요.</div>
+    <input type="password" id="pwset-1" placeholder="새 비밀번호 (6자 이상)" autocomplete="new-password"
+      style="width:100%;margin-bottom:7px;padding:11px 12px;border-radius:9px;border:1.5px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:inherit;font-family:inherit">
+    <input type="password" id="pwset-2" placeholder="한 번 더" autocomplete="new-password"
+      style="width:100%;margin-bottom:9px;padding:11px 12px;border-radius:9px;border:1.5px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:inherit;font-family:inherit">
+    <button type="button" class="btn" style="width:100%" onclick="savePw()">비밀번호 저장</button>
+    <div id="pwset-msg" style="display:none;margin-top:8px;border-radius:9px;padding:8px 11px;font-size:12px;font-weight:700"></div>`;
+  host.appendChild(div);
+}
+window.savePw = async function(){
+  const p1 = document.getElementById('pwset-1').value, p2 = document.getElementById('pwset-2').value;
+  const m = document.getElementById('pwset-msg');
+  const say = (ok, t) => { m.style.display='block';
+    m.style.background = ok?'rgba(34,197,94,.18)':'rgba(220,38,38,.18)';
+    m.style.color = ok?'#86efac':'#fca5a5'; m.textContent = t; };
+  if(p1.length < 6) return say(false, '6자 이상으로 만들어 주세요.');
+  if(p1 !== p2)     return say(false, '두 칸이 서로 달라요.');
+  try{
+    await updatePassword(auth.currentUser, p1);
+    say(true, '저장했습니다 ✓ 이제 앱에서 «비밀번호로 로그인»을 쓰시면 돼요.');
+    document.getElementById('pwset-1').value=''; document.getElementById('pwset-2').value='';
+  }catch(e){
+    say(false, e.code==='auth/requires-recent-login'
+      ? '보안을 위해 방금 로그인한 상태에서만 만들 수 있어요 — 메일 링크로 다시 로그인한 뒤 설정해 주세요.'
+      : '저장 실패: ' + (e.code||e.message));
+  }
+};
 async function myActiveChildren(uid){
   const out = [];
   try {
@@ -481,6 +555,7 @@ try{localStorage.setItem('parent_org','jihyebit')}catch(e){}
       window.__kids = children;
       renderChildren(children);
       show('step-link');
+      injectPwSetup();
     } else {
       if(!handled) show('step-email');
     }
