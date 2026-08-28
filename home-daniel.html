@@ -179,6 +179,9 @@ input[type=text]{width:100%;border:1.5px solid var(--line);border-radius:10px;pa
     </div>
     <div class="row"><span style="font-size:12.5px;color:var(--ink2)">📲 홈 화면에 앱으로 설치하면 더 빨라요</span>
       <small>공유 → 홈 화면에 추가</small></div>
+    <div class="row" id="push-row" style="display:none">
+      <span style="font-size:12.5px;color:var(--ink2)">🔔 새 통신문·공지 알림 받기</span>
+      <button class="btnline" id="push-btn" onclick="enablePush()">알림 켜기</button></div>
     <div class="row"><button class="btnline" onclick="logout()">로그아웃</button></div>
     <div class="cross" id="cross">지혜빛 선교원 자녀가 있으신가요? <a href="home-jihyebit.html">지혜빛 사이트 열기 →</a></div>
   </div>
@@ -297,6 +300,43 @@ window.pickRel = (el) => {
   if(el.dataset.rel === (window._selRel||ME.relation)){ window._selRel=''; return; }   // 다시 누르면 해제
   window._selRel = el.dataset.rel;
   el.style.color='var(--pt)'; el.style.borderColor='var(--pt)'; el.style.fontWeight='800';
+};
+// ── 🔔 웹푸시: 허용 → 기기 토큰을 내 프로필에 저장 (규칙 v11 필요) ──
+async function setupPushRow(){
+  try {
+    if(!('Notification' in window) || !('serviceWorker' in navigator)) return;   // 미지원 기기
+    const cfg = await getDoc(doc(db,'parentConfig','push'));
+    const vk = cfg.exists() ? (cfg.data().vapidKey || cfg.data().vapidkey || '') : '';   // 대소문자 표기 모두 허용
+    if(!vk) return;    // 아직 학교가 알림을 켜지 않음
+    window.__vapid = vk;
+    const row = $('push-row'); if(!row) return;
+    row.style.display = '';
+    if(Notification.permission === 'granted' && localStorage.getItem('push_on_daniel')==='1'){
+      $('push-btn').textContent = '✓ 알림 받는 중';
+      $('push-btn').disabled = true;
+    }
+  } catch(e){}
+}
+window.enablePush = async () => {
+  const btn = $('push-btn');
+  try {
+    btn.disabled = true; btn.textContent = '설정 중…';
+    const perm = await Notification.requestPermission();
+    if(perm !== 'granted'){ btn.disabled=false; btn.textContent='알림 켜기';
+      alert('알림이 허용되지 않았어요. 브라우저 설정에서 알림을 허용해 주세요.'); return; }
+    const { getMessaging, getToken } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js');
+    const reg = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+    const messaging = getMessaging(app);
+    const token = await getToken(messaging, { vapidKey: window.__vapid, serviceWorkerRegistration: reg });
+    if(!token) throw new Error('토큰을 만들지 못했습니다.');
+    await updateDoc(doc(db,'parents',auth.currentUser.uid), { fcmTokens: arrayUnion(token) });
+    try{ localStorage.setItem('push_on_daniel','1'); }catch(e){}
+    btn.textContent = '✓ 알림 받는 중';
+  } catch(e){
+    btn.disabled = false; btn.textContent = '알림 켜기';
+    alert('알림 설정에 실패했어요: ' + (e.message||''));
+  }
 };
 window.saveMe = async () => {
   const n = $('me-name-in').value.trim();
@@ -440,6 +480,7 @@ onAuthStateChanged(auth, async (user)=>{
 
     // 내 정보
     $('me-name').textContent = (ME.name || '보호자') + (ME.relation?` (${ME.relation})`:'');
+    setupPushRow();
     $('me-email').textContent = user.email || '';
     $('kids').innerHTML = kids.map(k=>`<span class="kid">👦 ${esc(k.studentName||'학생')}<small>${k.grade?'· '+esc(k.grade):''} ${esc(k.className||'')}</small></span>`).join('')
       + `<a class="kid-add" href="login-daniel.html?add=1">＋ 자녀 추가</a>`;
