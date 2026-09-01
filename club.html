@@ -205,16 +205,29 @@ async function loadSem(){
     if(!snap.empty){ const d = snap.docs[0]; SEM = {id:d.id, ...d.data()}; localStorage.setItem('club_sem', d.id); }
   }
 }
-function isOpen(){ return SEM && SEM.status==='recruiting'; }
-function deadlineText(){ if(!SEM?.applyTo) return ''; const dl = new Date(SEM.applyTo); const left = dl - Date.now();
-  if(left<0) return '마감 시각이 지났습니다'; const d=Math.floor(left/86400000), h=Math.floor(left%86400000/3600000); return `마감까지 ${d?d+'일 ':''}${h}시간`; }
+function isOpen(){ return SEM && (SEM.status==='recruiting' || SEM.status==='planning'); }   // 수정 가능
+function canCreate(){ return SEM && SEM.status==='recruiting'; }                                // 새 신청서
+function ms(role){ return (SEM?.milestones||[]).find(m=>m.role===role) || null; }
+function leftText(at){ if(!at) return ''; const left = new Date(at) - Date.now();
+  if(left<0) return '지남'; const d=Math.floor(left/86400000), h=Math.floor(left%86400000/3600000); return `${d?d+'일 ':''}${h}시간 남음`; }
+function scheduleHTML(){
+  const list = (SEM.milestones||[]).filter(m=>m.at);
+  if(!list.length) return '';
+  return `<div style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:6px">${list.map(m=>{
+    const past = new Date(m.at) < Date.now();
+    return `<div style="border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px;${past?'opacity:.55':''}"><b>${esc(m.label)}</b><br>${m.at.replace('T',' ')} <span class="small">· ${leftText(m.at)}</span></div>`; }).join('')}</div>`;
+}
 function renderSemCard(){
   if(!SEM){ $('sem-card').innerHTML = `<h3>지금 모집 중인 학기가 없어요</h3><div class="small">학교에서 보내드린 링크로 다시 들어오시거나, 모집 시작을 기다려 주세요.</div>`; return; }
+  const stLabel = SEM.status==='recruiting' ? '강사 모집중' : SEM.status==='planning' ? '활동 계획서 제출중 (수정만 가능)' : '접수 마감';
   $('sem-card').innerHTML = `<div class="row" style="justify-content:space-between">
     <div><div style="font-size:15px;font-weight:900;color:var(--pt)">${esc(ORGS[SEM.org]||'')} · ${esc(SEM.name)}</div>
-      <div class="small">수업 ${SEM.timeStart}~${SEM.timeEnd} (최대 ${SEM.maxMin}분) · 학기 ${SEM.rangeFrom} ~ ${SEM.rangeTo}${SEM.applyTo?' · 모집 마감 '+SEM.applyTo.replace('T',' ')+' ('+deadlineText()+')':''}</div></div>
-    <span class="pill ${isOpen()?'ok':'warn'}">${isOpen()?'모집중':'접수 마감'}</span></div>
-    <div class="row" style="margin-top:10px">${isOpen()?`<button class="btn gold" onclick="newApp()">＋ 새 개설 신청서 쓰기</button>`:'<span class="small">지금은 신청서를 새로 쓰거나 고칠 수 없어요.</span>'}</div>`;
+      <div class="small">수업 ${SEM.timeStart}~${SEM.timeEnd} (최대 ${SEM.maxMin}분) · 학기 ${SEM.rangeFrom} ~ ${SEM.rangeTo}</div></div>
+    <span class="pill ${canCreate()?'ok':isOpen()?'blue':'warn'}">${stLabel}</span></div>
+    ${scheduleHTML()}
+    <div class="row" style="margin-top:10px">${canCreate()?`<button class="btn gold" onclick="newApp()">＋ 새 개설 신청서 쓰기</button>`
+      : isOpen() ? '<span class="small">새 신청은 마감됐어요. 제출한 신청서의 활동 계획은 «계획서 제출 마감»까지 수정할 수 있습니다.</span>'
+      : '<span class="small">지금은 신청서를 새로 쓰거나 고칠 수 없어요.</span>'}</div>`;
 }
 
 /* ── 내 신청서 ── */
