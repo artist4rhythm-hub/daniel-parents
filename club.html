@@ -242,27 +242,31 @@ function renderMine(){
   const list = SEM ? MY.filter(a=>a.semId===SEM.id) : MY;
   $('my-list').innerHTML = list.length ? `<div class="card"><h3>내 신청서</h3>${list.map(a=>`<div class="my">
     <div><span class="pill ${a.type==='joy'?'blue':'ok'}">${a.type==='joy'?'조이클래스':'동아리'}</span> <b>${esc(a.title||'')}</b>
-      <div class="small">${(a.weekdays||[]).map(w=>WD[w]).join('·')} ${a.start||''} · ${a.durMin||0}분 · ${(a.sessions||[]).filter(s=>!s.blocked).length}회 · <span class="pill">${AST[a.status]||a.status}</span></div></div>
+      <div class="small">${(a.weekdays||[]).map(w=>WD[w]).join('·')} ${a.start||''} · ${a.durMin||0}분 · ${(a.sessions||[]).filter(s=>!s.blocked&&!s.skip).length}회 · <span class="pill">${AST[a.status]||a.status}</span></div></div>
     <div class="row">${isOpen()?`<button class="btn line" onclick="editApp('${a.id}')">수정</button>`:`<button class="btn line" onclick="editApp('${a.id}')">보기</button>`}</div></div>`).join('')}</div>` : '';
 }
 
 /* ── 회차 자동 생성 ── */
-function genSessions(weekdays, keepContent){
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;   // 로컬 날짜 (UTC 밀림 방지)
+function clampDate(v, lo, hi){ if(!v) return lo; return v<lo?lo:(v>hi?hi:v); }
+function genSessions(weekdays, keepContent, from, to){
   const blocked = {}; (SEM.blocked||[]).forEach(b=>blocked[b.date]=b.reason||'운영 불가');
   const prev = {}; (keepContent||[]).forEach(s=>prev[s.date]=s);
-  const out = []; let no = 0;
-  let d = new Date(SEM.rangeFrom+'T00:00:00'); const end = new Date(SEM.rangeTo+'T00:00:00');
+  const f = clampDate(from, SEM.rangeFrom, SEM.rangeTo), t = clampDate(to||SEM.rangeTo, f, SEM.rangeTo);
+  const out = [];
+  let d = new Date(f+'T00:00:00'); const end = new Date(t+'T00:00:00');
   while(d<=end){
-    const wd = d.getDay();
-    if(weekdays.includes(wd)){
-      const ds = d.toISOString().slice(0,10);
+    if(weekdays.includes(d.getDay())){
+      const ds = ymd(d), p = prev[ds]||{};
       if(blocked[ds]) out.push({ date:ds, blocked:true, reason:blocked[ds] });
-      else { no++; out.push({ date:ds, no, blocked:false, content:prev[ds]?.content||'', materials:prev[ds]?.materials||'', cost:prev[ds]?.cost||'' }); }
+      else out.push({ date:ds, blocked:false, skip:!!p.skip, skipReason:p.skipReason||'', content:p.content||'', materials:p.materials||'', cost:p.cost||'' });
     }
     d.setDate(d.getDate()+1);
   }
-  return out;
+  return renumber(out);
 }
+function renumber(list){ let no=0; list.forEach(s=>{ if(!s.blocked && !s.skip){ no++; s.no=no; } else delete s.no; }); return list; }
+const liveN = () => SESSIONS.filter(s=>!s.blocked && !s.skip).length;
 function timeOptions(){
   const [h0,m0]=SEM.timeStart.split(':').map(Number), [h1,m1]=SEM.timeEnd.split(':').map(Number);
   const out=[]; for(let t=h0*60+m0; t<h1*60+m1; t+=10) out.push(`${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`);
@@ -298,7 +302,13 @@ function renderForm(a){
     ${qsAll.map(q=>`<div class="q" data-for="${q.forType}"><label>${esc(q.label)}${q.required?' <span style="color:#C0392B">*</span>':''}</label>
       ${q.type==='long'?`<textarea id="q-${q.id}">${esc((a.answers||{})[q.id]||'')}</textarea>`:`<input id="q-${q.id}" value="${esc((a.answers||{})[q.id]||'')}">`}</div>`).join('')}
 
-    <h3 style="margin-top:16px">🗓 요일 · 시간</h3>
+    <h3 style="margin-top:16px">🗓 운영 기간 · 요일 · 시간</h3>
+    <div class="g2">
+      <div><label>동아리 시작일</label><input type="date" id="f-from" value="${a.startDate||SEM.rangeFrom}" min="${SEM.rangeFrom}" max="${SEM.rangeTo}" onchange="rebuildSessions()"></div>
+      <div><label>동아리 종료일</label><input type="date" id="f-to" value="${a.endDate||SEM.rangeTo}" min="${SEM.rangeFrom}" max="${SEM.rangeTo}" onchange="rebuildSessions()"></div>
+    </div>
+    <div class="small" style="margin-top:2px">학기 범위(${SEM.rangeFrom} ~ ${SEM.rangeTo}) 안에서 선생님 사정에 맞게 정하세요. 개별 회차는 아래 표에서 «휴강»으로 뺄 수 있어요.</div>
+    <label>요일</label>
     <div class="wd">${[1,2,3,4,5].map(w=>`<label class="${(a.weekdays||[]).includes(w)?'on':''}"><input type="checkbox" value="${w}" ${(a.weekdays||[]).includes(w)?'checked':''} onchange="this.parentNode.classList.toggle('on',this.checked); rebuildSessions()">${WD[w]}</label>`).join('')}</div>
     <div class="g2">
       <div><label>시작 시간</label><select id="f-start" onchange="durOptions(); recalc()">${timeOptions().map(t=>`<option${t===(a.start||SEM.timeStart)?' selected':''}>${t}</option>`).join('')}</select></div>
@@ -315,7 +325,8 @@ function renderForm(a){
   </div>`;
   setType(a.type||'club', true);
   durOptions(a.durMin||60);
-  if(!SESSIONS.length && (a.weekdays||[]).length) SESSIONS = genSessions(a.weekdays, a.sessions||[]);
+  if(!SESSIONS.length && (a.weekdays||[]).length) SESSIONS = genSessions(a.weekdays, a.sessions||[], a.startDate||SEM.rangeFrom, a.endDate||SEM.rangeTo);
+  else if(SESSIONS.length) renumber(SESSIONS);
   renderSessions(); recalc();
   $('form').scrollIntoView({behavior:'smooth'});
 }
@@ -325,22 +336,32 @@ window.setType = (t, silent)=>{ TYPE=t; $('t-club').classList.toggle('on',t==='c
 window.durOptions = (sel)=>{ const s = $('f-start').value, mx = maxDur(s), cur = sel || Number($('f-dur').value)||60;
   $('f-dur').innerHTML = [30,40,50,60,70,80,90,100,110,120].filter(x=>x<=mx).map(x=>`<option value="${x}"${x===cur?' selected':''}>${x}분</option>`).join(''); };
 function selWeekdays(){ return [...document.querySelectorAll('.wd input:checked')].map(i=>Number(i.value)); }
-window.rebuildSessions = ()=>{ SESSIONS = genSessions(selWeekdays(), SESSIONS); renderSessions(); recalc(); };
+window.rebuildSessions = ()=>{ SESSIONS = genSessions(selWeekdays(), SESSIONS, $('f-from')?.value, $('f-to')?.value); renderSessions(); recalc(); };
+window.toggleSkip = (i)=>{
+  const s = SESSIONS[i]; if(!s || s.blocked) return;
+  if(s.skip){ s.skip=false; s.skipReason=''; }
+  else { const r = prompt('이 회차를 휴강으로 뺍니다. 사유(선택):', s.skipReason||''); if(r===null) return; s.skip=true; s.skipReason=r.trim(); }
+  renumber(SESSIONS); renderSessions(); recalc();
+};
 function renderSessions(){
-  const live = SESSIONS.filter(s=>!s.blocked).length;
-  $('sess').innerHTML = SESSIONS.length ? `<div class="small">총 ${live}회 (휴강 ${SESSIONS.length-live}일 제외)</div>
-    <table class="tb"><tr><th style="width:34px">회</th><th style="width:96px">수업일</th><th>활동 내용</th><th style="width:110px">준비물</th><th style="width:70px">재료비</th></tr>
+  const live = liveN(), schoolOff = SESSIONS.filter(s=>s.blocked).length, myOff = SESSIONS.filter(s=>s.skip).length;
+  const dl = s => `${s.date.slice(5)} (${WD[new Date(s.date+'T00:00:00').getDay()]})`;
+  $('sess').innerHTML = SESSIONS.length ? `<div class="small">총 <b>${live}회</b> · 학교 휴강 ${schoolOff}일 · 강사 휴강 ${myOff}일 제외 — 회차 옆 «휴강» 버튼으로 개별 회차를 뺄 수 있어요</div>
+    <table class="tb"><tr><th style="width:34px">회</th><th style="width:96px">수업일</th><th>활동 내용</th><th style="width:100px">준비물</th><th style="width:64px">재료비</th><th style="width:54px"></th></tr>
     ${SESSIONS.map((s,i)=> s.blocked
-      ? `<tr class="blocked"><td>—</td><td>${s.date.slice(5)} (${WD[new Date(s.date+'T00:00:00').getDay()]})</td><td colspan="3">🚫 ${esc(s.reason)} — 휴강</td></tr>`
-      : `<tr><td>${s.no}</td><td>${s.date.slice(5)} (${WD[new Date(s.date+'T00:00:00').getDay()]})</td>
-         <td><input data-i="${i}" data-k="content" value="${esc(s.content||'')}" oninput="SESSIONS[${i}].content=this.value" ${isOpen()?'':'disabled'}></td>
-         <td><input data-i="${i}" data-k="materials" value="${esc(s.materials||'')}" oninput="SESSIONS[${i}].materials=this.value" ${isOpen()?'':'disabled'}></td>
-         <td><input data-i="${i}" data-k="cost" value="${esc(s.cost||'')}" oninput="SESSIONS[${i}].cost=this.value" ${isOpen()?'':'disabled'}></td></tr>`).join('')}
+      ? `<tr class="blocked"><td>—</td><td>${dl(s)}</td><td colspan="4">🚫 ${esc(s.reason)} — 학교 휴강</td></tr>`
+      : s.skip
+      ? `<tr class="blocked" style="background:#FFF7E6;color:#92400E"><td>—</td><td>${dl(s)}</td><td colspan="3">⏸ 강사 휴강${s.skipReason?' — '+esc(s.skipReason):''}</td><td>${isOpen()?`<button type="button" class="btn line" style="padding:4px 8px;font-size:11px" onclick="toggleSkip(${i})">복원</button>`:''}</td></tr>`
+      : `<tr><td>${s.no}</td><td>${dl(s)}</td>
+         <td><input value="${esc(s.content||'')}" oninput="SESSIONS[${i}].content=this.value" ${isOpen()?'':'disabled'}></td>
+         <td><input value="${esc(s.materials||'')}" oninput="SESSIONS[${i}].materials=this.value" ${isOpen()?'':'disabled'}></td>
+         <td><input value="${esc(s.cost||'')}" oninput="SESSIONS[${i}].cost=this.value" ${isOpen()?'':'disabled'}></td>
+         <td>${isOpen()?`<button type="button" class="btn line" style="padding:4px 8px;font-size:11px" onclick="toggleSkip(${i})">휴강</button>`:''}</td></tr>`).join('')}
     </table>` : '<div class="small">요일을 고르면 회차가 나타납니다.</div>';
 }
 window.recalc = ()=>{
   const dur = Number($('f-dur')?.value||0), rate = TYPE==='joy' ? (SEM.feeJoy||0) : (SEM.feeClub||0);
-  const per = Math.round(rate*dur/60), live = SESSIONS.filter(s=>!s.blocked).length;
+  const per = Math.round(rate*dur/60), live = liveN();
   $('fee-box').innerHTML = `💰 1인 1회 <b>${per.toLocaleString()}원</b> (${rate.toLocaleString()}원/시간 × ${dur}분) · 총 ${live}회 → <b>학기 1인 ${(per*live).toLocaleString()}원</b>
     <div class="small">학생 ${Number($('f-min')?.value||0)}명 기준 강사료 ${(per*live*Number($('f-min')?.value||0)).toLocaleString()}원 ~ ${Number($('f-max')?.value||0)}명 ${(per*live*Number($('f-max')?.value||0)).toLocaleString()}원 (출석 기준 학기 말 정산)</div>`;
 };
@@ -359,7 +380,8 @@ window.saveApp = async ()=>{
     instructorName:v('f-name'), coInstructors:v('f-co'), phone:v('f-phone'),
     title:v('f-title'), intro:v('f-intro'), grades:v('f-grades'), minN:Number(v('f-min'))||0, maxN:Number(v('f-max'))||0,
     place:v('f-place'), materials:v('f-mat'), answers, weekdays, start:v('f-start'), durMin:Number(v('f-dur'))||60,
-    sessions: SESSIONS, bank: { bank:PROF.bank||'', account:PROF.account||'', holder:PROF.holder||'' },
+    startDate: v('f-from')||SEM.rangeFrom, endDate: v('f-to')||SEM.rangeTo,
+    sessions: renumber(SESSIONS), sessionCount: liveN(), bank: { bank:PROF.bank||'', account:PROF.account||'', holder:PROF.holder||'' },
     updatedAt: Timestamp.now() };
   try{
     if(EDIT) await updateDoc(doc(db,'clubApplications',EDIT.id), rec);

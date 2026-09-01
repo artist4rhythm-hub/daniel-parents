@@ -104,7 +104,7 @@ async function loadEnr(){
   ENR = {}; snap.forEach(d=>{ const e=d.data(); ENR[e.studentId] = {id:d.id, ...e}; });
 }
 const fee = c => Math.round(((c.type==='joy'?SEM.feeJoy:SEM.feeClub)||0) * (c.durMin||0) / 60);
-const live = c => (c.sessions||[]).filter(s=>!s.blocked).length;
+const live = c => (c.sessions||[]).filter(s=>!s.blocked && !s.skip).length;
 function ms(role){ return (SEM.milestones||[]).find(m=>m.role===role) || null; }
 const STL = { enrolling:['신청 접수중','ok'], adjusting:['순위 조정·최종 결정','blue'], confirmed:['확정','ok'], running:['운영중','ok'] };
 
@@ -142,7 +142,7 @@ function renderMain(){
         <div class="m">👤 ${esc(c.instructorName)}${c.coInstructors?' · '+esc(c.coInstructors):''} · 🎯 ${esc(c.grades||'전체')} · 👥 ${c.minN}~${c.maxN}명<br>
           🗓 ${(c.weekdays||[]).map(w=>WD[w]+'요일').join(', ')} ${c.start} · ${c.durMin}분 · ${live(c)}회 · 📍 ${esc(c.room||c.place||'미정')}<br>
           💰 1회 ${fee(c).toLocaleString()}원 → <b>학기 ${(fee(c)*live(c)).toLocaleString()}원</b> (출석 기준 학기 말 정산)${c.intro?'<br>💬 '+esc(c.intro):''}</div>
-        <details><summary>수업 계획 보기</summary><div class="small" style="margin-top:4px">${(c.sessions||[]).filter(s=>!s.blocked).map(s=>`${s.no}. ${s.date.slice(5)} ${esc(s.content||'')}`).join('<br>')}</div></details></div>
+        <details><summary>수업 계획 보기</summary><div class="small" style="margin-top:4px">${(c.startDate||c.endDate)?`기간 ${c.startDate||''} ~ ${c.endDate||''}<br>`:''}${(c.sessions||[]).filter(s=>!s.blocked&&!s.skip).map(s=>`${s.no}. ${s.date.slice(5)} ${esc(s.content||'')}`).join('<br>')}</div></details></div>
         <div>${canEdit ? `<select onchange="setRank('${c.id}', Number(this.value))"><option value="0"${!r?' selected':''}>선택 안 함</option><option value="1"${r===1?' selected':''}>1순위</option><option value="2"${r===2?' selected':''}>2순위</option><option value="3"${r===3?' selected':''}>3순위</option></select>` : (r?`<span class="pill blue">${r}순위</span>`:'')}</div></div>`; }).join('') || '<div class="small">공고된 동아리가 아직 없습니다.</div>'}
     ${canEdit ? `<div style="margin-top:12px"><button class="btn" onclick="savePicks()">신청 저장</button></div>` : ''}
     <div class="alert" id="msg"></div></div>`;
