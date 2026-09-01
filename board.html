@@ -333,8 +333,25 @@ window.submitPost = async ()=>{
       title, body, ...a,
       pinned:false, byStaff: TMODE, commentCount:0, createdAt: Timestamp.now()
     });
+    // 🔔 교사 공지 → 학부모 푸시 (교사 모드에서만, 발송 서버 설정이 있을 때만)
+    if(TMODE){
+      try{
+        const pc = await getDoc(doc(db,'config','push'));
+        if(pc.exists() && pc.data().url){
+          const idToken = await auth.currentUser.getIdToken();
+          const link = 'https://artist4rhythm-hub.github.io/daniel-parents/board.html?org='+ORG+
+            (SCOPE==='class' ? '&scope=class' : '&scope=org');
+          const r = await fetch(pc.data().url.replace(/\/$/,'')+'/notify', { method:'POST',
+            headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+idToken },
+            body: JSON.stringify({ org: ORG, classKeys: SCOPE==='class' ? [CLASSKEY] : null,
+              title: `📢 ${SCOPE==='class' ? CLASSKEY+' ' : ''}선생님 공지`, body: title, link }) });
+          const j = await r.json().catch(()=>({}));
+          if(r.ok) msg.textContent = `올렸습니다 ✓ 🔔 알림 ${j.sent||0}명`;
+        }
+      }catch(e){}
+    }
     $('w-title').value=''; $('w-body').value='';
-    msg.className='alert ok'; msg.textContent='올렸습니다 ✓';
+    msg.className='alert ok'; if(!/🔔/.test(msg.textContent)) msg.textContent='올렸습니다 ✓';
     setTimeout(()=>{ msg.className='alert'; }, 1500);
     await loadPosts();
   }catch(e){ msg.className='alert err'; msg.textContent='올리지 못했습니다: '+(e.message||''); }

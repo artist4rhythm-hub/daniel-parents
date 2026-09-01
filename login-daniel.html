@@ -95,6 +95,29 @@ input:focus{ outline:none; border-color:var(--gold); }
 .spin{ width:18px; height:18px; border:2.5px solid rgba(12,42,68,.4); border-top-color:#0C2A44; border-radius:50%; animation:sp .6s linear infinite; }
 @keyframes sp{ to{transform:rotate(360deg)} }
 </style>
+<script>
+/* 메일 링크로 돌아온 경우, 무거운 코드가 로드되기 전에도 진행 화면부터 보여준다 */
+(function(){
+  try{
+    if(!/[?&]oobCode=/.test(location.search)) return;
+    document.addEventListener('DOMContentLoaded', function(){
+      var v = document.getElementById('step-verify');
+      if(!v) return;
+      document.querySelectorAll('.step').forEach ?
+        document.querySelectorAll('.step').forEach(function(el){ el.classList.remove('on'); }) : null;
+      v.classList.add('on');
+      var b = document.getElementById('lp-bar'), p = document.getElementById('lp-pct');
+      var pct = 3;
+      var t = setInterval(function(){
+        if(window.LP_TAKEN){ clearInterval(t); return; }   // 본 코드가 이어받으면 멈춤
+        pct = Math.min(12, pct + 0.4);
+        if(b) b.style.width = Math.floor(pct)+'%';
+        if(p) p.textContent = Math.floor(pct)+'%';
+      }, 200);
+    });
+  }catch(e){}
+})();
+</script>
 </head>
 <body>
 <canvas class="sky" id="skyCanvas" aria-hidden="true"></canvas>
@@ -137,8 +160,19 @@ input:focus{ outline:none; border-color:var(--gold); }
 
   <!-- STEP 3: 로그인 처리 중 -->
   <div class="step" id="step-verify">
-    <div class="bigicon">🔓</div>
-    <p class="msg center">로그인 중입니다…</p>
+    <div class="bigicon" id="lp-icon">🔐</div>
+    <p class="msg center" id="lp-label">메일 링크 확인 중…</p>
+    <div style="max-width:280px;margin:14px auto 6px">
+      <div style="background:rgba(255,255,255,.15);border-radius:100px;height:10px;overflow:hidden">
+        <div id="lp-bar" style="width:3%;height:100%;border-radius:100px;
+          background:linear-gradient(90deg,#D8B45A,#F0DFAE);transition:width .25s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px">
+        <span id="lp-sub" style="font-size:11.5px;opacity:.75">안전하게 확인하고 있어요</span>
+        <b id="lp-pct" style="font-size:12px">3%</b>
+      </div>
+    </div>
+    <p class="note center" style="margin-top:10px">첫 로그인은 <b>10~20초</b>쯤 걸릴 수 있어요 —<br>오류가 아니니 잠시만 기다려 주세요 🙂</p>
   </div>
 
   <!-- STEP 4: 자녀 연결 -->
@@ -315,10 +349,47 @@ window.sendLink = async function(){
 
 window.backToEmail = function(){ show('step-email'); };
 
+/* ── ⏳ 로그인 진행바: 실제 단계에 맞춰 %가 오르고,
+   단계 사이에도 조금씩 전진해 멈춘 느낌을 없앤다 ── */
+const LP = {
+  pct: 3, target: 3, timer: null,
+  labels: {},
+  start(){
+    if(this.timer) return;
+    this.timer = setInterval(()=>{
+      // 목표 직전(–1%)까지 서서히 기어간다 — 절대 멈춰 보이지 않게
+      const ceil = Math.min(this.target + 6, 97);
+      if(this.pct < ceil) this.pct = Math.min(ceil, this.pct + Math.max(0.15, (ceil - this.pct) * 0.03));
+      this.paint();
+    }, 180);
+  },
+  to(target, label, sub, icon){
+    this.target = Math.max(this.target, target);
+    if(this.pct < target - 12) this.pct = target - 12;   // 이정표 도달 시 성큼
+    if(label){ const el = document.getElementById('lp-label'); if(el) el.textContent = label; }
+    if(sub){ const el = document.getElementById('lp-sub'); if(el) el.textContent = sub; }
+    if(icon){ const el = document.getElementById('lp-icon'); if(el) el.textContent = icon; }
+    this.start(); this.paint();
+  },
+  done(){
+    this.target = 100; this.pct = 100; this.paint();
+    if(this.timer){ clearInterval(this.timer); this.timer = null; }
+  },
+  paint(){
+    const b = document.getElementById('lp-bar'), p = document.getElementById('lp-pct');
+    const v = Math.min(100, Math.floor(this.pct));
+    if(b) b.style.width = v + '%';
+    if(p) p.textContent = v + '%';
+  }
+};
+
 // ── STEP 3: 링크로 돌아왔을 때 로그인 처리 ──
 async function completeSignInFromLink(){
   if(!isSignInWithEmailLink(auth, location.href)) return false;
   show('step-verify');
+  window.LP_TAKEN = true;
+  LP.pct = Math.max(LP.pct, 12);
+  LP.to(15, '메일 링크 확인 중…', '링크가 진짜인지 살펴보고 있어요', '🔎');
   let email = localStorage.getItem(EMAIL_KEY);
   if(!email){
     email = window.prompt('로그인을 완료하려면 링크를 요청한 이메일을 다시 입력해 주세요.');
@@ -326,7 +397,9 @@ async function completeSignInFromLink(){
   }
   if(!email){ show('step-email'); return true; }
   try {
+    LP.to(30, '로그인 열쇠 확인 중…', '구글 인증 서버와 악수하는 중', '🔑');
     await signInWithEmailLink(auth, email, location.href);
+    LP.to(55, '로그인 성공! 준비 중…', '문이 열렸어요', '🔓');
     localStorage.removeItem(EMAIL_KEY);
     // 로그인 성공 로그 갱신
     try {
@@ -486,8 +559,11 @@ try{localStorage.setItem('parent_org','daniel')}catch(e){}
 
   onAuthStateChanged(auth, async (user) => {
     if(user){
+      LP.to(70, '보호자 정보 확인 중…', '프로필을 준비하고 있어요', '👤');
       await ensureParentDoc(user);
+      LP.to(88, '우리 아이 정보 연결 중…', '자녀 연결을 불러오는 중', '👧');
       const childrenAll = await myActiveChildren(user.uid);
+      LP.done();
       // ⚠️ 이 기관 자녀만으로 판단한다 — 다른 기관 자녀만 있는 계정을
       //    이 기관 홈으로 보내면 홈↔로그인 무한 왕복이 생긴다.
       const children = childrenAll.filter(c => (c.org||'daniel') === 'daniel');

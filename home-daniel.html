@@ -303,6 +303,22 @@ window.pickRel = (el) => {
   window._selRel = el.dataset.rel;
   el.style.color='var(--pt)'; el.style.borderColor='var(--pt)'; el.style.fontWeight='800';
 };
+// ── 📛 아이콘 숫자 뱃지: 앱을 열면 0으로 (서비스 워커가 도착마다 +1) ──
+function clearAppBadge(){
+  try{
+    if('clearAppBadge' in navigator) navigator.clearAppBadge();
+    const rq = indexedDB.open('pushBadge', 1);
+    rq.onupgradeneeded = () => rq.result.createObjectStore('kv');
+    rq.onsuccess = () => { try{
+      rq.result.transaction('kv','readwrite').objectStore('kv').put(0,'n');
+    }catch(e){} };
+  }catch(e){}
+}
+clearAppBadge();
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible') clearAppBadge();
+});
+
 // ── 🔔 웹푸시: 허용 → 기기 토큰을 내 프로필에 저장 (규칙 v11 필요) ──
 async function setupPushRow(){
   try {
