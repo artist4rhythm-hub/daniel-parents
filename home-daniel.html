@@ -493,6 +493,7 @@ onAuthStateChanged(auth, async (user)=>{
     $('more').innerHTML =
       mi(`board.html?org=${ORG}&scope=org`, '📢 전체 게시판', '기관 전체 학부모와 소통해요')
       + (PL.timetable ? mi(addP(PL.timetable),'🗓 시간표','우리 아이 시간표 확인') : `<div class="off"><div class="mt">🗓 시간표</div><div class="md">학교에서 링크 연결 시 열려요</div></div>`)
+      + mi(`club-enroll.html?org=${ORG}`, '🎨 동아리 신청', '방과후 동아리·조이클래스 신청')
       + mi(addP(`${GYOSA}/parent-expense.html?org=${ORG}`), '💳 환급 계좌', '경비 환급 계좌 등록')
       + mi(`login-daniel.html?add=1`, '🎫 자녀 추가 연결', '가입코드로 자녀를 더 연결해요');
 

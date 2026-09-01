@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>동아리 신청 · 학부모</title>
+<meta name="theme-color" content="#0C2A44">
+<link rel="icon" type="image/png" href="logo-daniel-color.png">
+<style>
+:root{--pt:#0C2A44;--gold:#D8B45A;--cream:#FBFAF7;--ink:#22262B;--ink2:#5A5F66;--ink3:#8A8F98;--line:#E7E4DC;--wh:#fff}
+body.jihyebit{--pt:#5E4B8B;--gold:#F0E8FA}
+*{box-sizing:border-box;margin:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:var(--cream);color:var(--ink);font-size:14.5px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.bar{position:sticky;top:0;z-index:50;background:var(--pt);color:#fff;padding:11px 14px;font-size:13.5px;font-weight:800;text-align:center}
+.bar a{color:#fff;text-decoration:none}
+.wrap{max-width:820px;margin:0 auto;padding:14px 14px 60px}
+.card{background:var(--wh);border:1px solid var(--line);border-radius:14px;padding:15px 17px;margin-bottom:12px}
+.card h3{font-size:14.5px;font-weight:900;color:var(--pt);margin-bottom:8px}
+.kid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.kid button{border:1.5px solid var(--line);background:var(--wh);border-radius:100px;padding:8px 14px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;color:var(--ink2)}
+.kid button.on{background:var(--pt);border-color:var(--pt);color:#fff}
+.club{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:9px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start}
+.club .t{font-size:14.5px;font-weight:900}
+.club .m{font-size:12px;color:var(--ink2);margin-top:2px;line-height:1.55}
+.club select{padding:8px 10px;border:1.5px solid var(--line);border-radius:9px;font-family:inherit;font-size:13px;font-weight:800;background:var(--wh)}
+.club.r1{border-color:var(--pt);background:#F5F8FB}
+.pill{display:inline-block;border-radius:100px;padding:2px 9px;font-size:10.5px;font-weight:800;background:#F1F0EC;color:#6B7280}
+.pill.ok{background:#DCFCE7;color:#15803D}.pill.blue{background:#DBEAFE;color:#1D4ED8}.pill.warn{background:#FEF3C7;color:#B45309}.pill.bad{background:#FEE2E2;color:#B91C1C}
+.btn{background:var(--pt);color:#fff;border:none;border-radius:10px;padding:12px 18px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit}
+.btn.line{background:var(--wh);color:var(--ink2);border:1.5px solid var(--line)}
+.alert{display:none;border-radius:9px;padding:9px 12px;font-size:12.5px;font-weight:700;margin-top:10px}
+.alert.ok{display:block;background:#DCFCE7;color:#16A34A}.alert.err{display:block;background:#FDECEA;color:#C0392B}.alert.warn{display:block;background:#FEF3C7;color:#B45309}
+.small{font-size:11.5px;color:var(--ink3)}
+.res{border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:6px;display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
+details summary{cursor:pointer;font-size:12.5px;color:var(--ink2);font-weight:700}
+.tgrid{display:grid;grid-template-columns:44px repeat(5,1fr);gap:2px;font-size:10.5px;margin-top:8px}
+.tgrid .h{background:var(--pt);color:#fff;text-align:center;padding:4px 0;border-radius:5px;font-weight:800}
+.tgrid .tm{color:var(--ink3);text-align:right;padding-right:3px;line-height:16px}
+.tgrid .cell{background:#F1EFE8;border-radius:3px;min-height:16px;position:relative}
+.blk{position:absolute;left:1px;right:1px;border-radius:4px;padding:1px 3px;font-size:9.5px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2}
+</style>
+</head>
+<body>
+<div class="bar"><a id="home-link" href="index.html">← 학부모 홈으로 돌아가기</a></div>
+<div class="wrap">
+  <div class="card" id="head"><h3>🎨 동아리 · 조이클래스 신청</h3><div class="small">불러오는 중…</div></div>
+  <div id="main"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, initializeFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where, Timestamp }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const app = initializeApp({
+  apiKey: "AIzaSyCtgr79jKqkec6HwqkxYNxSubWAhfEkM7g",
+  authDomain: "daniel-amatz.firebaseapp.com",
+  projectId: "daniel-amatz",
+  storageBucket: "daniel-amatz.firebasestorage.app",
+  messagingSenderId: "455744290312",
+  appId: "1:455744290312:web:3ce7e7d3e58f6f1d185bbd"
+});
+const auth = getAuth(app);
+const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+
+const $ = id => document.getElementById(id);
+const esc = t => String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const qs = new URLSearchParams(location.search);
+const ORG = qs.get('org')==='jihyebit' ? 'jihyebit' : 'daniel';
+document.body.classList.toggle('jihyebit', ORG==='jihyebit');
+$('home-link').href = `home-${ORG}.html`;
+const ORGS = { daniel:'다니엘 아마츠', jihyebit:'지혜빛 선교원' };
+const WD = ['일','월','화','수','목','금','토'];
+const toMin = t => { const [h,m]=String(t||'0:0').split(':').map(Number); return h*60+m; };
+
+let ME=null, KIDS=[], SEM=null, CLUBS=[], ENR={}, KID=null;
+
+onAuthStateChanged(auth, async user=>{
+  if(!user){ location.replace(`login-${ORG}.html?next=${encodeURIComponent('club-enroll.html?org='+ORG)}`); return; }
+  ME = user;
+  const ls = await getDocs(query(collection(db,'parentLinks'), where('parentUid','==',user.uid), where('status','==','active')));
+  KIDS = ls.docs.map(d=>({id:d.id, ...d.data()})).filter(k=>(k.org||'daniel')===ORG);
+  if(!KIDS.length){ $('head').innerHTML = `<h3>🎨 동아리 신청</h3><div class="small">이 기관에 연결된 자녀가 없어요. 홈에서 자녀를 먼저 연결해 주세요.</div>`; return; }
+  await loadSem();
+  if(!SEM){ $('head').innerHTML = `<h3>🎨 동아리 신청</h3><div class="small">지금 신청을 받는 동아리 학기가 없습니다. 공고가 나면 홈 새소식과 알림으로 알려드릴게요.</div>`; return; }
+  await loadClubs(); await loadEnr();
+  KID = KIDS[0]; renderHead(); renderMain();
+});
+
+async function loadSem(){
+  const snap = await getDocs(query(collection(db,'clubSemesters'), where('org','==',ORG)));
+  const list = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(s=>['enrolling','adjusting','confirmed','running'].includes(s.status))
+    .sort((a,b)=>String(b.rangeFrom||'').localeCompare(String(a.rangeFrom||'')));
+  SEM = list[0] || null;
+}
+async function loadClubs(){
+  const snap = await getDocs(query(collection(db,'clubApplications'), where('semId','==',SEM.id), where('published','==',true)));
+  CLUBS = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(c=>c.status==='approved')
+    .sort((a,b)=>((a.weekdays||[])[0]||9)-((b.weekdays||[])[0]||9) || toMin(a.start)-toMin(b.start));
+}
+async function loadEnr(){
+  const snap = await getDocs(query(collection(db,'clubEnrollments'), where('semId','==',SEM.id), where('parentUid','==',ME.uid)));
+  ENR = {}; snap.forEach(d=>{ const e=d.data(); ENR[e.studentId] = {id:d.id, ...e}; });
+}
+const fee = c => Math.round(((c.type==='joy'?SEM.feeJoy:SEM.feeClub)||0) * (c.durMin||0) / 60);
+const live = c => (c.sessions||[]).filter(s=>!s.blocked).length;
+function ms(role){ return (SEM.milestones||[]).find(m=>m.role===role) || null; }
+const STL = { enrolling:['신청 접수중','ok'], adjusting:['순위 조정·최종 결정','blue'], confirmed:['확정','ok'], running:['운영중','ok'] };
+
+function renderHead(){
+  const [lab, cls] = STL[SEM.status] || [SEM.status,''];
+  const ee = ms('enrollEnd'), fn = ms('final');
+  $('head').innerHTML = `<h3>🎨 ${esc(SEM.name)} 동아리 · 조이클래스 <span class="pill ${cls}">${lab}</span></h3>
+    <div class="small">${ORGS[ORG]} · 수업 ${SEM.timeStart}~${SEM.timeEnd}${ee?.at?` · 신청 마감 ${ee.at.replace('T',' ')}`:''}${fn?.at?` · 최종 결정 ${fn.at.replace('T',' ')}`:''}</div>
+    ${SEM.refundRule?`<details style="margin-top:6px"><summary>환불 기준 보기</summary><div class="small" style="white-space:pre-wrap;margin-top:4px">${esc(SEM.refundRule)}</div></details>`:''}
+    <div class="kid" style="margin-top:10px">${KIDS.map(k=>`<button class="${KID&&KID.studentId===k.studentId?'on':''}" onclick="pickKid('${k.studentId}')">${esc(k.studentName)}${k.className?' · '+esc(k.className):''}</button>`).join('')}</div>`;
+}
+window.pickKid = (sid)=>{ KID = KIDS.find(k=>k.studentId===sid); renderHead(); renderMain(); };
+
+function renderMain(){
+  const e = ENR[KID.studentId] || null;
+  const picks = {}; (e?.picks||[]).forEach(p=>picks[p.clubId]=p.rank);
+  const canEdit = SEM.status==='enrolling';
+  const showRes = ['adjusting','confirmed','running'].includes(SEM.status) && e && (e.result||[]).length;
+  let html = '';
+  if(showRes){
+    html += `<div class="card"><h3>📌 ${esc(KID.studentName)} 배정 결과</h3>
+      ${(e.result||[]).map(r=>{ const c=CLUBS.find(x=>x.id===r.clubId); if(!c) return ''; const lab={assigned:['✅ 배정','ok'],lost:['❌ 추첨 탈락','bad'],full:['⛔ 정원 마감','bad'],overlap:['⏱ 시간 겹침','warn'],cancelled:['⚫ 폐강','bad'],waitlist:['⏳ 대기','warn']}[r.state]||[r.state,''];
+        const fin = (e.final||{})[c.id];
+        return `<div class="res"><div><b>${esc(c.title)}</b> <span class="small">${(c.weekdays||[]).map(w=>WD[w]).join('·')} ${c.start} · ${c.durMin}분 · 학기 ${(fee(c)*live(c)).toLocaleString()}원</span></div>
+          <div><span class="pill ${lab[1]}">${lab[0]}</span>
+          ${r.state==='assigned' && SEM.status==='adjusting' ? ` <button class="btn line" style="padding:6px 10px;font-size:12px" onclick="setFinal('${c.id}','accept')">${fin==='accept'?'✓ 참여 확정':'참여 확정'}</button> <button class="btn line" style="padding:6px 10px;font-size:12px" onclick="setFinal('${c.id}','decline')">${fin==='decline'?'✓ 취소함':'취소'}</button>`
+          : r.state==='assigned' && fin ? ` <span class="pill ${fin==='accept'?'ok':'bad'}">${fin==='accept'?'참여 확정':'취소'}</span>` : ''}</div></div>`; }).join('')}
+      ${SEM.status==='adjusting' ? `<div class="small" style="margin-top:6px">최종 결정 마감 전까지 참여 확정/취소를 바꿀 수 있어요. 취소하면 그 자리는 대기자에게 갑니다.</div>`:''}</div>`;
+  }
+  html += `<div class="card"><h3>${canEdit?'신청':'신청 내용'} — ${esc(KID.studentName)}</h3>
+    <div class="small" style="margin-bottom:8px">${canEdit ? '원하는 동아리에 1·2·3순위를 매기세요. 시간이 겹치지 않으면 여러 개 참여할 수 있고, 정원 초과 시 1순위 신청자끼리 추첨합니다.' : '지금은 신청 기간이 아니라 내용만 볼 수 있어요.'}</div>
+    ${CLUBS.map(c=>{ const r = picks[c.id]||0;
+      return `<div class="club ${r===1?'r1':''}"><div>
+        <div class="t"><span class="pill ${c.type==='joy'?'blue':'ok'}">${c.type==='joy'?'조이클래스':'동아리'}</span> ${esc(c.title)}</div>
+        <div class="m">👤 ${esc(c.instructorName)}${c.coInstructors?' · '+esc(c.coInstructors):''} · 🎯 ${esc(c.grades||'전체')} · 👥 ${c.minN}~${c.maxN}명<br>
+          🗓 ${(c.weekdays||[]).map(w=>WD[w]+'요일').join(', ')} ${c.start} · ${c.durMin}분 · ${live(c)}회 · 📍 ${esc(c.room||c.place||'미정')}<br>
+          💰 1회 ${fee(c).toLocaleString()}원 → <b>학기 ${(fee(c)*live(c)).toLocaleString()}원</b> (출석 기준 학기 말 정산)${c.intro?'<br>💬 '+esc(c.intro):''}</div>
+        <details><summary>수업 계획 보기</summary><div class="small" style="margin-top:4px">${(c.sessions||[]).filter(s=>!s.blocked).map(s=>`${s.no}. ${s.date.slice(5)} ${esc(s.content||'')}`).join('<br>')}</div></details></div>
+        <div>${canEdit ? `<select onchange="setRank('${c.id}', Number(this.value))"><option value="0"${!r?' selected':''}>선택 안 함</option><option value="1"${r===1?' selected':''}>1순위</option><option value="2"${r===2?' selected':''}>2순위</option><option value="3"${r===3?' selected':''}>3순위</option></select>` : (r?`<span class="pill blue">${r}순위</span>`:'')}</div></div>`; }).join('') || '<div class="small">공고된 동아리가 아직 없습니다.</div>'}
+    ${canEdit ? `<div style="margin-top:12px"><button class="btn" onclick="savePicks()">신청 저장</button></div>` : ''}
+    <div class="alert" id="msg"></div></div>`;
+  html += gridHTML(Object.keys(picks).map(id=>CLUBS.find(c=>c.id===id)).filter(Boolean));
+  $('main').innerHTML = html;
+  window.__picks = picks;
+}
+function gridHTML(sel){
+  if(!sel.length) return '';
+  const s0=toMin(SEM.timeStart), s1=toMin(SEM.timeEnd), STEP=10, rows=Math.ceil((s1-s0)/STEP);
+  const colors=['#2F6FD0','#8B5CF6','#16A34A','#D97706'];
+  let h = `<div class="card"><h3>⏱ 내가 고른 동아리 시간표</h3><div class="tgrid"><div></div>${[1,2,3,4,5].map(w=>`<div class="h">${WD[w]}</div>`).join('')}`;
+  for(let r=0;r<rows;r++){ const t=s0+r*STEP; h+=`<div class="tm">${r%3===0?String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0'):''}</div>`; for(let w=1;w<=5;w++) h+=`<div class="cell" id="pg-${w}-${r}"></div>`; }
+  h += `</div><div class="small" id="ov-note" style="margin-top:6px"></div></div>`;
+  setTimeout(()=>{ let ov=false;
+    sel.forEach((c,i)=>{ const r0=Math.max(0,Math.floor((toMin(c.start)-s0)/STEP)), span=Math.max(1,Math.round((c.durMin||60)/STEP));
+      (c.weekdays||[]).forEach(w=>{ const cell=$(`pg-${w}-${r0}`); if(!cell) return; if(cell.querySelector('.blk')) ov=true;
+        const d=document.createElement('div'); d.className='blk'; d.style.cssText=`top:1px;height:${span*18-3}px;background:${colors[i%4]};left:${1+cell.querySelectorAll('.blk').length*5}px`; d.textContent=`${window.__picks[c.id]}순위 ${c.title}`; cell.appendChild(d); }); });
+    const n=$('ov-note'); if(n) n.innerHTML = ov ? '<span style="color:#B45309;font-weight:800">⚠ 겹치는 시간이 있어요 — 겹치는 동아리는 순위가 높은 것만 배정됩니다.</span>' : '겹치는 시간 없음 — 모두 참여 가능합니다.'; }, 0);
+  return h;
+}
+window.setRank = (cid, rank)=>{ const p = window.__picks; if(rank){ Object.keys(p).forEach(k=>{ if(p[k]===rank && k!==cid) delete p[k]; }); p[cid]=rank; } else delete p[cid]; renderMainKeep(p); };
+function renderMainKeep(p){ const e = ENR[KID.studentId] || (ENR[KID.studentId] = {picks:[]}); e.picks = Object.entries(p).map(([clubId,rank])=>({clubId,rank})); renderMain(); }
+window.savePicks = async ()=>{
+  const e = ENR[KID.studentId]; const picks = e?.picks || [];
+  const m=$('msg');
+  if(!picks.length){ m.className='alert err'; m.textContent='순위를 하나 이상 골라주세요.'; return; }
+  const id = `${SEM.id}_${KID.studentId}`;
+  try{
+    await setDoc(doc(db,'clubEnrollments', id), { semId:SEM.id, org:ORG, parentUid:ME.uid, studentId:KID.studentId, studentName:KID.studentName||'', className:KID.className||'', linkId:KID.id,
+      picks, status:'applied', updatedAt:Timestamp.now(), ...(e?.id?{}:{createdAt:Timestamp.now()}) }, { merge:true });
+    await loadEnr(); renderMain(); const mm=$('msg'); mm.className='alert ok'; mm.textContent='신청을 저장했습니다 ✓ 마감 전까지 언제든 바꿀 수 있어요.';
+  }catch(err){ m.className='alert err'; m.textContent='저장 실패: '+(err.code==='permission-denied'?'지금은 신청 기간이 아닙니다.':(err.message||'')); }
+};
+window.setFinal = async (cid, v)=>{
+  const e = ENR[KID.studentId]; if(!e?.id) return;
+  const fin = {...(e.final||{})}; fin[cid]=v;
+  try{ await updateDoc(doc(db,'clubEnrollments',e.id), { final: fin, finalAt: Timestamp.now() }); e.final=fin; renderMain(); }
+  catch(err){ alert('저장 실패: '+(err.message||'')); }
+};
+</script>
+</body>
+</html>
