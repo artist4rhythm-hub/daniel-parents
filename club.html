@@ -345,6 +345,16 @@ function renderMine(){
 
 /* ── 회차 자동 생성 ── */
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;   // 로컬 날짜 (UTC 밀림 방지)
+/* 옛 자유 텍스트에서 학년 추정: 목록 이름이 그대로 들어있거나 «4~6학년» 범위 표기면 펼쳐서 체크 */
+function guessGrades(text, list){
+  if(!text) return [];
+  const out = new Set();
+  list.forEach(g=>{ if(text.includes(g)) out.add(g); });
+  const m = text.match(/(\d+)\s*[~\-–]\s*(\d+)\s*학년/);
+  if(m){ const a=Number(m[1]), b=Number(m[2]);
+    for(let n=Math.min(a,b); n<=Math.max(a,b); n++){ const g=`${n}학년`; if(list.includes(g)) out.add(g); } }
+  return [...out];
+}
 function clampDate(v, lo, hi){ if(!v) return lo; return v<lo?lo:(v>hi?hi:v); }
 function genSessions(weekdays, keepContent, from, to){
   const blocked = {}; (SEM.blocked||[]).forEach(b=>blocked[b.date]=b.reason||'운영 불가');
@@ -389,11 +399,15 @@ function renderForm(a){
     </div>
     <label>프로그램(동아리) 이름</label><input id="f-title" value="${esc(a.title||'')}" placeholder="예: 워십댄스 동아리">
     <label>한 줄 소개 <span class="small">(더블클릭하면 큰 창)</span></label><input id="f-intro" value="${esc(a.intro||'')}" data-big="한 줄 소개" ondblclick="bigEdit(this,this.dataset.big)" placeholder="예: 찬양에 맞추어 춤으로 예배합니다">
-    ${(SEM.gradeList&&SEM.gradeList.length) ? `
+    ${(SEM.gradeList&&SEM.gradeList.length) ? (()=>{ 
+      const sel = (a.gradeSel&&a.gradeSel.length) ? a.gradeSel : guessGrades(a.grades, SEM.gradeList);
+      const guessed = !(a.gradeSel&&a.gradeSel.length) && sel.length;
+      return `
     <label>수강 대상 학년 <span class="small">(카드를 눌러 선택 — 여기서 고른 학년의 학생만 신청할 수 있어요)</span></label>
-    <div class="wd" style="flex-wrap:wrap">${SEM.gradeList.map(g=>`<label style="flex:0 0 auto;min-width:72px;padding:9px 14px" class="gsel ${(a.gradeSel||[]).includes(g)?'on':''}"><input type="checkbox" value="${esc(g)}" ${(a.gradeSel||[]).includes(g)?'checked':''} onchange="this.parentNode.classList.toggle('on',this.checked); draftSave()">${esc(g)}</label>`).join('')}</div>
+    ${a.grades && !(a.gradeSel&&a.gradeSel.length) ? `<div class="small" style="margin:-2px 0 5px;color:#B45309">이전에 글로 적은 대상: «${esc(a.grades)}»${guessed?' — 아래에 자동으로 표시해 뒀어요. 확인 후 저장해 주세요.':' — 아래 카드에서 골라주세요.'}</div>`:''}
+    <div class="wd" style="flex-wrap:wrap">${SEM.gradeList.map(g=>`<label style="flex:0 0 auto;min-width:72px;padding:9px 14px" class="gsel ${sel.includes(g)?'on':''}"><input type="checkbox" value="${esc(g)}" ${sel.includes(g)?'checked':''} onchange="this.parentNode.classList.toggle('on',this.checked); draftSave()">${esc(g)}</label>`).join('')}</div>
     <label>대상 설명 <span class="small">(선택 — 학부모에게 학년 옆에 함께 보입니다)</span></label>
-    <input id="f-gnote" value="${esc(a.gradeNote||'')}" data-big="대상 설명" ondblclick="bigEdit(this,this.dataset.big)" placeholder="예: 4학년은 강사 상담 후 가능 / 초보 환영">`
+    <input id="f-gnote" value="${esc(a.gradeNote||'')}" data-big="대상 설명" ondblclick="bigEdit(this,this.dataset.big)" placeholder="예: 4학년은 강사 상담 후 가능 / 초보 환영">`; })()
     : `<label>수강 대상 (학년·반)</label><input id="f-grades" value="${esc(a.grades||'')}" placeholder="예: 4~6학년 / 로이반">
     <div class="small" style="margin-top:2px">ℹ️ 학교 관리자가 학기 설정에 «지원 가능 학년»을 채우면 이 칸이 학년 카드 선택으로 바뀝니다.</div>`}
     <div class="g2">
