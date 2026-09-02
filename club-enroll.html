@@ -33,11 +33,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sa
 .small{font-size:11.5px;color:var(--ink3)}
 .res{border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:6px;display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
 details summary{cursor:pointer;font-size:12.5px;color:var(--ink2);font-weight:700}
-.tgrid{display:grid;grid-template-columns:44px repeat(5,1fr);gap:2px;font-size:10.5px;margin-top:8px}
-.tgrid .h{background:var(--pt);color:#fff;text-align:center;padding:4px 0;border-radius:5px;font-weight:800}
-.tgrid .tm{color:var(--ink3);text-align:right;padding-right:3px;line-height:16px}
-.tgrid .cell{background:#F1EFE8;border-radius:3px;min-height:16px;position:relative}
-.blk{position:absolute;left:1px;right:1px;border-radius:4px;padding:1px 3px;font-size:9.5px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2}
 
 /* ── 공개 공고 페이지 · 폰 최적화 ── */
 .modal-bg{position:fixed;inset:0;background:rgba(10,18,28,.55);z-index:100;display:flex;align-items:flex-end;justify-content:center}
@@ -54,6 +49,56 @@ details summary{cursor:pointer;font-size:12.5px;color:var(--ink2);font-weight:70
 .rank button.on{background:var(--pt);border-color:var(--pt);color:#fff}
 .savebar{position:fixed;left:0;right:0;bottom:0;z-index:60;background:rgba(255,255,255,.96);backdrop-filter:blur(6px);border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:flex;gap:10px;align-items:center;justify-content:space-between;max-width:820px;margin:0 auto}
 body.has-save .wrap{padding-bottom:130px}
+/* ── 공고 카드: 핵심 정보 박스 ── */
+.who{font-size:11.5px;color:var(--ink2);margin-top:4px;line-height:1.65}
+.strip{display:grid;grid-template-columns:1.12fr 1fr 1fr;border:1px solid var(--line);border-radius:13px;overflow:hidden;margin-top:11px;background:var(--row)}
+.strip>div{padding:9px 4px 8px;text-align:center}
+.strip>div+div{border-left:1px solid var(--line)}
+.strip .lb{font-size:10px;color:var(--ink3);font-weight:700}
+.strip .v{font-size:12.8px;font-weight:900;color:var(--pt);margin-top:2px;line-height:1.3;word-break:keep-all}
+.strip .s{font-size:10.5px;color:var(--ink2);font-weight:700;margin-top:1px;font-variant-numeric:tabular-nums}
+.mdates{margin-top:9px;padding:3px 12px 5px;border:1px solid var(--line);border-radius:12px;background:var(--wh)}
+.mdates .r{display:grid;grid-template-columns:36px 1fr;gap:8px;font-size:12px;padding:6px 0;align-items:baseline}
+.mdates .r+.r{border-top:1px dashed var(--line)}
+.mdates .mo{font-weight:900;color:var(--pt)}
+.mdates .ds{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums;line-height:1.85}
+.mdates em{font-style:normal;color:#6D28D9;font-weight:900}
+.mdates u{text-decoration:none;color:#C2410C;font-weight:900}
+.pill.x{background:#F3EEFC;color:#6D28D9}
+.pill.t{background:#FDF0E7;color:#C2410C}
+details.plan>summary{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:11px;border-top:1px solid var(--line);cursor:pointer;list-style:none;font-size:13px;font-weight:900;color:var(--pt)}
+details.plan>summary::-webkit-details-marker{display:none}
+details.plan>summary i{font-style:normal;font-size:11px;color:var(--ink3);font-weight:700}
+details.plan>summary i::before{content:'펼쳐보기 ▾'}
+details.plan[open]>summary i::before{content:'접기 ▴'}
+.prow{display:grid;grid-template-columns:46px 1fr;gap:12px;padding:10px 8px;border-radius:9px}
+.prow:nth-child(even){background:var(--row)}
+.pn{width:26px;height:26px;border:1.5px solid var(--pt);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:900;color:var(--pt);background:var(--wh);margin:0 auto}
+.pd{font-size:10px;color:var(--ink3);text-align:center;margin-top:4px;font-weight:700;line-height:1.35;font-variant-numeric:tabular-nums}
+.ptt{font-size:13px;font-weight:800;color:var(--ink);line-height:1.45}
+.pc{font-size:12px;color:var(--ink2);margin-top:2px;line-height:1.62}
+/* ── 주간 한눈표 ── */
+.tt-head{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:900;color:var(--pt)}
+.tt-head i{font-style:normal;font-size:11px;color:var(--ink3);font-weight:700}
+.wgwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:12px -6px 0;padding:0 6px 6px}
+.wg{display:grid;grid-template-columns:44px repeat(5,122px);gap:4px;min-width:674px}
+.wg .h{background:var(--pt);color:#fff;font-size:11.5px;font-weight:900;text-align:center;padding:7px 0;border-radius:8px}
+.wg .corner,.wg .tcol{position:sticky;left:0;z-index:4;background:var(--wh)}
+.wg .tcol{position:sticky}
+.wg .tcol i{position:absolute;right:6px;font-size:9.5px;font-weight:700;color:var(--ink3);font-style:normal;transform:translateY(-50%);font-variant-numeric:tabular-nums}
+.wg .day{position:relative;background:var(--wh);border:1px solid var(--line);border-radius:10px;background-image:repeating-linear-gradient(to bottom,transparent 0 43px,var(--line) 43px 44px)}
+.wb{position:absolute;border-radius:8px;padding:5px 6px;overflow:hidden;background:#EEF3F8;border-left:3px solid var(--pt2,#1E4B74)}
+.wb.joy{background:#FBF4E3;border-left-color:#B08A2E}
+.wb.sel{box-shadow:0 0 0 2px var(--gold);border-left-color:var(--gold)}
+.wb .bt{font-size:10.5px;font-weight:900;color:var(--pt);line-height:1.25;word-break:keep-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.wb.joy .bt{color:#7A5D14}
+.wb .gb{display:inline-block;margin-top:3px;font-size:9px;font-weight:900;background:var(--pt);color:#fff;border-radius:5px;padding:1px 6px}
+.wb.joy .gb{background:#B08A2E}
+.wb .bm{font-size:9px;color:var(--ink2);margin-top:2px;font-variant-numeric:tabular-nums}
+.wb .bi{font-size:9px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wb .bs{position:absolute;top:3px;right:4px;font-size:8.5px;font-weight:900;color:#8A6A16}
+.legend{display:flex;gap:12px;margin-top:10px;font-size:10.5px;color:var(--ink2);font-weight:700;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;font-style:normal}
 </style>
 </head>
 <body>
@@ -186,6 +231,29 @@ const semTotal = c => { const rate=(c.type==='joy'?SEM.feeJoy:SEM.feeClub)||0; c
   return (c.sessions||[]).filter(s=>!isOff(s,m)).reduce((t,s)=>t+Math.round(rate*((s.durMin||c.durMin||0))/60),0); };
 function ms(role){ return (SEM.milestones||[]).find(m=>m.role===role) || null; }
 const STL = { enrolling:['신청 접수중','ok'], adjusting:['순위 조정·최종 결정','blue'], confirmed:['확정','ok'], running:['운영중','ok'] };
+const fmtMin = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+const endOf = c => fmtMin(toMin(c.start)+(c.durMin||0));
+const mdShort = d => d ? `${+String(d).slice(5,7)}.${+String(d).slice(8,10)}` : '';
+const wdOf = d => { const p=String(d||'').split('-').map(Number); if(p.length<3) return ''; return WD[new Date(p[0],p[1]-1,p[2]).getDay()]||''; };
+const liveSess = c => { const m=bkm(); return (c.sessions||[]).filter(x=>!isOff(x,m)); };
+const gShort = c => { const g=c.gradeSel||[]; if(!g.length) return esc(c.grades||'전체');
+  const ns=g.map(x=>parseInt(x)).filter(n=>!isNaN(n)).sort((a,b)=>a-b);
+  if(ns.length===g.length && ns.length){ let cont=true; for(let i=1;i<ns.length;i++) if(ns[i]!==ns[i-1]+1){cont=false;break;}
+    if(cont) return ns.length>1?`${ns[0]}~${ns[ns.length-1]}학년`:`${ns[0]}학년`; return ns.join('·')+'학년'; }
+  return g.map(esc).join('·'); };
+const sessMark = x => x.extra ? `<span class="pill x">${esc(x.extraLabel||'보강')}${(x.start||x.durMin)?` ${x.start||''}${x.durMin?' '+x.durMin+'분':''}`:''}</span>`
+  : x.override ? `<span class="pill t">휴강일 진행${x.start?` 🕒${x.start}`:''}</span>`
+  : (x.start||x.durMin) ? `<span class="pill t">🕒 ${x.start||''}${x.durMin?' '+x.durMin+'분':''}</span>` : '';
+const monthRows = c => { const by={}; liveSess(c).forEach(x=>{ const mo=+String(x.date).slice(5,7); (by[mo]=by[mo]||[]).push(x); });
+  return Object.keys(by).map(Number).sort((a,b)=>a-b).map(mo=>{
+    const parts = by[mo].map(x=>{ const d=+String(x.date).slice(8,10), w=wdOf(x.date), lab=`${d}(${w})`;
+      if(x.extra) return `<em>${lab}</em>${sessMark(x)}`;
+      if(x.override || x.start || x.durMin) return `<u>${lab}</u>${sessMark(x)}`;
+      return lab; }).join(' · ');
+    return `<div class="r"><span class="mo">${mo}월</span><span class="ds">${parts}</span></div>`; }).join(''); };
+const planRows = c => liveSess(c).map(x=>{ const tt = x.ctitle ? esc(x.ctitle) : (esc(x.content||'').trim()||'수업');
+  return `<div class="prow"><div><div class="pn">${x.no}</div><div class="pd">${mdShort(x.date)}<br>${wdOf(x.date)}</div></div>
+    <div><div class="ptt">${tt} ${sessMark(x)}</div>${x.ctitle&&x.content?`<div class="pc">${esc(x.content)}</div>`:''}</div></div>`; }).join('');
 
 
 /* ═══ ✍️ 간편 신청 — 자녀 확인(이름+생년월일) · 계정·가입코드 불필요 ═══ */
@@ -268,6 +336,7 @@ window.pickKid = (sid)=>{ KID = KIDS.find(k=>k.studentId===sid); renderHead(); r
 function renderMain(){
   const e = PUBLIC ? null : (ENR[KID.studentId] || null);
   const picks = {}; (e?.picks||[]).forEach(p=>picks[p.clubId]=p.rank);
+  window.__picks = picks;
   const canEdit = SEM.status==='enrolling';
   const showRes = !PUBLIC && ['adjusting','confirmed','running'].includes(SEM.status) && e && (e.result||[]).length;
   let html = '';
@@ -286,39 +355,59 @@ function renderMain(){
     ${CLUBS.map(c=>{ const r = picks[c.id]||0; const el = eligOf(c);
       const sortG = a=>(a||[]).slice().sort((x,y)=>{const nx=parseInt(x),ny=parseInt(y);if(!isNaN(nx)&&!isNaN(ny))return nx-ny;if(!isNaN(nx))return -1;if(!isNaN(ny))return 1;return String(x).localeCompare(String(y),'ko');});
       const gLabel = (c.gradeSel&&c.gradeSel.length)?sortG(c.gradeSel).join('·'):(c.grades||'전체');
+      const sess = liveSess(c); const from = c.startDate || (sess[0]&&sess[0].date) || ''; const to = c.endDate || (sess.length&&sess[sess.length-1].date) || '';
       return `<div class="club ${r===1?'r1':''}" style="grid-template-columns:1fr;${el==='no'?'opacity:.8':''}">
         <div style="margin-bottom:8px">${posterHTML(c, 110)}</div>
         <div><div>
         <div class="t"><span class="pill ${c.type==='joy'?'blue':'ok'}">${c.type==='joy'?'조이클래스':'동아리'}</span> ${esc(c.title)}
           ${el==='no'?`<span class="pill bad">⛔ ${esc(KID.grade||'')}은 신청 대상 아님</span>`:el==='unknown'?'<span class="pill warn">학년 정보 없음</span>':''}</div>
-        <div class="m">👤 ${esc(c.instructorName)}${c.coInstructors?' · '+esc(c.coInstructors):''} · 🎯 ${esc(gLabel)}${c.gradeNote?` <span style="color:#1D4ED8">(${esc(c.gradeNote)})</span>`:''} · 👥 ${c.minN}~${c.maxN}명<br>
-          🗓 ${(c.weekdays||[]).filter(w=>WD[w]).map(w=>WD[w]+'요일').join(', ')} ${c.start} · ${c.durMin}분 · ${live(c)}회 · 📍 ${esc(c.room||c.place||'미정')}<br>
-          💰 1회 ${fee(c).toLocaleString()}원 → <b>학기 ${semTotal(c).toLocaleString()}원</b> (출석과 무관 · 학기 일괄)${c.intro?'<br>💬 '+esc(c.intro):''}</div>
-        <details><summary>수업 계획 보기</summary><div class="small" style="margin-top:4px">${(c.startDate||c.endDate)?`기간 ${c.startDate||''} ~ ${c.endDate||''}<br>`:''}${(()=>{const m=bkm(); return (c.sessions||[]).filter(s=>!isOff(s,m));})().map(s=>`${s.no}. ${s.date.slice(5)}${s.extra?` <span style="color:#6D28D9;font-weight:800">[${esc(s.extraLabel||'보강')}${(s.start||s.durMin)?` · ${s.start||''}${s.durMin?' '+s.durMin+'분':''}`:''}]</span>`:s.override?` <span style="color:#92400E;font-weight:800">[학사 휴강일에도 진행]</span>${(s.start||s.durMin)?` <span style="color:#C2410C;font-weight:800">🕒 ${s.start||''}${s.durMin?' '+s.durMin+'분':''}</span>`:''}`:(s.start||s.durMin)?` <span style="color:#C2410C;font-weight:800">🕒 ${s.start||''}${s.durMin?' '+s.durMin+'분':''}</span>`:''} ${s.ctitle?'<b>'+esc(s.ctitle)+'</b> — ':''}${esc(s.content||'')}`).join('<br>')}</div></details></div>
+        <div class="who">👤 ${esc(c.instructorName)}${c.coInstructors?' · '+esc(c.coInstructors):''} · 👥 정원 ${c.minN}~${c.maxN}명 · 💰 학기 <b>${semTotal(c).toLocaleString()}원</b> <span class="small">(1회 ${fee(c).toLocaleString()}원 · 출석 무관 일괄)</span>${(c.room||c.place)?` · 📍 ${esc(c.room||c.place)}`:''}</div>
+        <div class="strip">
+          <div><div class="lb">요일 · 시간</div><div class="v">매주 ${(c.weekdays||[]).filter(w=>WD[w]).map(w=>WD[w]).join('·')}요일</div><div class="s">${c.start} – ${endOf(c)}</div></div>
+          <div><div class="lb">수업 기간</div><div class="v">${mdShort(from)} – ${mdShort(to)}</div><div class="s">총 ${sess.length}회</div></div>
+          <div><div class="lb">신청 학년</div><div class="v">${gShort(c)}</div><div class="s">${c.gradeNote?esc(c.gradeNote):(c.type==='joy'?'조이클래스':'동아리')}</div></div>
+        </div>
+        <div class="mdates">${monthRows(c)}</div>
+        ${c.intro?`<div class="who" style="margin-top:9px">💬 ${esc(c.intro)}</div>`:''}
+        <details class="plan"><summary><span>📋 수업 계획 · ${sess.length}회</span><i></i></summary><div style="margin-top:6px">${planRows(c)}</div></details></div>
         <div>${PUBLIC ? `<button class="btn line" style="width:100%;margin-top:10px;padding:11px" onclick="simpleDlg()">✍️ 이 동아리 신청하기</button>` : canEdit ? (el==='no'
             ? `<div class="small" style="margin-top:8px">신청 대상: ${esc(gLabel)}</div>`
             : `<div class="rank">${[1,2,3].map(n=>`<button class="${r===n?'on':''}" onclick="setRank('${c.id}', ${r===n?0:n})">${r===n?'✓ ':''}${n}순위</button>`).join('')}</div>`)
           : (r?`<span class="pill blue" style="margin-top:8px;display:inline-block">${r}순위</span>`:'')}</div></div></div>`; }).join('') || '<div class="small" style="padding:6px 0">아직 공고된 동아리가 없어요 — 공고가 올라오면 이 링크에서 바로 볼 수 있습니다.</div>'}
     <div class="alert" id="msg"></div></div>`;
-  if(!PUBLIC) html += gridHTML(Object.keys(picks).map(id=>CLUBS.find(c=>c.id===id)).filter(Boolean));
+  html += weekGridHTML(picks);
   if(!PUBLIC && canEdit) html += `<div class="savebar"><div style="font-size:13px;font-weight:800">${esc(KID?.studentName||'')} · <span style="color:var(--pt)">${Object.keys(picks).length}개 선택</span></div><button class="btn" style="min-width:132px" onclick="savePicks()">신청 저장</button></div>`;
   document.body.classList.toggle('has-save', !PUBLIC && canEdit);
   $('main').innerHTML = html;
-  window.__picks = picks;
 }
-function gridHTML(sel){
-  if(!sel.length) return '';
-  const s0=toMin(SEM.timeStart), s1=toMin(SEM.timeEnd), STEP=10, rows=Math.ceil((s1-s0)/STEP);
-  const colors=['#2F6FD0','#8B5CF6','#16A34A','#D97706'];
-  let h = `<div class="card"><h3>⏱ 내가 고른 동아리 시간표</h3><div class="tgrid"><div></div>${[1,2,3,4,5].map(w=>`<div class="h">${WD[w]}</div>`).join('')}`;
-  for(let r=0;r<rows;r++){ const t=s0+r*STEP; h+=`<div class="tm">${r%3===0?String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0'):''}</div>`; for(let w=1;w<=5;w++) h+=`<div class="cell" id="pg-${w}-${r}"></div>`; }
-  h += `</div><div class="small" id="ov-note" style="margin-top:6px"></div></div>`;
-  setTimeout(()=>{ let ov=false;
-    sel.forEach((c,i)=>{ const r0=Math.max(0,Math.floor((toMin(c.start)-s0)/STEP)), span=Math.max(1,Math.round((c.durMin||60)/STEP));
-      (c.weekdays||[]).forEach(w=>{ const cell=$(`pg-${w}-${r0}`); if(!cell) return; if(cell.querySelector('.blk')) ov=true;
-        const d=document.createElement('div'); d.className='blk'; d.style.cssText=`top:1px;height:${span*18-3}px;background:${colors[i%4]};left:${1+cell.querySelectorAll('.blk').length*5}px`; d.textContent=`${window.__picks[c.id]}순위 ${c.title}`; cell.appendChild(d); }); });
-    const n=$('ov-note'); if(n) n.innerHTML = ov ? '<span style="color:#B45309;font-weight:800">⚠ 겹치는 시간이 있어요 — 겹치는 동아리는 순위가 높은 것만 배정됩니다.</span>' : '겹치는 시간 없음 — 모두 참여 가능합니다.'; }, 0);
-  return h;
+function weekGridHTML(picks){
+  if(!CLUBS.length) return '';
+  const P=2.2, s0=toMin(SEM.timeStart), s1=toMin(SEM.timeEnd), H=Math.max(120,(s1-s0)*P);
+  const cols=[1,2,3,4,5].map(w=>{
+    const evs = CLUBS.filter(c=>(c.weekdays||[]).includes(w)).map(c=>({c,s:toMin(c.start),e:toMin(c.start)+(c.durMin||60)})).sort((a,b)=>a.s-b.s||a.e-b.e);
+    const lanes=[]; evs.forEach(ev=>{ let li=lanes.findIndex(t=>t<=ev.s); if(li<0){ li=lanes.length; lanes.push(0); } lanes[li]=ev.e; ev.l=li; });
+    const L=Math.max(1,lanes.length), wPct=100/L;
+    const blocks=evs.map(ev=>{ const c=ev.c, top=(ev.s-s0)*P+2, h=Math.max(36,(ev.e-ev.s)*P-4), sel=picks[c.id];
+      return `<div class="wb ${c.type==='joy'?'joy':''} ${sel?'sel':''}" style="top:${top}px;height:${h}px;left:calc(${(ev.l*wPct).toFixed(3)}% + 3px);width:calc(${wPct.toFixed(3)}% - 6px)">
+        <div class="bt">${esc(c.title)}</div><span class="gb">${gShort(c)}</span>
+        <div class="bm">${c.start}–${endOf(c)}</div><div class="bi">${esc(c.instructorName||'')}</div>${sel?`<div class="bs">${sel}순위</div>`:''}</div>`; }).join('');
+    return `<div class="day" style="height:${H}px">${blocks}</div>`; });
+  let tl=''; for(let t=s0;t<=s1;t+=40) tl+=`<i style="top:${(t-s0)*P}px">${fmtMin(t)}</i>`;
+  let ov='';
+  if(!PUBLIC){
+    const sel=Object.keys(picks).map(id=>CLUBS.find(c=>c.id===id)).filter(Boolean);
+    if(sel.length){ let clash=false;
+      for(let i=0;i<sel.length;i++) for(let j=i+1;j<sel.length;j++){ const a=sel[i], b=sel[j];
+        if((a.weekdays||[]).some(w=>(b.weekdays||[]).includes(w))
+          && toMin(a.start) < toMin(b.start)+(b.durMin||0) && toMin(b.start) < toMin(a.start)+(a.durMin||0)) clash=true; }
+      ov = `<div class="small" style="margin-top:8px">${clash?'<span style="color:#B45309;font-weight:800">⚠ 내가 고른 동아리 중 시간이 겹치는 조합이 있어요 — 겹치면 순위가 높은 것만 배정됩니다.</span>':'내가 고른 동아리끼리 겹치는 시간 없음 — 모두 참여할 수 있어요.'}</div>`; }
+  }
+  return `<div class="card" style="margin-top:12px"><div class="tt-head">🗓 이번 학기 주간 시간표 <i>${SEM.timeStart} – ${SEM.timeEnd}</i></div>
+    <div class="wgwrap"><div class="wg" style="grid-template-rows:auto ${H}px">
+      <div class="corner"></div>${[1,2,3,4,5].map(w=>`<div class="h">${WD[w]}</div>`).join('')}
+      <div class="tcol">${tl}</div>${cols.join('')}
+    </div></div>
+    <div class="legend"><span><i style="background:#EEF3F8;border-left:3px solid #1E4B74"></i>동아리</span><span><i style="background:#FBF4E3;border-left:3px solid #B08A2E"></i>조이클래스</span>${!PUBLIC?`<span><i style="background:#fff;box-shadow:0 0 0 2px var(--gold);border-radius:3px"></i>내가 고른 동아리</span>`:''}</div>${ov}</div>`;
 }
 window.setRank = (cid, rank)=>{ const p = window.__picks; if(rank){ Object.keys(p).forEach(k=>{ if(p[k]===rank && k!==cid) delete p[k]; }); p[cid]=rank; } else delete p[cid]; renderMainKeep(p); };
 function renderMainKeep(p){ const e = ENR[KID.studentId] || (ENR[KID.studentId] = {picks:[]}); e.picks = Object.entries(p).map(([clubId,rank])=>({clubId,rank})); renderMain(); }
