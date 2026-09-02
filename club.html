@@ -545,7 +545,20 @@ window.toggleSkip = (i)=>{
   else { const r = prompt('이 회차를 휴강으로 뺍니다. 사유(선택):', s.skipReason||''); if(r===null) return; s.skip=true; s.skipReason=r.trim(); }
   renumber(SESSIONS); renderSessions(); recalc(); draftSave();
 };
+function blockedMap(){ const m={}; (SEM.blocked||[]).forEach(b=>{ if(b.date) m[b.date]=b.reason||'운영 불가'; }); return m; }
+function syncBlocked(){
+  // 저장된 회차표를 «지금» 학기 휴강 목록과 맞춘다 — 관리자가 나중에 추가·수정한 휴강이 즉시 반영되도록
+  const m = blockedMap(); let changed = false;
+  SESSIONS.forEach(x=>{
+    if(x.extra) return;                                   // 특별 회차(보강)는 의도적 예외
+    if(m[x.date]){ if(!x.blocked || x.reason!==m[x.date]){ x.blocked=true; x.reason=m[x.date]; x.skip=false; changed=true; } }
+    else if(x.blocked){ x.blocked=false; delete x.reason; changed=true; }   // 휴강이 풀린 날 — 열어서 확인·저장하면 정상 회차로
+  });
+  if(changed) renumber(SESSIONS);
+  return changed;
+}
 function renderSessions(){
+  syncBlocked();
   const live = liveN(), schoolOff = SESSIONS.filter(s=>s.blocked).length, myOff = SESSIONS.filter(s=>s.skip).length;
   const dl = s => `${s.date.slice(5)} (${WD[new Date(s.date+'T00:00:00').getDay()]})`;
   const ed = isOpen();
@@ -680,6 +693,7 @@ window.saveApp = async (mode)=>{
   (SEM.questions||[]).forEach(q=>{ if(!(q.forType==='both'||q.forType===TYPE)) return; const val = v('q-'+q.id); answers[q.id]=val; if(q.required && !val && !missing) missing = q.label; });
   if(!draft && missing) return say('f-msg','err','필수 질문에 답해 주세요: '+missing);
   const adminFix0 = IS_STAFF && EDIT && EDIT.uid && EDIT.uid !== ME.uid;
+  syncBlocked();
   const rec = { semId:SEM.id, org:SEM.org, uid: adminFix0 ? EDIT.uid : ME.uid, email: adminFix0 ? (EDIT.email||'') : (ME.email||''), type:TYPE,
     instructorName:v('f-name'), coInstructors:v('f-co'), phone:v('f-phone'),
     title:v('f-title'), intro:v('f-intro'),
