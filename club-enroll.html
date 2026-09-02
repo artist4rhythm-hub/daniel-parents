@@ -112,7 +112,8 @@ onAuthStateChanged(auth, async user=>{
   await loadSem();
   if(!SEM){ await loadSemAny(); renderPrep(); return; }
   if(!KIDS.length){
-    $('head').innerHTML = `<h3>🎨 동아리 신청</h3><div class="small">이 기관에 연결된 자녀가 없어요. 홈에서 자녀를 먼저 연결해 주세요. (공고 열람은 아래에서 가능해요)</div>`;
+    $('head').innerHTML = `<h3>🎨 동아리 신청</h3><div class="small">이 기관에 연결된 자녀가 없어요. 학교에서 받은 <b>가입코드</b>로 자녀를 연결해 주세요. (공고 열람은 아래에서 가능해요)</div>
+      <div style="margin-top:8px"><a class="btn line" style="text-decoration:none;padding:8px 12px;font-size:12.5px" href="${LOGIN_URL}">🔗 가입코드로 자녀 연결하기</a></div>`;
     await loadClubs(); PUBLIC = true; renderMain(); PUBLIC = false; return;
   }
   await loadClubs(); await loadEnr();
@@ -198,7 +199,7 @@ function renderMain(){
           ${el==='no'?`<span class="pill bad">⛔ ${esc(KID.grade||'')}은 신청 대상 아님</span>`:el==='unknown'?'<span class="pill warn">학년 정보 없음</span>':''}</div>
         <div class="m">👤 ${esc(c.instructorName)}${c.coInstructors?' · '+esc(c.coInstructors):''} · 🎯 ${esc(gLabel)}${c.gradeNote?` <span style="color:#1D4ED8">(${esc(c.gradeNote)})</span>`:''} · 👥 ${c.minN}~${c.maxN}명<br>
           🗓 ${(c.weekdays||[]).filter(w=>WD[w]).map(w=>WD[w]+'요일').join(', ')} ${c.start} · ${c.durMin}분 · ${live(c)}회 · 📍 ${esc(c.room||c.place||'미정')}<br>
-          💰 1회 ${fee(c).toLocaleString()}원 → <b>학기 ${semTotal(c).toLocaleString()}원</b> (출석 기준 학기 말 정산)${c.intro?'<br>💬 '+esc(c.intro):''}</div>
+          💰 1회 ${fee(c).toLocaleString()}원 → <b>학기 ${semTotal(c).toLocaleString()}원</b> (출석과 무관 · 학기 일괄)${c.intro?'<br>💬 '+esc(c.intro):''}</div>
         <details><summary>수업 계획 보기</summary><div class="small" style="margin-top:4px">${(c.startDate||c.endDate)?`기간 ${c.startDate||''} ~ ${c.endDate||''}<br>`:''}${(()=>{const m=bkm(); return (c.sessions||[]).filter(s=>!isOff(s,m));})().map(s=>`${s.no}. ${s.date.slice(5)}${s.extra?` <span style="color:#6D28D9;font-weight:800">[${esc(s.extraLabel||'보강')}${(s.start||s.durMin)?` · ${s.start||''}${s.durMin?' '+s.durMin+'분':''}`:''}]</span>`:s.override?` <span style="color:#92400E;font-weight:800">[학사 휴강일에도 진행]</span>${(s.start||s.durMin)?` <span style="color:#C2410C;font-weight:800">🕒 ${s.start||''}${s.durMin?' '+s.durMin+'분':''}</span>`:''}`:(s.start||s.durMin)?` <span style="color:#C2410C;font-weight:800">🕒 ${s.start||''}${s.durMin?' '+s.durMin+'분':''}</span>`:''} ${s.ctitle?'<b>'+esc(s.ctitle)+'</b> — ':''}${esc(s.content||'')}`).join('<br>')}</div></details></div>
         <div>${PUBLIC ? `<a class="btn line" style="text-decoration:none;padding:8px 12px;font-size:12.5px;white-space:nowrap" href="${LOGIN_URL}">🔐 로그인 후 신청</a>` : canEdit ? (el==='no'
             ? `<span class="small">신청 대상: ${esc(gLabel)}</span>`
