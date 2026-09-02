@@ -497,9 +497,10 @@ function paintPoster(){
   const inst = $('f-name')?.value || '';
   prev.innerHTML = autoPosterHTML(title, inst, TYPE, PTHEME, 150);
   tp.innerHTML = `<span class="small" style="margin-right:4px">자동 포스터 색:</span>` + Object.keys(PTHEMES).map(k=>
-    `<button type="button" onclick="PTHEME='${k}'; paintPoster()" title="${PTHEME_NAMES[k]}"
+    `<button type="button" onclick="setPTheme('${k}')" title="${PTHEME_NAMES[k]}"
       style="width:30px;height:30px;border-radius:50%;cursor:pointer;border:${k===PTHEME?'3px solid #22262B':'2px solid #E7E4DC'};background:linear-gradient(135deg,${PTHEMES[k][0]},${PTHEMES[k][1]})"></button>`).join('');
 }
+window.setPTheme = (k)=>{ PTHEME = k; paintPoster(); draftSave(); };
 window.pickPoster = async (inp)=>{
   const f = inp.files && inp.files[0]; if(!f) return;
   try{
