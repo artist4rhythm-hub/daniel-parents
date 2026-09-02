@@ -49,7 +49,7 @@ details summary{cursor:pointer;font-size:12.5px;color:var(--ink2);font-weight:70
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, onAuthStateChanged, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, initializeFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where, Timestamp }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
@@ -99,6 +99,15 @@ function eligOf(c){   // 자녀 학년으로 신청 가능 여부: ok | no | unk
 onAuthStateChanged(auth, async user=>{
   ME = user || null;
   PUBLIC = !user;
+  if(user && user.isAnonymous){
+    // ✍️ 간편 신청 세션 — 같은 브라우저에서 확인해 둔 자녀로 이어간다
+    await loadSem();
+    if(!SEM){ await loadSemAny(); renderPrep(); return; }
+    await loadClubs();
+    if(simpleKids().length){ await enterSimple(); }
+    else { PUBLIC = true; renderHead(); renderMain(); PUBLIC = false; }
+    return;
+  }
   if(PUBLIC){
     // 🔓 열람 모드 — 링크만 받으면 로그인 없이 공고를 보고, 신청 버튼에서 로그인
     await loadSem();
@@ -132,7 +141,7 @@ function renderPrep(){
     <div class="small" style="line-height:1.8">${ORGS[ORG]} · 강사 개설·취합이 진행되고 있어요.<br>
     ${es&&es.at?`📅 학부모 신청 시작: <b>${es.at.replace('T',' ')}</b>`:'📅 신청 일정은 곧 공지됩니다'}${ee&&ee.at?` · 마감: ${ee.at.replace('T',' ')}`:''}<br>
     공고가 열리면 이 링크 그대로에서 열람·신청할 수 있어요.</div>
-    ${PUBLIC?`<div style="margin-top:10px"><a class="btn line" style="text-decoration:none;padding:9px 14px;font-size:13px" href="${LOGIN_URL}">🔐 학부모 로그인</a></div>`:''}`;
+    ${PUBLIC?`<div style="margin-top:10px" class="small">공고가 열리면 <b>자녀 확인(이름+생년월일)</b>만으로 바로 신청할 수 있어요.</div>`:''}`;
   $('main').innerHTML = '';
 }
 
@@ -160,13 +169,80 @@ const semTotal = c => { const rate=(c.type==='joy'?SEM.feeJoy:SEM.feeClub)||0; c
 function ms(role){ return (SEM.milestones||[]).find(m=>m.role===role) || null; }
 const STL = { enrolling:['신청 접수중','ok'], adjusting:['순위 조정·최종 결정','blue'], confirmed:['확정','ok'], running:['운영중','ok'] };
 
+
+/* ═══ ✍️ 간편 신청 — 자녀 확인(이름+생년월일) · 계정·가입코드 불필요 ═══ */
+const PUSH = 'https://gyosa-push-455744290312.asia-northeast3.run.app';
+const SKEY = 'club_simple_kids_' + ORG;
+let SIMPLE = false;
+function simpleKids(){ try{ return JSON.parse(sessionStorage.getItem(SKEY)||'[]'); }catch(e){ return []; } }
+function simpleSave(list){ try{ sessionStorage.setItem(SKEY, JSON.stringify(list)); }catch(e){} }
+window.simpleDlg = ()=>{
+  const bg = document.createElement('div'); bg.className='modal-bg'; bg.onclick=e=>{ if(e.target===bg) bg.remove(); };
+  bg.innerHTML = `<div class="modal" style="max-width:400px">
+    <h3 style="margin-bottom:4px">✍️ 자녀 확인 후 신청</h3>
+    <div class="small" style="margin-bottom:10px">학교에 등록된 <b>이름·생년월일</b>이 맞으면 바로 신청할 수 있어요 — 계정·가입코드가 필요 없습니다.</div>
+    <label>자녀 이름</label><input id="sv-name" placeholder="예: 김하늘">
+    <label style="margin-top:6px">생년월일</label><input id="sv-birth" type="date">
+    <div id="sv-pick" style="margin-top:8px"></div>
+    <div class="alert" id="sv-msg" style="margin-top:8px"></div>
+    <div class="row" style="justify-content:flex-end;margin-top:12px">
+      <button class="btn line" onclick="this.closest('.modal-bg').remove()">닫기</button>
+      <button class="btn" id="sv-go" onclick="simpleVerify()">확인</button></div></div>`;
+  document.body.appendChild(bg);
+  bg.querySelector('#sv-name').focus();
+};
+window.simpleVerify = async ()=>{
+  const name = document.getElementById('sv-name').value.trim();
+  const birth = document.getElementById('sv-birth').value;
+  const m = document.getElementById('sv-msg');
+  const go = document.getElementById('sv-go');
+  if(!name || !birth){ m.className='alert err'; m.textContent='이름과 생년월일을 입력해 주세요.'; return; }
+  go.disabled = true; go.textContent = '확인 중…';
+  try{
+    const r = await fetch(PUSH + '/club-verify', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ org: ORG, name, birth }) });
+    const j = await r.json();
+    if(!j.ok){ m.className='alert err'; m.textContent = j.msg || '일치하는 학생을 찾지 못했어요.'; return; }
+    if(j.students.length > 1){
+      const box = document.getElementById('sv-pick');
+      box.innerHTML = '<div class="small" style="margin-bottom:4px">같은 이름·생일이 여럿이에요 — 반을 골라주세요.</div>' +
+        j.students.map((s,i)=>`<label style="display:flex;gap:7px;align-items:center;font-size:13px;margin-bottom:4px;cursor:pointer">
+          <input type="radio" name="sv-r" value="${i}" ${i===0?'checked':''}> ${esc(s.studentName)} <span class="small">${esc(s.className||'')}${s.grade?' · '+esc(s.grade):''}</span></label>`).join('');
+      window.__svList = j.students;
+      go.textContent = '이 자녀로 신청'; go.disabled = false;
+      go.onclick = ()=>{ const i = Number(document.querySelector('input[name=sv-r]:checked')?.value||0); simpleEnter(window.__svList[i]); };
+      return;
+    }
+    simpleEnter(j.students[0]);
+  }catch(e){
+    m.className='alert err'; m.textContent='확인 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.';
+  }finally{ if(go.textContent==='확인 중…'){ go.disabled=false; go.textContent='확인'; } }
+};
+async function simpleEnter(st){
+  document.querySelector('.modal-bg')?.remove();
+  const kids = simpleKids().filter(k=>k.studentId!==st.studentId);
+  kids.push({ id:'', studentId:st.studentId, studentName:st.studentName, grade:st.grade||'', className:st.className||'', org:ORG });
+  simpleSave(kids);
+  if(!auth.currentUser){
+    try{ await signInAnonymously(auth); return; }   // onAuthStateChanged가 이어받는다
+    catch(e){ alert('간편 신청을 켜지 못했어요: '+(e.code==='auth/operation-not-allowed'?'학교 설정(익명 로그인)이 아직 꺼져 있어요 — 학교에 알려주세요.':(e.message||''))); return; }
+  }
+  enterSimple();
+}
+async function enterSimple(){
+  SIMPLE = true; PUBLIC = false;
+  KIDS = simpleKids(); KID = KIDS[KIDS.length-1];
+  await loadEnr(); renderHead(); renderMain();
+}
+
 function renderHead(){
   const [lab, cls] = STL[SEM.status] || [SEM.status,''];
   const ee = ms('enrollEnd'), fn = ms('final');
   $('head').innerHTML = `<h3>🎨 ${esc(SEM.name)} 동아리 · 조이클래스 <span class="pill ${cls}">${lab}</span></h3>
     <div class="small">${ORGS[ORG]} · 수업 ${SEM.timeStart}~${SEM.timeEnd}${ee?.at?` · 신청 마감 ${ee.at.replace('T',' ')}`:''}${fn?.at?` · 최종 결정 ${fn.at.replace('T',' ')}`:''}</div>
     ${SEM.refundRule?`<details style="margin-top:6px"><summary>환불 기준 보기</summary><div class="small" style="white-space:pre-wrap;margin-top:4px">${esc(SEM.refundRule)}</div></details>`:''}
-    ${PUBLIC?`<div style="margin-top:10px;background:#FFF8E6;border:1px solid #EAD9A0;border-radius:10px;padding:9px 12px;font-size:12.5px">👀 지금은 <b>열람 모드</b>예요 — 신청하려면 학부모 계정으로 로그인해 자녀별 1·2·3순위를 고릅니다. <a class="btn line" style="text-decoration:none;padding:6px 11px;font-size:12px;margin-left:6px" href="${LOGIN_URL}">🔐 학부모 로그인</a></div>`:''}
+    ${PUBLIC?`<div style="margin-top:10px;background:#FFF8E6;border:1px solid #EAD9A0;border-radius:10px;padding:9px 12px;font-size:12.5px">👀 <b>열람 모드</b> — 신청은 자녀 확인(이름+생년월일)만 하면 바로 됩니다. <button class="btn" style="padding:6px 12px;font-size:12px;margin-left:6px" onclick="simpleDlg()">✍️ 간편 신청</button> <a class="small" style="margin-left:6px" href="${LOGIN_URL}">학부모 계정 로그인</a></div>`:''}
+    ${SIMPLE?`<div class="small" style="margin-top:8px">✍️ 간편 신청 모드 — 이 기기에서 확인한 자녀로 신청합니다. <a href="#" onclick="simpleDlg();return false">+ 다른 자녀 확인</a></div>`:''}
     <div class="kid" style="margin-top:10px;${PUBLIC?'display:none':''}">${KIDS.map(k=>`<button class="${KID&&KID.studentId===k.studentId?'on':''}" onclick="pickKid('${k.studentId}')">${esc(k.studentName)}${k.grade?' · '+esc(k.grade):''}${k.className?' ('+esc(k.className)+')':''}</button>`).join('')}</div>`;
 }
 window.pickKid = (sid)=>{ KID = KIDS.find(k=>k.studentId===sid); renderHead(); renderMain(); };
@@ -201,7 +277,7 @@ function renderMain(){
           🗓 ${(c.weekdays||[]).filter(w=>WD[w]).map(w=>WD[w]+'요일').join(', ')} ${c.start} · ${c.durMin}분 · ${live(c)}회 · 📍 ${esc(c.room||c.place||'미정')}<br>
           💰 1회 ${fee(c).toLocaleString()}원 → <b>학기 ${semTotal(c).toLocaleString()}원</b> (출석과 무관 · 학기 일괄)${c.intro?'<br>💬 '+esc(c.intro):''}</div>
         <details><summary>수업 계획 보기</summary><div class="small" style="margin-top:4px">${(c.startDate||c.endDate)?`기간 ${c.startDate||''} ~ ${c.endDate||''}<br>`:''}${(()=>{const m=bkm(); return (c.sessions||[]).filter(s=>!isOff(s,m));})().map(s=>`${s.no}. ${s.date.slice(5)}${s.extra?` <span style="color:#6D28D9;font-weight:800">[${esc(s.extraLabel||'보강')}${(s.start||s.durMin)?` · ${s.start||''}${s.durMin?' '+s.durMin+'분':''}`:''}]</span>`:s.override?` <span style="color:#92400E;font-weight:800">[학사 휴강일에도 진행]</span>${(s.start||s.durMin)?` <span style="color:#C2410C;font-weight:800">🕒 ${s.start||''}${s.durMin?' '+s.durMin+'분':''}</span>`:''}`:(s.start||s.durMin)?` <span style="color:#C2410C;font-weight:800">🕒 ${s.start||''}${s.durMin?' '+s.durMin+'분':''}</span>`:''} ${s.ctitle?'<b>'+esc(s.ctitle)+'</b> — ':''}${esc(s.content||'')}`).join('<br>')}</div></details></div>
-        <div>${PUBLIC ? `<a class="btn line" style="text-decoration:none;padding:8px 12px;font-size:12.5px;white-space:nowrap" href="${LOGIN_URL}">🔐 로그인 후 신청</a>` : canEdit ? (el==='no'
+        <div>${PUBLIC ? `<button class="btn line" style="padding:8px 12px;font-size:12.5px;white-space:nowrap" onclick="simpleDlg()">✍️ 신청하기</button>` : canEdit ? (el==='no'
             ? `<span class="small">신청 대상: ${esc(gLabel)}</span>`
             : `<select onchange="setRank('${c.id}', Number(this.value))"><option value="0"${!r?' selected':''}>선택 안 함</option><option value="1"${r===1?' selected':''}>1순위</option><option value="2"${r===2?' selected':''}>2순위</option><option value="3"${r===3?' selected':''}>3순위</option></select>`)
           : (r?`<span class="pill blue">${r}순위</span>`:'')}</div></div></div>`; }).join('') || '<div class="small">공고된 동아리가 아직 없습니다.</div>'}
@@ -234,9 +310,9 @@ window.savePicks = async ()=>{
   const id = `${SEM.id}_${KID.studentId}`;
   try{
     await setDoc(doc(db,'clubEnrollments', id), { semId:SEM.id, org:ORG, parentUid:ME.uid, studentId:KID.studentId, studentName:KID.studentName||'', className:KID.className||'', grade:KID.grade||'', linkId:KID.id,
-      picks, status:'applied', updatedAt:Timestamp.now(), ...(e?.id?{}:{createdAt:Timestamp.now()}) }, { merge:true });
+      picks, status:'applied', via: SIMPLE?'simple':'account', updatedAt:Timestamp.now(), ...(e?.id?{}:{createdAt:Timestamp.now()}) }, { merge:true });
     await loadEnr(); renderMain(); const mm=$('msg'); mm.className='alert ok'; mm.textContent='신청을 저장했습니다 ✓ 마감 전까지 언제든 바꿀 수 있어요.';
-  }catch(err){ m.className='alert err'; m.textContent='저장 실패: '+(err.code==='permission-denied'?'지금은 신청 기간이 아닙니다.':(err.message||'')); }
+  }catch(err){ m.className='alert err'; m.textContent='저장 실패: '+(err.code==='permission-denied'?(SEM.status==='enrolling'?'이 학생은 이미 다른 기기(또는 학부모 계정)에서 신청되어 있어요 — 처음 신청한 곳에서 수정하거나 학교에 문의해 주세요.':'지금은 신청 기간이 아닙니다.'):(err.message||'')); }
 };
 window.setFinal = async (cid, v)=>{
   const e = ENR[KID.studentId]; if(!e?.id) return;
