@@ -392,7 +392,7 @@ function genSessions(weekdays, keepContent, from, to){
       else out.push({ date:ds, blocked:false, skip:!!p.skip, skipReason:p.skipReason||'',
         ctitle:p.ctitle||'', content:p.content||'', materials:p.materials||'', cost:p.cost||'', note:p.note||'',
         sameAct:!!p.sameAct, matSame:!!p.matSame, sameCost:!!p.sameCost, sameNote:!!p.sameNote,
-        ...(p.override?{override:true}:{}) });
+        ...(p.override?{override:true}:{}), ...(p.start?{start:p.start}:{}), ...(p.durMin?{durMin:p.durMin}:{}) });
     }
     d.setDate(d.getDate()+1);
   }
@@ -606,17 +606,18 @@ function renderSessions(){
     if(SP.mat[i]) tds += cell(i,'mat', `<div class="cwrap"><input value="${esc(x.materials||'')}" data-big="준비물${SP.mat[i]>1?` · ${SP.mat[i]}회 공통`:` · ${dl(x)}`}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'materials',this)" ${ed?'':'disabled'}>${mBtn(i,'mat')}</div>`, SP.mat[i]);
     if(SP.cost[i]) tds += cell(i,'cost', `<div class="cwrap"><input value="${esc(x.cost||'')}" data-big="재료비 · ${dl(x)}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'cost',this)" ${ed?'':'disabled'}>${mBtn(i,'cost')}</div>`, SP.cost[i]);
     if(SP.note[i]) tds += cell(i,'note', `<div class="cwrap"><input value="${esc(x.note||'')}" data-big="비고 · ${dl(x)}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'note',this)" ${ed?'':'disabled'}>${mBtn(i,'note')}</div>`, SP.note[i]);
-    const exTime = x.extra && (x.start || x.durMin)
-      ? `<br><span style="font-size:10px;color:#6D28D9;font-weight:800">🕒 ${x.start||$('f-start')?.value||''} · ${x.durMin||Number($('f-dur')?.value)||0}분</span>` : '';
+    const tOv = (x.start || x.durMin);
+    const tChip = tOv ? `<br><span style="display:inline-block;background:${x.extra?'#EDE9FE':'#FFEDD5'};color:${x.extra?'#6D28D9':'#C2410C'};border-radius:100px;padding:1px 7px;font-size:10px;font-weight:800">🕒 ${x.start||$('f-start')?.value||''} · ${x.durMin||Number($('f-dur')?.value)||0}분</span>` : '';
+    const exTime = x.extra ? tChip : '';
     const dayCell = x.extra
       ? `${dl(x)}<br><span style="display:inline-block;background:#EDE9FE;color:#6D28D9;border-radius:100px;padding:1px 7px;font-size:10px;font-weight:800">➕ ${esc(x.extraLabel||'보강')}</span>${exTime}`
       : x.override && x.schoolNote
-      ? `${dl(x)}<br><span style="display:inline-block;background:#FEF3C7;color:#92400E;border-radius:100px;padding:1px 7px;font-size:10px;font-weight:800">▶ 진행</span><br><span style="font-size:10px;color:#92400E">학교: ${esc(x.schoolNote)}</span>`
-      : dl(x);
+      ? `${dl(x)}<br><span style="display:inline-block;background:#FEF3C7;color:#92400E;border-radius:100px;padding:1px 7px;font-size:10px;font-weight:800">▶ 진행</span>${tChip}<br><span style="font-size:10px;color:#92400E">학사: ${esc(x.schoolNote)}</span>`
+      : `${dl(x)}${tChip}`;
     const btnCell = ed
       ? (x.extra ? `<button type="button" class="btn line" style="padding:4px 8px;font-size:11px" onclick="editExtra(${i})">✎</button> <button type="button" class="btn line" style="padding:4px 8px;font-size:11px;color:#B91C1C" onclick="delExtra(${i})">삭제</button>`
-         : x.override ? `<button type="button" class="btn line" style="padding:4px 8px;font-size:11px;color:#B91C1C" onclick="overrideOff(${i})">휴강으로</button>`
-                 : `<button type="button" class="btn line" style="padding:4px 8px;font-size:11px" onclick="toggleSkip(${i})">휴강</button>`)
+         : x.override ? `<button type="button" class="btn line" style="padding:4px 7px;font-size:11px" title="이 날만 시간 변경" onclick="editTime(${i})">🕒</button> <button type="button" class="btn line" style="padding:4px 8px;font-size:11px;color:#B91C1C" onclick="overrideOff(${i})">휴강으로</button>`
+                 : `<button type="button" class="btn line" style="padding:4px 7px;font-size:11px" title="이 날만 시간 변경" onclick="editTime(${i})">🕒</button> <button type="button" class="btn line" style="padding:4px 8px;font-size:11px" onclick="toggleSkip(${i})">휴강</button>`)
       : '';
     return `<tr>${x.extra?'<td style="background:#F6F2FF">':'<td>'}${x.no}</td><td ${x.extra?'style="background:#F6F2FF"':''}>${dayCell}</td>${tds}
       <td style="white-space:nowrap">${btnCell}</td></tr>`;
@@ -651,6 +652,28 @@ window.addExtra = ()=>{
   SESSIONS.sort((a,b)=>a.date.localeCompare(b.date));
   renumber(SESSIONS); renderSessions(); recalc(); draftSave();
   $('ex-label').value='';
+};
+window.editTime = (i)=>{
+  const x = SESSIONS[i]; if(!x || x.blocked || x.skip) return;
+  const bg = document.createElement('div'); bg.className='bigbg'; bg.onclick=e=>{ if(e.target===bg) bg.remove(); };
+  const defStart = $('f-start')?.value||'', defDur = Number($('f-dur')?.value)||0;
+  bg.innerHTML = `<div class="bigbox">
+    <div style="font-size:13.5px;font-weight:900;color:#C2410C;margin-bottom:4px">🕒 ${x.date} — 이 날만 시간 변경</div>
+    <div class="small" style="margin-bottom:10px">동아리 공통 시간(${defStart} · ${defDur}분)과 다르게 운영되는 날만 설정하세요. «동일»로 두면 표시가 사라집니다.</div>
+    <div class="g2">
+      <div><label>시작 시간</label><select id="et-start"><option value="">공통과 동일 (${defStart})</option>${wideTimes().map(t=>`<option${t===x.start?' selected':''}>${t}</option>`).join('')}</select></div>
+      <div><label>길이</label><select id="et-dur"><option value="">동일 (${defDur}분)</option>${[30,40,50,60,70,80,90,100,110,120,150,180].map(m=>`<option value="${m}"${m===x.durMin?' selected':''}>${m}분</option>`).join('')}</select></div>
+    </div>
+    <div class="row" style="justify-content:flex-end;margin-top:12px">
+      <button class="btn line" onclick="this.closest('.bigbg').remove()">취소</button>
+      <button class="btn" id="et-save">저장</button></div></div>`;
+  document.body.appendChild(bg);
+  bg.querySelector('#et-save').onclick = ()=>{
+    const st = bg.querySelector('#et-start').value, du = Number(bg.querySelector('#et-dur').value)||0;
+    if(st) x.start = st; else delete x.start;
+    if(du) x.durMin = du; else delete x.durMin;
+    bg.remove(); renderSessions(); recalc(); draftSave();
+  };
 };
 window.editExtra = (i)=>{
   const x = SESSIONS[i]; if(!x?.extra) return;
@@ -695,10 +718,10 @@ window.recalc = ()=>{
   const lives = SESSIONS.filter(s=>!s.blocked && !s.skip);
   const sessFee = s => Math.round(rate * ((s.durMin||dur)) / 60);
   const total = lives.reduce((a,s)=>a+sessFee(s), 0);
-  const exDiff = lives.filter(s=>s.extra && s.durMin && s.durMin!==dur);
+  const exDiff = lives.filter(s=>s.durMin && s.durMin!==dur);
   const exSum = exDiff.reduce((a,s)=>a+sessFee(s), 0);
   const regN = lives.length - exDiff.length;
-  $('fee-box').innerHTML = `💰 1인 1회 <b>${per.toLocaleString()}원</b> (${rate.toLocaleString()}원/시간 × ${dur}분) · ${exDiff.length?`정규 ${regN}회 + 특별 ${exDiff.length}회(${exSum.toLocaleString()}원)`:`총 ${lives.length}회`} → <b>학기 1인 ${total.toLocaleString()}원</b>
+  $('fee-box').innerHTML = `💰 1인 1회 <b>${per.toLocaleString()}원</b> (${rate.toLocaleString()}원/시간 × ${dur}분) · ${exDiff.length?`공통 ${regN}회 + 🕒 시간 다른 ${exDiff.length}회(${exSum.toLocaleString()}원)`:`총 ${lives.length}회`} → <b>학기 1인 ${total.toLocaleString()}원</b>
     <div class="small">학생 ${Number($('f-min')?.value||0)}명 기준 강사료 ${(total*Number($('f-min')?.value||0)).toLocaleString()}원 ~ ${Number($('f-max')?.value||0)}명 ${(total*Number($('f-max')?.value||0)).toLocaleString()}원 (출석 기준 학기 말 정산)</div>`;
 };
 window.updSess = (i, k, el)=>{ if(SESSIONS[i]) SESSIONS[i][k] = el.value; draftSave(); };
