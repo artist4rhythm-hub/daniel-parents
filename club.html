@@ -205,6 +205,26 @@ function compressImg(file, maxW, q){
   });
 }
 let POSTER = '', PTHEME = 'navy';
+/* 💾 자동 임시저장 — 실수·오류·새로고침에도 입력이 날아가지 않게 */
+let _draftT = null;
+function draftKey(){ return `club_draft_${SEM?.id||'x'}_${EDIT?.id||'new'}`; }
+function draftSave(){
+  clearTimeout(_draftT);
+  _draftT = setTimeout(()=>{
+    try{
+      const v = id => document.getElementById(id)?.value || '';
+      localStorage.setItem(draftKey(), JSON.stringify({ t: Date.now(),
+        type:TYPE, title:v('f-title'), intro:v('f-intro'), name:v('f-name'), co:v('f-co'), phone:v('f-phone'),
+        min:v('f-min'), max:v('f-max'), place:v('f-place'), mat:v('f-mat'),
+        from:v('f-from'), to:v('f-to'), start:v('f-start'), dur:v('f-dur'),
+        gradeSel:[...document.querySelectorAll('.gsel input:checked')].map(i=>i.value),
+        answers:Object.fromEntries((SEM.questions||[]).map(q=>[q.id, v('q-'+q.id)])),
+        poster:POSTER.length<400000?POSTER:'', posterTheme:PTHEME, sessions:SESSIONS }));
+    }catch(e){}
+  }, 800);
+}
+function draftLoad(){ try{ return JSON.parse(localStorage.getItem(draftKey())||'null'); }catch(e){ return null; } }
+function draftClear(){ try{ localStorage.removeItem(draftKey()); }catch(e){} }
 /* ✏️ 좁은 칸 확장 편집 — 더블클릭(폰: 길게 누르기)하면 큰 창에서 편하게 */
 window.bigEdit = (el, label)=>{
   const bg = document.createElement('div'); bg.className='bigbg';
@@ -416,6 +436,22 @@ function renderForm(a){
   else if(SESSIONS.length) renumber(SESSIONS);
   renderSessions(); recalc();
   ['f-title','f-name'].forEach(id=>{ const el=$(id); if(el) el.addEventListener('input', ()=>{ if(!POSTER) paintPoster(); }); });
+  $('form').addEventListener('input', draftSave);
+  const d = draftLoad();
+  const savedAt = EDIT?.updatedAt?.seconds ? EDIT.updatedAt.seconds*1000 : 0;
+  if(d && d.t > savedAt + 3000 && (d.sessions||[]).some(x=>x.content||x.materials||x.cost) &&
+     confirm(`저장 안 된 임시 초안이 있어요 (${new Date(d.t).toLocaleString('ko-KR')}).\n불러올까요?`)){
+    TYPE = d.type||TYPE; POSTER = d.poster||POSTER; PTHEME = d.posterTheme||PTHEME;
+    SESSIONS = (d.sessions||[]).map(x=>({...x}));
+    const put = (id,val)=>{ const el=$(id); if(el && val!==undefined) el.value = val; };
+    put('f-title',d.title); put('f-intro',d.intro); put('f-name',d.name); put('f-co',d.co); put('f-phone',d.phone);
+    put('f-min',d.min); put('f-max',d.max); put('f-place',d.place); put('f-mat',d.mat);
+    put('f-from',d.from); put('f-to',d.to); put('f-start',d.start);
+    durOptions(Number(d.dur)||60);
+    document.querySelectorAll('.gsel').forEach(l=>{ const cb=l.querySelector('input'); const on=(d.gradeSel||[]).includes(cb.value); cb.checked=on; l.classList.toggle('on',on); });
+    Object.entries(d.answers||{}).forEach(([k,v])=>put('q-'+k, v));
+    setType(TYPE, true); renumber(SESSIONS); renderSessions(); paintPoster(); recalc();
+  }
   $('form').scrollIntoView({behavior:'smooth'});
 }
 function paintPoster(){
@@ -446,12 +482,12 @@ window.setType = (t, silent)=>{ TYPE=t; $('t-club').classList.toggle('on',t==='c
 window.durOptions = (sel)=>{ const s = $('f-start').value, mx = maxDur(s), cur = sel || Number($('f-dur').value)||60;
   $('f-dur').innerHTML = [30,40,50,60,70,80,90,100,110,120].filter(x=>x<=mx).map(x=>`<option value="${x}"${x===cur?' selected':''}>${x}분</option>`).join(''); };
 function selWeekdays(){ return [...document.querySelectorAll('.wd input:checked')].map(i=>Number(i.value)); }
-window.rebuildSessions = ()=>{ SESSIONS = genSessions(selWeekdays(), SESSIONS, $('f-from')?.value, $('f-to')?.value); renderSessions(); recalc(); };
+window.rebuildSessions = ()=>{ SESSIONS = genSessions(selWeekdays(), SESSIONS, $('f-from')?.value, $('f-to')?.value); renderSessions(); recalc(); draftSave(); };
 window.toggleSkip = (i)=>{
   const s = SESSIONS[i]; if(!s || s.blocked) return;
   if(s.skip){ s.skip=false; s.skipReason=''; }
   else { const r = prompt('이 회차를 휴강으로 뺍니다. 사유(선택):', s.skipReason||''); if(r===null) return; s.skip=true; s.skipReason=r.trim(); }
-  renumber(SESSIONS); renderSessions(); recalc();
+  renumber(SESSIONS); renderSessions(); recalc(); draftSave();
 };
 function renderSessions(){
   const live = liveN(), schoolOff = SESSIONS.filter(s=>s.blocked).length, myOff = SESSIONS.filter(s=>s.skip).length;
@@ -463,9 +499,9 @@ function renderSessions(){
       : s.skip
       ? `<tr class="blocked" style="background:#FFF7E6;color:#92400E"><td>—</td><td>${dl(s)}</td><td colspan="3">⏸ 강사 휴강${s.skipReason?' — '+esc(s.skipReason):''}</td><td>${isOpen()?`<button type="button" class="btn line" style="padding:4px 8px;font-size:11px" onclick="toggleSkip(${i})">복원</button>`:''}</td></tr>`
       : `<tr><td>${s.no}</td><td>${dl(s)}</td>
-         <td><input value="${esc(s.content||'')}" data-big="활동 내용 · ${dl(s)}" ondblclick="bigEdit(this,this.dataset.big)" oninput="SESSIONS[${i}].content=this.value" ${isOpen()?'':'disabled'}></td>
-         <td><input value="${esc(s.materials||'')}" data-big="준비물 · ${dl(s)}" ondblclick="bigEdit(this,this.dataset.big)" oninput="SESSIONS[${i}].materials=this.value" ${isOpen()?'':'disabled'}></td>
-         <td><input value="${esc(s.cost||'')}" data-big="재료비 · ${dl(s)}" ondblclick="bigEdit(this,this.dataset.big)" oninput="SESSIONS[${i}].cost=this.value" ${isOpen()?'':'disabled'}></td>
+         <td><input value="${esc(s.content||'')}" data-big="활동 내용 · ${dl(s)}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'content',this)" ${isOpen()?'':'disabled'}></td>
+         <td><input value="${esc(s.materials||'')}" data-big="준비물 · ${dl(s)}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'materials',this)" ${isOpen()?'':'disabled'}></td>
+         <td><input value="${esc(s.cost||'')}" data-big="재료비 · ${dl(s)}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'cost',this)" ${isOpen()?'':'disabled'}></td>
          <td>${isOpen()?`<button type="button" class="btn line" style="padding:4px 8px;font-size:11px" onclick="toggleSkip(${i})">휴강</button>`:''}</td></tr>`).join('')}
     </table></div>` : '<div class="small">요일을 고르면 회차가 나타납니다.</div>';
 }
@@ -475,7 +511,7 @@ window.recalc = ()=>{
   $('fee-box').innerHTML = `💰 1인 1회 <b>${per.toLocaleString()}원</b> (${rate.toLocaleString()}원/시간 × ${dur}분) · 총 ${live}회 → <b>학기 1인 ${(per*live).toLocaleString()}원</b>
     <div class="small">학생 ${Number($('f-min')?.value||0)}명 기준 강사료 ${(per*live*Number($('f-min')?.value||0)).toLocaleString()}원 ~ ${Number($('f-max')?.value||0)}명 ${(per*live*Number($('f-max')?.value||0)).toLocaleString()}원 (출석 기준 학기 말 정산)</div>`;
 };
-window.SESSIONS = SESSIONS;
+window.updSess = (i, k, el)=>{ if(SESSIONS[i]) SESSIONS[i][k] = el.value; draftSave(); };
 
 window.saveApp = async ()=>{
   const v = id => ($(id)?.value||'').trim();
@@ -504,6 +540,7 @@ window.saveApp = async ()=>{
     // 프로필 이름·연락처 갱신
     await setDoc(doc(db,'clubInstructors',ME.uid), { name:rec.instructorName, phone:rec.phone, email:ME.email||'', updatedAt:Timestamp.now() }, { merge:true });
     PROF.name = rec.instructorName; PROF.phone = rec.phone; $('me-name').textContent = PROF.name;
+    draftClear();
     say('f-msg','ok', EDIT ? '수정을 저장했습니다 ✓' : '신청서를 제출했습니다 ✓ 마감 전까지 언제든 수정할 수 있어요.');
     await loadMine(); renderMine();
     if(!EDIT){ setTimeout(()=>{ $('form-area').innerHTML=''; window.scrollTo({top:0,behavior:'smooth'}); }, 1200); }
