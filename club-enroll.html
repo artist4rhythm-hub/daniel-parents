@@ -196,7 +196,7 @@ window.savePicks = async ()=>{
   if(!picks.length){ m.className='alert err'; m.textContent='순위를 하나 이상 골라주세요.'; return; }
   const id = `${SEM.id}_${KID.studentId}`;
   try{
-    await setDoc(doc(db,'clubEnrollments', id), { semId:SEM.id, org:ORG, parentUid:ME.uid, studentId:KID.studentId, studentName:KID.studentName||'', className:KID.className||'', linkId:KID.id,
+    await setDoc(doc(db,'clubEnrollments', id), { semId:SEM.id, org:ORG, parentUid:ME.uid, studentId:KID.studentId, studentName:KID.studentName||'', className:KID.className||'', grade:KID.grade||'', linkId:KID.id,
       picks, status:'applied', updatedAt:Timestamp.now(), ...(e?.id?{}:{createdAt:Timestamp.now()}) }, { merge:true });
     await loadEnr(); renderMain(); const mm=$('msg'); mm.className='alert ok'; mm.textContent='신청을 저장했습니다 ✓ 마감 전까지 언제든 바꿀 수 있어요.';
   }catch(err){ m.className='alert err'; m.textContent='저장 실패: '+(err.code==='permission-denied'?'지금은 신청 기간이 아닙니다.':(err.message||'')); }
