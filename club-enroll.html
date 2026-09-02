@@ -80,25 +80,38 @@ details.plan[open]>summary i::before{content:'접기 ▴'}
 /* ── 주간 한눈표 ── */
 .tt-head{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:900;color:var(--pt)}
 .tt-head i{font-style:normal;font-size:11px;color:var(--ink3);font-weight:700}
-.wgwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:12px -6px 0;padding:0 6px 6px}
-.wg{display:grid;grid-template-columns:44px repeat(5,122px);gap:4px;min-width:674px}
+.wgwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:12px -6px 0;padding:0 6px 6px;scroll-snap-type:x proximity;scroll-padding-left:50px}
+.wg{display:grid;grid-template-columns:46px repeat(5,186px);gap:5px;min-width:1001px}
 .wg .h{background:var(--pt);color:#fff;font-size:11.5px;font-weight:900;text-align:center;padding:7px 0;border-radius:8px}
 .wg .corner,.wg .tcol{position:sticky;left:0;z-index:4;background:var(--wh)}
 .wg .tcol{position:sticky}
-.wg .tcol i{position:absolute;right:6px;font-size:9.5px;font-weight:700;color:var(--ink3);font-style:normal;transform:translateY(-50%);font-variant-numeric:tabular-nums}
-.wg .day{position:relative;background:var(--wh);border:1px solid var(--line);border-radius:10px;background-image:repeating-linear-gradient(to bottom,transparent 0 43px,var(--line) 43px 44px)}
+.wg .tcol i{position:absolute;right:7px;font-size:10.5px;font-weight:700;color:var(--ink3);font-style:normal;transform:translateY(-50%);font-variant-numeric:tabular-nums}
+.wg .day{position:relative;background:var(--wh);border:1px solid var(--line);border-radius:10px;background-image:repeating-linear-gradient(to bottom,transparent 0 39px,var(--line) 39px 40px);scroll-snap-align:start}
 .wb{position:absolute;border-radius:8px;padding:5px 6px;overflow:hidden;background:#EEF3F8;border-left:3px solid var(--pt2,#1E4B74)}
 .wb.joy{background:#FBF4E3;border-left-color:#B08A2E}
 .wb.sel{box-shadow:0 0 0 2px var(--gold);border-left-color:var(--gold)}
-.wb .bt{font-size:10.5px;font-weight:900;color:var(--pt);line-height:1.25;word-break:keep-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.wb{cursor:pointer;transition:opacity .18s}
+.wb.dim{opacity:.24;filter:grayscale(.5)}
+.wb .bt{font-size:12px;font-weight:900;color:var(--pt);line-height:1.3;word-break:keep-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .wb.joy .bt{color:#7A5D14}
-.wb .gb{display:inline-block;margin-top:3px;font-size:9px;font-weight:900;background:var(--pt);color:#fff;border-radius:5px;padding:1px 6px}
+.wb .gb{display:inline-block;margin-top:3px;font-size:10px;font-weight:900;background:var(--pt);color:#fff;border-radius:6px;padding:1.5px 7px}
 .wb.joy .gb{background:#B08A2E}
-.wb .bm{font-size:9px;color:var(--ink2);margin-top:2px;font-variant-numeric:tabular-nums}
-.wb .bi{font-size:9px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.wb .bs{position:absolute;top:3px;right:4px;font-size:8.5px;font-weight:900;color:#8A6A16}
+.wb .bm{font-size:10.5px;color:var(--ink2);margin-top:2px;font-weight:700;font-variant-numeric:tabular-nums}
+.wb .bi{font-size:10px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wb .bs{position:absolute;top:4px;right:5px;font-size:9.5px;font-weight:900;color:#8A6A16}
 .legend{display:flex;gap:12px;margin-top:10px;font-size:10.5px;color:var(--ink2);font-weight:700;flex-wrap:wrap}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;font-style:normal}
+.gfil{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
+.gfil button{border:1.5px solid var(--line);background:var(--wh);border-radius:100px;padding:6px 12px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;color:var(--ink2)}
+.gfil button.on{background:var(--pt);border-color:var(--pt);color:#fff}
+.club{scroll-margin-top:64px}
+.club.flash{animation:cflash 1.3s ease}
+@keyframes cflash{0%,55%{box-shadow:0 0 0 3px var(--gold)}100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}}
+.info-rows{margin-top:10px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.info-rows .ir{display:grid;grid-template-columns:74px 1fr;gap:10px;padding:8px 12px;font-size:12.5px}
+.info-rows .ir:nth-child(even){background:var(--row)}
+.info-rows .ir b{color:var(--ink3);font-size:11px;font-weight:800;padding-top:1px}
+.info-rows .ir span{font-weight:700;color:var(--ink)}
 </style>
 </head>
 <body>
@@ -356,7 +369,7 @@ function renderMain(){
       const sortG = a=>(a||[]).slice().sort((x,y)=>{const nx=parseInt(x),ny=parseInt(y);if(!isNaN(nx)&&!isNaN(ny))return nx-ny;if(!isNaN(nx))return -1;if(!isNaN(ny))return 1;return String(x).localeCompare(String(y),'ko');});
       const gLabel = (c.gradeSel&&c.gradeSel.length)?sortG(c.gradeSel).join('·'):(c.grades||'전체');
       const sess = liveSess(c); const from = c.startDate || (sess[0]&&sess[0].date) || ''; const to = c.endDate || (sess.length&&sess[sess.length-1].date) || '';
-      return `<div class="club ${r===1?'r1':''}" style="grid-template-columns:1fr;${el==='no'?'opacity:.8':''}">
+      return `<div class="club ${r===1?'r1':''}" id="club-${c.id}" style="grid-template-columns:1fr;${el==='no'?'opacity:.8':''}">
         <div style="margin-bottom:8px">${posterHTML(c, 110)}</div>
         <div><div>
         <div class="t"><span class="pill ${c.type==='joy'?'blue':'ok'}">${c.type==='joy'?'조이클래스':'동아리'}</span> ${esc(c.title)}
@@ -382,15 +395,22 @@ function renderMain(){
 }
 function weekGridHTML(picks){
   if(!CLUBS.length) return '';
-  const P=2.2, s0=toMin(SEM.timeStart), s1=toMin(SEM.timeEnd), H=Math.max(120,(s1-s0)*P);
+  const P=2.0, s0=toMin(SEM.timeStart), s1=toMin(SEM.timeEnd), H=Math.max(120,(s1-s0)*P);
+  if(window.__gsel===undefined) window.__gsel = (KID && KID.grade) ? KID.grade : null;
+  const gsel = window.__gsel;
+  const allows = c => !(c.gradeSel&&c.gradeSel.length) || c.gradeSel.includes(gsel);
+  const gs = [...new Set(CLUBS.flatMap(c=>c.gradeSel||[]))].sort((a,b)=>{const na=parseInt(a),nb=parseInt(b);
+    if(!isNaN(na)&&!isNaN(nb))return na-nb; if(!isNaN(na))return -1; if(!isNaN(nb))return 1; return String(a).localeCompare(String(b),'ko');});
+  window.__glist = gs;
   const cols=[1,2,3,4,5].map(w=>{
     const evs = CLUBS.filter(c=>(c.weekdays||[]).includes(w)).map(c=>({c,s:toMin(c.start),e:toMin(c.start)+(c.durMin||60)})).sort((a,b)=>a.s-b.s||a.e-b.e);
     const lanes=[]; evs.forEach(ev=>{ let li=lanes.findIndex(t=>t<=ev.s); if(li<0){ li=lanes.length; lanes.push(0); } lanes[li]=ev.e; ev.l=li; });
     const L=Math.max(1,lanes.length), wPct=100/L;
-    const blocks=evs.map(ev=>{ const c=ev.c, top=(ev.s-s0)*P+2, h=Math.max(36,(ev.e-ev.s)*P-4), sel=picks[c.id];
-      return `<div class="wb ${c.type==='joy'?'joy':''} ${sel?'sel':''}" style="top:${top}px;height:${h}px;left:calc(${(ev.l*wPct).toFixed(3)}% + 3px);width:calc(${wPct.toFixed(3)}% - 6px)">
+    const blocks=evs.map(ev=>{ const c=ev.c, top=(ev.s-s0)*P+2, h=Math.max(42,(ev.e-ev.s)*P-4), sel=picks[c.id];
+      const dim = gsel && !allows(c);
+      return `<div class="wb ${c.type==='joy'?'joy':''} ${sel?'sel':''} ${dim?'dim':''}" onclick="wbInfo('${c.id}')" style="top:${top}px;height:${h}px;left:calc(${(ev.l*wPct).toFixed(3)}% + 3px);width:calc(${wPct.toFixed(3)}% - 6px)">
         <div class="bt">${esc(c.title)}</div><span class="gb">${gShort(c)}</span>
-        <div class="bm">${c.start}–${endOf(c)}</div><div class="bi">${esc(c.instructorName||'')}</div>${sel?`<div class="bs">${sel}순위</div>`:''}</div>`; }).join('');
+        <div class="bm">${c.start} – ${endOf(c)}</div><div class="bi">👤 ${esc(c.instructorName||'')}</div>${sel?`<div class="bs">${sel}순위</div>`:''}</div>`; }).join('');
     return `<div class="day" style="height:${H}px">${blocks}</div>`; });
   let tl=''; for(let t=s0;t<=s1;t+=40) tl+=`<i style="top:${(t-s0)*P}px">${fmtMin(t)}</i>`;
   let ov='';
@@ -402,13 +422,43 @@ function weekGridHTML(picks){
           && toMin(a.start) < toMin(b.start)+(b.durMin||0) && toMin(b.start) < toMin(a.start)+(a.durMin||0)) clash=true; }
       ov = `<div class="small" style="margin-top:8px">${clash?'<span style="color:#B45309;font-weight:800">⚠ 내가 고른 동아리 중 시간이 겹치는 조합이 있어요 — 겹치면 순위가 높은 것만 배정됩니다.</span>':'내가 고른 동아리끼리 겹치는 시간 없음 — 모두 참여할 수 있어요.'}</div>`; }
   }
-  return `<div class="card" style="margin-top:12px"><div class="tt-head">🗓 이번 학기 주간 시간표 <i>${SEM.timeStart} – ${SEM.timeEnd}</i></div>
+  return `<div class="card" id="wgcard" style="margin-top:12px"><div class="tt-head">🗓 이번 학기 주간 시간표 <i>${SEM.timeStart} – ${SEM.timeEnd} · 옆으로 넘겨 보세요 →</i></div>
+    <div class="gfil"><button class="${!gsel?'on':''}" onclick="wgGrade(null)">전체 학년</button>${gs.map((g,i)=>`<button class="${gsel===g?'on':''}" onclick="wgGrade(window.__glist[${i}])">${esc(g)}</button>`).join('')}</div>
     <div class="wgwrap"><div class="wg" style="grid-template-rows:auto ${H}px">
       <div class="corner"></div>${[1,2,3,4,5].map(w=>`<div class="h">${WD[w]}</div>`).join('')}
       <div class="tcol">${tl}</div>${cols.join('')}
     </div></div>
-    <div class="legend"><span><i style="background:#EEF3F8;border-left:3px solid #1E4B74"></i>동아리</span><span><i style="background:#FBF4E3;border-left:3px solid #B08A2E"></i>조이클래스</span>${!PUBLIC?`<span><i style="background:#fff;box-shadow:0 0 0 2px var(--gold);border-radius:3px"></i>내가 고른 동아리</span>`:''}</div>${ov}</div>`;
+    <div class="legend"><span><i style="background:#EEF3F8;border-left:3px solid #1E4B74"></i>동아리</span><span><i style="background:#FBF4E3;border-left:3px solid #B08A2E"></i>조이클래스</span>${!PUBLIC?`<span><i style="background:#fff;box-shadow:0 0 0 2px var(--gold);border-radius:3px"></i>내가 고른 동아리</span>`:''}${gsel?`<span style="color:var(--ink3)">흐린 블록 = ${esc(gsel)} 신청 불가</span>`:''}</div>${ov}</div>`;
 }
+window.wgGrade = (g)=>{ window.__gsel = g; const el = document.getElementById('wgcard'); if(el) el.outerHTML = weekGridHTML(window.__picks||{}); };
+window.wbInfo = (id)=>{
+  const c = CLUBS.find(x=>x.id===id); if(!c) return;
+  const sess = liveSess(c); const from = c.startDate || (sess[0]&&sess[0].date) || ''; const to = c.endDate || (sess.length&&sess[sess.length-1].date) || '';
+  const r = (window.__picks||{})[id];
+  const bg = document.createElement('div'); bg.className='modal-bg'; bg.onclick=e=>{ if(e.target===bg) bg.remove(); };
+  bg.innerHTML = `<div class="modal">
+    ${posterHTML(c, 84)}
+    <h3 style="margin-top:10px"><span class="pill ${c.type==='joy'?'blue':'ok'}">${c.type==='joy'?'조이클래스':'동아리'}</span> ${esc(c.title)} ${r?`<span class="pill blue">${r}순위 신청함</span>`:''}</h3>
+    <div class="info-rows">
+      <div class="ir"><b>요일·시간</b><span>매주 ${(c.weekdays||[]).filter(w=>WD[w]).map(w=>WD[w]).join('·')}요일 ${c.start} – ${endOf(c)}</span></div>
+      <div class="ir"><b>수업 기간</b><span>${mdShort(from)} – ${mdShort(to)} · 총 ${sess.length}회</span></div>
+      <div class="ir"><b>신청 학년</b><span>${gShort(c)}${c.gradeNote?` <span class="small">(${esc(c.gradeNote)})</span>`:''}</span></div>
+      <div class="ir"><b>강사</b><span>${esc(c.instructorName||'')}${c.coInstructors?' · '+esc(c.coInstructors):''}</span></div>
+      <div class="ir"><b>회비</b><span>학기 ${semTotal(c).toLocaleString()}원 <span class="small">(1회 ${fee(c).toLocaleString()}원)</span></span></div>
+      ${(c.room||c.place)?`<div class="ir"><b>장소</b><span>${esc(c.room||c.place)}</span></div>`:''}
+    </div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px">
+      <button class="btn line" onclick="this.closest('.modal-bg').remove()">닫기</button>
+      <button class="btn" onclick="wbGo('${id}')">📄 상세 안내 보기</button></div></div>`;
+  document.body.appendChild(bg);
+};
+window.wbGo = (id)=>{
+  document.querySelector('.modal-bg')?.remove();
+  const t = document.getElementById('club-'+id); if(!t) return;
+  t.scrollIntoView({ behavior:'smooth', block:'start' });
+  t.classList.add('flash'); setTimeout(()=>t.classList.remove('flash'), 1350);
+};
+
 window.setRank = (cid, rank)=>{ const p = window.__picks; if(rank){ Object.keys(p).forEach(k=>{ if(p[k]===rank && k!==cid) delete p[k]; }); p[cid]=rank; } else delete p[cid]; renderMainKeep(p); };
 function renderMainKeep(p){ const e = ENR[KID.studentId] || (ENR[KID.studentId] = {picks:[]}); e.picks = Object.entries(p).map(([clubId,rank])=>({clubId,rank})); renderMain(); }
 window.savePicks = async ()=>{
