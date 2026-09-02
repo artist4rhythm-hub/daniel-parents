@@ -116,6 +116,25 @@ details.plan[open]>summary i::before{content:'접기 ▴'}
 .info-rows .ir:nth-child(even){background:var(--row)}
 .info-rows .ir b{color:var(--ink3);font-size:11px;font-weight:800;padding-top:1px}
 .info-rows .ir span{font-weight:700;color:var(--ink)}
+/* ── 자녀 바 · 신청 요약 · 저장 팝업 · 업데이트 배너 ── */
+.kadd{border:1.5px dashed var(--line);background:var(--row);border-radius:11px;padding:8px 13px;font-size:12.5px;font-weight:800;color:var(--pt2);cursor:pointer;font-family:inherit}
+.kreset{margin-left:auto;font-size:11px;color:var(--ink3);font-weight:700;background:none;border:0;text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-family:inherit}
+.sumhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.sumhead b{font-size:13.5px;font-weight:900;color:var(--pt)}
+.sumhead span{font-size:11px;color:var(--ink3);font-weight:700}
+.rgrp{margin-top:10px}
+.rgrp .rl{font-size:11px;font-weight:900;color:var(--gold);background:var(--pt);display:inline-block;border-radius:7px;padding:2px 9px}
+.rrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 2px 9px 4px;border-bottom:1px dashed var(--line);cursor:pointer}
+.rrow:last-child{border-bottom:0}
+.rrow .tt{font-size:13px;font-weight:800;color:var(--ink)}
+.rrow .tm{font-size:11px;color:var(--ink2);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rrow .ovb{font-size:10px;color:#B45309;font-weight:800}
+.sumfoot{margin-top:10px;padding-top:9px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2);font-weight:700}
+.modal.pop .pop-ck{width:54px;height:54px;border-radius:50%;background:#DCFCE7;color:#15803D;font-size:26px;font-weight:900;display:flex;align-items:center;justify-content:center;margin:0 auto}
+.modal.pop .pop-list{margin-top:13px;border:1px solid var(--line);border-radius:12px;padding:2px 13px}
+.updbar{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--pt);color:#fff;display:flex;gap:12px;align-items:center;justify-content:center;padding:9px 14px calc(9px + env(safe-area-inset-top));font-size:12.5px;font-weight:800;box-shadow:0 4px 14px rgba(12,42,68,.25)}
+.updbar button{background:var(--gold);color:#20303F;border:0;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:900;font-family:inherit;cursor:pointer}
+body.has-upd{padding-top:46px}
 </style>
 </head>
 <body>
@@ -285,8 +304,13 @@ const planRows = c => liveSess(c).map(x=>{ const tt = x.ctitle ? esc(x.ctitle) :
 const PUSH = 'https://gyosa-push-455744290312.asia-northeast3.run.app';
 const SKEY = 'club_simple_kids_' + ORG;
 let SIMPLE = false;
-function simpleKids(){ try{ return JSON.parse(sessionStorage.getItem(SKEY)||'[]'); }catch(e){ return []; } }
-function simpleSave(list){ try{ sessionStorage.setItem(SKEY, JSON.stringify(list)); }catch(e){} }
+const CURKEY = SKEY + '_cur';
+function simpleKids(){ try{
+  let v = localStorage.getItem(SKEY);
+  if(v===null){ const old = sessionStorage.getItem(SKEY); if(old){ localStorage.setItem(SKEY, old); v = old; } } // 예전(탭 한정) 저장분 이어받기
+  return JSON.parse(v||'[]');
+}catch(e){ return []; } }
+function simpleSave(list){ try{ localStorage.setItem(SKEY, JSON.stringify(list)); }catch(e){} }
 window.simpleDlg = ()=>{
   const bg = document.createElement('div'); bg.className='modal-bg'; bg.onclick=e=>{ if(e.target===bg) bg.remove(); };
   bg.innerHTML = `<div class="modal" style="max-width:400px">
@@ -342,7 +366,9 @@ async function simpleEnter(st){
 }
 async function enterSimple(){
   SIMPLE = true; PUBLIC = false;
-  KIDS = simpleKids(); KID = KIDS[KIDS.length-1];
+  KIDS = simpleKids();
+  const cur = (()=>{ try{ return localStorage.getItem(CURKEY); }catch(e){ return null; } })();
+  KID = KIDS.find(k=>k.studentId===cur) || KIDS[KIDS.length-1];
   await loadEnr(); renderHead(); renderMain();
 }
 
@@ -353,10 +379,10 @@ function renderHead(){
     <div class="small">${ORGS[ORG]} · 수업 ${SEM.timeStart}~${SEM.timeEnd}${ee?.at?` · 신청 마감 ${ee.at.replace('T',' ')}`:''}${fn?.at?` · 최종 결정 ${fn.at.replace('T',' ')}`:''}</div>
     ${SEM.refundRule?`<details style="margin-top:6px"><summary>환불 기준 보기</summary><div class="small" style="white-space:pre-wrap;margin-top:4px">${esc(SEM.refundRule)}</div></details>`:''}
     ${PUBLIC?`<div style="margin-top:10px;background:#FFF8E6;border:1px solid #EAD9A0;border-radius:12px;padding:11px 13px;font-size:13px;line-height:1.7">👀 누구나 볼 수 있는 공고입니다. 신청은 <b>자녀 확인(이름+생년월일)</b>만 하면 끝나요 — 계정·가입코드가 필요 없습니다.<div style="margin-top:8px"><button class="btn" style="width:100%;padding:13px" onclick="simpleDlg()">✍️ 간편 신청 시작하기</button></div></div>`:''}
-    ${SIMPLE?`<div class="small" style="margin-top:8px">✍️ 간편 신청 모드 — 이 기기에서 확인한 자녀로 신청합니다. <a href="#" onclick="simpleDlg();return false">+ 다른 자녀 확인</a></div>`:''}
-    <div class="kid" style="margin-top:10px;${PUBLIC?'display:none':''}">${KIDS.map(k=>`<button class="${KID&&KID.studentId===k.studentId?'on':''}" onclick="pickKid('${k.studentId}')">${esc(k.studentName)}${k.grade?' · '+esc(k.grade):''}${k.className?' ('+esc(k.className)+')':''}</button>`).join('')}</div>`;
+    <div class="kid" style="margin-top:10px;align-items:center;${PUBLIC?'display:none':''}">${KIDS.map(k=>`<button class="${KID&&KID.studentId===k.studentId?'on':''}" onclick="pickKid('${k.studentId}')">${esc(k.studentName)}${k.grade?' · '+esc(k.grade):''}${k.className?' ('+esc(k.className)+')':''}</button>`).join('')}
+      ${SIMPLE?`<button class="kadd" onclick="simpleDlg()">＋ 자녀 추가</button><button class="kreset" onclick="resetLinks()">연결 초기화</button>`:''}</div>`;
 }
-window.pickKid = (sid)=>{ KID = KIDS.find(k=>k.studentId===sid); renderHead(); renderMain(); };
+window.pickKid = (sid)=>{ KID = KIDS.find(k=>k.studentId===sid); try{ localStorage.setItem(CURKEY, sid); }catch(e){} renderHead(); renderMain(); };
 
 function renderMain(){
   const e = PUBLIC ? null : (ENR[KID.studentId] || null);
@@ -364,7 +390,7 @@ function renderMain(){
   window.__picks = picks;
   const canEdit = SEM.status==='enrolling';
   const showRes = !PUBLIC && ['adjusting','confirmed','running'].includes(SEM.status) && e && (e.result||[]).length;
-  let html = '';
+  let html = summaryCard(picks);
   if(showRes){
     html += `<div class="card"><h3>📌 ${esc(KID.studentName)} 배정 결과</h3>
       ${(e.result||[]).map(r=>{ const c=CLUBS.find(x=>x.id===r.clubId); if(!c) return ''; const lab={assigned:['✅ 배정','ok'],lost:['❌ 추첨 탈락','bad'],full:['⛔ 정원 마감','bad'],overlap:['⏱ 시간 겹침','warn'],cancelled:['⚫ 폐강','bad'],waitlist:['⏳ 대기','warn']}[r.state]||[r.state,''];
@@ -504,9 +530,64 @@ window.savePicks = async ()=>{
   try{
     await setDoc(doc(db,'clubEnrollments', id), { semId:SEM.id, org:ORG, parentUid:ME.uid, studentId:KID.studentId, studentName:KID.studentName||'', className:KID.className||'', grade:KID.grade||'', linkId:KID.id,
       picks, status:'applied', via: SIMPLE?'simple':'account', updatedAt:Timestamp.now(), ...(e?.id?{}:{createdAt:Timestamp.now()}) }, { merge:true });
-    await loadEnr(); renderMain(); const mm=$('msg'); mm.className='alert ok'; mm.textContent='신청을 저장했습니다 ✓ 마감 전까지 언제든 바꿀 수 있어요.';
+    const savedItems = picks.slice().sort((a,b)=>a.rank-b.rank).map(p=>{ const c=CLUBS.find(x=>x.id===p.clubId); return c?{r:p.rank, t:c.title, d:(c.weekdays||[]).filter(w=>WD[w]).map(w=>WD[w]).join('·'), s:c.start}:null; }).filter(Boolean);
+    await loadEnr(); renderMain(); const mm=$('msg'); mm.className='alert'; mm.textContent='';
+    showSavedPop(KID.studentName||'', savedItems);
   }catch(err){ m.className='alert err'; m.textContent='저장 실패: '+(err.code==='permission-denied'?(SEM.status==='enrolling'?'이 학생은 이미 다른 기기(또는 학부모 계정)에서 신청되어 있어요 — 처음 신청한 곳에서 수정하거나 학교에 문의해 주세요.':'지금은 신청 기간이 아닙니다.'):(err.message||'')); }
 };
+function snapJS(p){ return JSON.stringify(Object.entries(p).map(([k,v])=>[k,Number(v)]).sort((a,b)=>a[0]<b[0]?-1:1)); }
+function summaryCard(picks){
+  if(PUBLIC || !KID) return '';
+  const sel = Object.entries(picks).map(([id,r])=>({ c:CLUBS.find(x=>x.id===id), r:Number(r) })).filter(x=>x.c).sort((a,b)=>a.r-b.r);
+  const saved = ENR[KID.studentId];
+  const savedJS = snapJS(Object.fromEntries((saved?.picks||[]).map(p=>[p.clubId, p.rank])));
+  const dirty = snapJS(picks) !== savedJS;
+  if(!sel.length) return `<div class="card"><div class="sumhead"><b>📌 ${esc(KID.studentName)}의 신청 현황</b></div>
+    <div class="small" style="margin-top:8px">아직 고른 동아리가 없어요 — 아래 목록에서 순위 버튼을 눌러 담아보세요.</div></div>`;
+  let pairs = 0; const clashSet = new Set();
+  for(let i=0;i<sel.length;i++) for(let j=i+1;j<sel.length;j++) if(timeClash(sel[i].c, sel[j].c)){ pairs++; clashSet.add(sel[i].c.id); clashSet.add(sel[j].c.id); }
+  const grp = {1:[],2:[],3:[]}; sel.forEach(x=>{ (grp[x.r]=grp[x.r]||[]).push(x.c); });
+  const dayLab = c => (c.weekdays||[]).filter(w=>WD[w]).map(w=>WD[w]).join('·');
+  const rows = r => grp[r].map(c=>`<div class="rrow" onclick="wbGo('${c.id}')"><span class="tt">${esc(c.title)}${clashSet.has(c.id)?' <span class="ovb">⏱ 겹침</span>':''}</span><span class="tm">${dayLab(c)} ${c.start}–${endOf(c)}</span></div>`).join('');
+  return `<div class="card"><div class="sumhead"><b>📌 ${esc(KID.studentName)}의 신청 현황</b><span>줄을 탭하면 그 동아리로 이동</span></div>
+    ${[1,2,3].filter(r=>grp[r]&&grp[r].length).map(r=>`<div class="rgrp"><span class="rl">${r}순위</span>${rows(r)}</div>`).join('')}
+    <div class="sumfoot"><span>모두 <b>${sel.length}개</b> 선택${pairs?` · 겹침 ${pairs}조합`:''}</span><span>${dirty?'<b style="color:#B45309">● 저장 전 변경분 — 아래 [신청 저장]을 눌러주세요</b>':'✓ 저장됨'}</span></div></div>`;
+}
+window.showSavedPop = (name, items)=>{
+  const bg = document.createElement('div'); bg.className='modal-bg'; bg.onclick=e=>{ if(e.target===bg) bg.remove(); };
+  bg.innerHTML = `<div class="modal pop">
+    <div class="pop-ck">✓</div>
+    <h3 style="text-align:center;margin-top:12px">신청이 저장됐어요</h3>
+    <div class="small" style="text-align:center;margin-top:2px">${esc(name)} · 동아리 ${items.length}개</div>
+    <div class="pop-list">${items.map(it=>`<div class="rrow"><span class="tt"><b style="color:var(--pt2)">${it.r}순위</b> ${esc(it.t)}</span><span class="tm">${it.d} ${it.s}</span></div>`).join('')}</div>
+    <div class="small" style="text-align:center;margin-top:11px;line-height:1.7">신청 마감 전까지 언제든 다시 들어와 수정할 수 있어요.<br>배정 결과는 «순위 조정·최종 결정» 단계부터 이 화면에 표시됩니다.</div>
+    <button class="btn" style="width:100%;margin-top:14px;padding:13px" onclick="this.closest('.modal-bg').remove()">확인</button></div>`;
+  document.body.appendChild(bg);
+};
+window.resetLinks = ()=>{
+  const names = KIDS.map(k=>k.studentName).join(' · ');
+  const bg = document.createElement('div'); bg.className='modal-bg'; bg.onclick=e=>{ if(e.target===bg) bg.remove(); };
+  bg.innerHTML = `<div class="modal" style="text-align:center">
+    <h3>자녀 연결을 초기화할까요?</h3>
+    <div class="small" style="margin-top:6px;line-height:1.75">이 기기에 기억된 자녀 연결(${esc(names)})만 지워집니다.<br><b style="color:var(--ink)">이미 저장된 신청 내용은 그대로 안전하게 보관</b>되고,<br>같은 이름·생년월일로 다시 확인하면 즉시 이어집니다.</div>
+    <div class="row" style="margin-top:14px"><button class="btn line" style="flex:1" onclick="this.closest('.modal-bg').remove()">취소</button>
+    <button class="btn" style="flex:1;background:#B45309" onclick="doResetLinks()">초기화</button></div></div>`;
+  document.body.appendChild(bg);
+};
+window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
+/* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
+const BUILD = '2026.09.03-01';
+async function checkUpdate(){ try{
+  const r = await fetch('version.json?_='+Date.now(), { cache:'no-store' });
+  const j = await r.json(); if(j && j.v && j.v !== BUILD) showUpd();
+}catch(e){} }
+function showUpd(){ if(document.getElementById('updbar')) return;
+  const d = document.createElement('div'); d.id='updbar'; d.className='updbar';
+  d.innerHTML = `✨ 업데이트 되었습니다 <button onclick="location.reload()">새 화면 보기</button>`;
+  document.body.appendChild(d); document.body.classList.add('has-upd'); }
+checkUpdate(); setInterval(checkUpdate, 5*60*1000);
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') checkUpdate(); });
+
 window.setFinal = async (cid, v)=>{
   const e = ENR[KID.studentId]; if(!e?.id) return;
   const fin = {...(e.final||{})}; fin[cid]=v;
