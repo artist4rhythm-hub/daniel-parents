@@ -177,7 +177,7 @@ const qs = new URLSearchParams(location.search);
 const SEM_ID = qs.get('sem') || localStorage.getItem('club_sem') || '';
 if(qs.get('sem')) localStorage.setItem('club_sem', qs.get('sem'));
 
-let ME=null, PROF=null, SEM=null, MY=[], EDIT=null, SESSIONS=[];
+let ME=null, PROF=null, SEM=null, MY=[], EDIT=null, SESSIONS=[], IS_STAFF=false;
 /* 🖼 자동 포스터 테마 — [배경1, 배경2, 포인트] */
 const PTHEMES = { navy:['#0C2A44','#1E4B74','#D8B45A'], forest:['#1E3932','#2E5A47','#EAD9A0'],
   plum:['#5E4B8B','#8A6FC0','#F6EDFF'], sunset:['#B4530A','#E28413','#FFF3DF'], ink:['#22262B','#4A5560','#E8E4DA'] };
@@ -282,6 +282,7 @@ window.logout = async ()=>{ await signOut(auth); location.replace(location.pathn
 onAuthStateChanged(auth, async user=>{
   if(!user){ show('st-login'); return; }
   ME = user;
+  try{ const st = await getDoc(doc(db,'staff',user.uid)); IS_STAFF = st.exists(); }catch(e){ IS_STAFF = false; }
   // 프로필 (교직원이면 이름 자동)
   const p = await getDoc(doc(db,'clubInstructors',user.uid));
   PROF = p.exists() ? p.data() : {};
@@ -291,6 +292,18 @@ onAuthStateChanged(auth, async user=>{
   $('me-email').textContent = user.email || '';
   await loadSem(); await loadMine();
   show('st-main'); renderSemCard(); renderMine(); $('form-area').innerHTML='';
+  // ✏️ 관리자 수정 진입 (?edit=신청서ID) — 교직원이면 남의 신청서도 열어 고칠 수 있다
+  const editId = qs.get('edit');
+  if(editId && IS_STAFF){
+    try{
+      const d = await getDoc(doc(db,'clubApplications', editId));
+      if(d.exists()){ const a = {id:d.id, ...d.data()};
+        EDIT = a; SESSIONS = (a.sessions||[]).map(x=>({...x}));
+        renderForm(a);
+        say('f-msg','info', `🛠 관리자 수정 모드 — ${esc(a.instructorName||'')} 선생님의 «${esc(a.title||'')}» 신청서를 대신 수정합니다. 저장해도 상태·주인 계정은 바뀌지 않아요.`);
+      } else alert('신청서를 찾을 수 없습니다.');
+    }catch(e){ alert('열기 실패: '+(e.message||'')); }
+  }
 });
 
 /* ── 학기 ── */
@@ -302,7 +315,7 @@ async function loadSem(){
     if(!snap.empty){ const d = snap.docs[0]; SEM = {id:d.id, ...d.data()}; localStorage.setItem('club_sem', d.id); }
   }
 }
-function isOpen(){ return SEM && (SEM.status==='recruiting' || SEM.status==='planning'); }   // 수정 가능
+function isOpen(){ return IS_STAFF || (SEM && (SEM.status==='recruiting' || SEM.status==='planning')); }   // 수정 가능 (교직원은 항상)
 function canCreate(){ return SEM && SEM.status==='recruiting'; }                                // 새 신청서
 function ms(role){ return (SEM?.milestones||[]).find(m=>m.role===role) || null; }
 function leftText(at){ if(!at) return ''; const left = new Date(at) - Date.now();
@@ -576,7 +589,8 @@ window.saveApp = async (mode)=>{
   const answers = {}; let missing = null;
   (SEM.questions||[]).forEach(q=>{ if(!(q.forType==='both'||q.forType===TYPE)) return; const val = v('q-'+q.id); answers[q.id]=val; if(q.required && !val && !missing) missing = q.label; });
   if(!draft && missing) return say('f-msg','err','필수 질문에 답해 주세요: '+missing);
-  const rec = { semId:SEM.id, org:SEM.org, uid:ME.uid, email:ME.email||'', type:TYPE,
+  const adminFix0 = IS_STAFF && EDIT && EDIT.uid && EDIT.uid !== ME.uid;
+  const rec = { semId:SEM.id, org:SEM.org, uid: adminFix0 ? EDIT.uid : ME.uid, email: adminFix0 ? (EDIT.email||'') : (ME.email||''), type:TYPE,
     instructorName:v('f-name'), coInstructors:v('f-co'), phone:v('f-phone'),
     title:v('f-title'), intro:v('f-intro'),
     gradeSel, gradeNote: v('f-gnote'), grades: gradeSel.length ? gradeSel.join('·') : v('f-grades'),
@@ -587,16 +601,20 @@ window.saveApp = async (mode)=>{
     sessions: renumber(SESSIONS), sessionCount: liveN(), bank: { bank:PROF.bank||'', account:PROF.account||'', holder:PROF.holder||'' },
     updatedAt: Timestamp.now() };
   try{
-    const newStatus = mode==='submit' ? 'submitted' : (mode==='draft' ? 'draft' : (EDIT?.status||'submitted'));
+    const adminFix = IS_STAFF && EDIT && EDIT.uid && EDIT.uid !== ME.uid;   // 관리자 대리 수정
+    const newStatus = adminFix ? (EDIT.status||'submitted')
+      : mode==='submit' ? 'submitted' : (mode==='draft' ? 'draft' : (EDIT?.status||'submitted'));
     if(EDIT) await updateDoc(doc(db,'clubApplications',EDIT.id), { ...rec, status:newStatus });
     else {
       const ref = await addDoc(collection(db,'clubApplications'), { ...rec, status:newStatus, published:false, createdAt:Timestamp.now() });
       EDIT = { id: ref.id, status:newStatus };   // 임시 저장 후 이어서 수정 가능
     }
     if(EDIT) EDIT.status = newStatus;
-    // 프로필 이름·연락처 갱신
-    await setDoc(doc(db,'clubInstructors',ME.uid), { name:rec.instructorName, phone:rec.phone, email:ME.email||'', updatedAt:Timestamp.now() }, { merge:true });
-    PROF.name = rec.instructorName; PROF.phone = rec.phone; $('me-name').textContent = PROF.name;
+    // 프로필 이름·연락처 갱신 (내 신청서일 때만 — 관리자 대리 수정 시 내 프로필을 건드리지 않는다)
+    if(!adminFix){
+      await setDoc(doc(db,'clubInstructors',ME.uid), { name:rec.instructorName, phone:rec.phone, email:ME.email||'', updatedAt:Timestamp.now() }, { merge:true });
+      PROF.name = rec.instructorName; PROF.phone = rec.phone; $('me-name').textContent = PROF.name;
+    }
     draftClear();
     say('f-msg','ok', mode==='draft' ? '💾 임시 저장했습니다 — 언제든 이어서 쓰고, 준비되면 «최종 제출»을 눌러주세요.'
        : mode==='submit' ? '✅ 최종 제출했습니다! 마감 전까지는 수정할 수 있어요.'
