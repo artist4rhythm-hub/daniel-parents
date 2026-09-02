@@ -160,10 +160,10 @@ function renderMain(){
         <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start"><div>
         <div class="t"><span class="pill ${c.type==='joy'?'blue':'ok'}">${c.type==='joy'?'조이클래스':'동아리'}</span> ${esc(c.title)}
           ${el==='no'?`<span class="pill bad">⛔ ${esc(KID.grade||'')}은 신청 대상 아님</span>`:el==='unknown'?'<span class="pill warn">학년 정보 없음</span>':''}</div>
-        <div class="m">👤 ${esc(c.instructorName)}${c.coInstructors?' · '+esc(c.coInstructors):''} · 🎯 ${esc(gLabel)} · 👥 ${c.minN}~${c.maxN}명<br>
+        <div class="m">👤 ${esc(c.instructorName)}${c.coInstructors?' · '+esc(c.coInstructors):''} · 🎯 ${esc(gLabel)}${c.gradeNote?` <span style="color:#1D4ED8">(${esc(c.gradeNote)})</span>`:''} · 👥 ${c.minN}~${c.maxN}명<br>
           🗓 ${(c.weekdays||[]).map(w=>WD[w]+'요일').join(', ')} ${c.start} · ${c.durMin}분 · ${live(c)}회 · 📍 ${esc(c.room||c.place||'미정')}<br>
           💰 1회 ${fee(c).toLocaleString()}원 → <b>학기 ${(fee(c)*live(c)).toLocaleString()}원</b> (출석 기준 학기 말 정산)${c.intro?'<br>💬 '+esc(c.intro):''}</div>
-        <details><summary>수업 계획 보기</summary><div class="small" style="margin-top:4px">${(c.startDate||c.endDate)?`기간 ${c.startDate||''} ~ ${c.endDate||''}<br>`:''}${(c.sessions||[]).filter(s=>!s.blocked&&!s.skip).map(s=>`${s.no}. ${s.date.slice(5)} ${esc(s.content||'')}`).join('<br>')}</div></details></div>
+        <details><summary>수업 계획 보기</summary><div class="small" style="margin-top:4px">${(c.startDate||c.endDate)?`기간 ${c.startDate||''} ~ ${c.endDate||''}<br>`:''}${(c.sessions||[]).filter(s=>!s.blocked&&!s.skip).map(s=>`${s.no}. ${s.date.slice(5)} ${s.ctitle?'<b>'+esc(s.ctitle)+'</b> — ':''}${esc(s.content||'')}`).join('<br>')}</div></details></div>
         <div>${canEdit ? (el==='no'
             ? `<span class="small">신청 대상: ${esc(gLabel)}</span>`
             : `<select onchange="setRank('${c.id}', Number(this.value))"><option value="0"${!r?' selected':''}>선택 안 함</option><option value="1"${r===1?' selected':''}>1순위</option><option value="2"${r===2?' selected':''}>2순위</option><option value="3"${r===3?' selected':''}>3순위</option></select>`)

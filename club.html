@@ -217,7 +217,7 @@ function draftSave(){
         type:TYPE, title:v('f-title'), intro:v('f-intro'), name:v('f-name'), co:v('f-co'), phone:v('f-phone'),
         min:v('f-min'), max:v('f-max'), place:v('f-place'), mat:v('f-mat'),
         from:v('f-from'), to:v('f-to'), start:v('f-start'), dur:v('f-dur'),
-        gradeSel:[...document.querySelectorAll('.gsel input:checked')].map(i=>i.value),
+        gradeSel:[...document.querySelectorAll('.gsel input:checked')].map(i=>i.value), gnote:v('f-gnote'),
         answers:Object.fromEntries((SEM.questions||[]).map(q=>[q.id, v('q-'+q.id)])),
         poster:POSTER.length<400000?POSTER:'', posterTheme:PTHEME, sessions:SESSIONS }));
     }catch(e){}
@@ -334,13 +334,13 @@ async function loadMine(){
   const snap = await getDocs(query(collection(db,'clubApplications'), where('uid','==',ME.uid)));
   MY = snap.docs.map(d=>({id:d.id, ...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
 }
-const AST = { submitted:'접수됨', approved:'승인', hold:'보류', rejected:'반려' };
+const AST = { draft:'📝 작성중', submitted:'접수됨', approved:'승인', hold:'보류', rejected:'반려' };
 function renderMine(){
   const list = SEM ? MY.filter(a=>a.semId===SEM.id) : MY;
   $('my-list').innerHTML = list.length ? `<div class="card"><h3>내 신청서</h3>${list.map(a=>`<div class="my">
     <div><span class="pill ${a.type==='joy'?'blue':'ok'}">${a.type==='joy'?'조이클래스':'동아리'}</span> <b>${esc(a.title||'')}</b>
       <div class="small">${(a.weekdays||[]).map(w=>WD[w]).join('·')} ${a.start||''} · ${a.durMin||0}분 · ${(a.sessions||[]).filter(s=>!s.blocked&&!s.skip).length}회 · <span class="pill">${AST[a.status]||a.status}</span></div></div>
-    <div class="row">${isOpen()?`<button class="btn line" onclick="editApp('${a.id}')">수정</button>`:`<button class="btn line" onclick="editApp('${a.id}')">보기</button>`}</div></div>`).join('')}</div>` : '';
+    <div class="row">${isOpen()?`<button class="btn ${a.status==='draft'?'gold':'line'}" onclick="editApp('${a.id}')">${a.status==='draft'?'이어쓰기':'수정'}</button>`:`<button class="btn line" onclick="editApp('${a.id}')">보기</button>`}</div></div>`).join('')}</div>` : '';
 }
 
 /* ── 회차 자동 생성 ── */
@@ -390,8 +390,10 @@ function renderForm(a){
     <label>프로그램(동아리) 이름</label><input id="f-title" value="${esc(a.title||'')}" placeholder="예: 워십댄스 동아리">
     <label>한 줄 소개 <span class="small">(더블클릭하면 큰 창)</span></label><input id="f-intro" value="${esc(a.intro||'')}" data-big="한 줄 소개" ondblclick="bigEdit(this,this.dataset.big)" placeholder="예: 찬양에 맞추어 춤으로 예배합니다">
     ${(SEM.gradeList&&SEM.gradeList.length) ? `
-    <label>수강 대상 학년 <span class="small">(카드를 눌러 선택 — 여기서 고른 학년만 신청할 수 있어요)</span></label>
-    <div class="wd" style="flex-wrap:wrap">${SEM.gradeList.map(g=>`<label style="flex:0 0 auto;min-width:72px;padding:9px 14px" class="gsel ${(a.gradeSel||[]).includes(g)?'on':''}"><input type="checkbox" value="${esc(g)}" ${(a.gradeSel||[]).includes(g)?'checked':''} onchange="this.parentNode.classList.toggle('on',this.checked)">${esc(g)}</label>`).join('')}</div>`
+    <label>수강 대상 학년 <span class="small">(카드를 눌러 선택 — 여기서 고른 학년의 학생만 신청할 수 있어요)</span></label>
+    <div class="wd" style="flex-wrap:wrap">${SEM.gradeList.map(g=>`<label style="flex:0 0 auto;min-width:72px;padding:9px 14px" class="gsel ${(a.gradeSel||[]).includes(g)?'on':''}"><input type="checkbox" value="${esc(g)}" ${(a.gradeSel||[]).includes(g)?'checked':''} onchange="this.parentNode.classList.toggle('on',this.checked); draftSave()">${esc(g)}</label>`).join('')}</div>
+    <label>대상 설명 <span class="small">(선택 — 학부모에게 학년 옆에 함께 보입니다)</span></label>
+    <input id="f-gnote" value="${esc(a.gradeNote||'')}" data-big="대상 설명" ondblclick="bigEdit(this,this.dataset.big)" placeholder="예: 4학년은 강사 상담 후 가능 / 초보 환영">`
     : `<label>수강 대상 (학년·반)</label><input id="f-grades" value="${esc(a.grades||'')}" placeholder="예: 4~6학년 / 로이반">`}
     <div class="g2">
       <div><label>최소 인원</label><input type="number" id="f-min" value="${a.minN||3}"></div>
@@ -425,7 +427,12 @@ function renderForm(a){
     <h3 style="margin-top:16px">📋 수업 활동 계획 <span class="small">(요일을 고르면 학기 회차가 자동으로 만들어져요 · 불가 일정은 자동 제외)</span></h3>
     <div id="sess"></div>
 
-    <div class="row" style="margin-top:16px">${ro?'':`<button class="btn gold" onclick="saveApp()">${EDIT?'수정 저장':'신청서 제출'}</button>`}<button class="btn line" onclick="document.getElementById('form-area').innerHTML=''">닫기</button></div>
+    <div class="row" style="margin-top:16px">${ro?'':(
+      (!EDIT || EDIT.status==='draft')
+        ? `<button class="btn line" onclick="saveApp('draft')">💾 임시 저장</button><button class="btn gold" onclick="saveApp('submit')">✅ 최종 제출</button>`
+        : `<button class="btn gold" onclick="saveApp('update')">수정 저장</button>`
+    )}<button class="btn line" onclick="document.getElementById('form-area').innerHTML=''">닫기</button></div>
+    ${(!ro && (!EDIT || EDIT.status==='draft')) ? `<div class="small" style="margin-top:6px">임시 저장 = 나만 보는 작성중 상태 (끊었다가 이어쓰기) · 최종 제출해야 학교 취합에 올라갑니다.</div>` : ''}
     <div class="alert" id="f-msg"></div>
   </div>`;
   POSTER = a.poster||''; PTHEME = a.posterTheme||'navy';
@@ -446,7 +453,7 @@ function renderForm(a){
     const put = (id,val)=>{ const el=$(id); if(el && val!==undefined) el.value = val; };
     put('f-title',d.title); put('f-intro',d.intro); put('f-name',d.name); put('f-co',d.co); put('f-phone',d.phone);
     put('f-min',d.min); put('f-max',d.max); put('f-place',d.place); put('f-mat',d.mat);
-    put('f-from',d.from); put('f-to',d.to); put('f-start',d.start);
+    put('f-from',d.from); put('f-to',d.to); put('f-start',d.start); put('f-gnote',d.gnote);
     durOptions(Number(d.dur)||60);
     document.querySelectorAll('.gsel').forEach(l=>{ const cb=l.querySelector('input'); const on=(d.gradeSel||[]).includes(cb.value); cb.checked=on; l.classList.toggle('on',on); });
     Object.entries(d.answers||{}).forEach(([k,v])=>put('q-'+k, v));
@@ -492,19 +499,48 @@ window.toggleSkip = (i)=>{
 function renderSessions(){
   const live = liveN(), schoolOff = SESSIONS.filter(s=>s.blocked).length, myOff = SESSIONS.filter(s=>s.skip).length;
   const dl = s => `${s.date.slice(5)} (${WD[new Date(s.date+'T00:00:00').getDay()]})`;
-  $('sess').innerHTML = SESSIONS.length ? `<div class="small">총 <b>${live}회</b> · 학교 휴강 ${schoolOff}일 · 강사 휴강 ${myOff}일 제외 — 칸을 <b>더블클릭</b>(폰: 길게)하면 큰 창에서 편하게 쓸 수 있어요</div>
-    <div class="sess-scroll"><table class="tb"><tr><th style="width:34px">회</th><th style="width:96px">수업일</th><th>활동 내용</th><th style="width:100px">준비물</th><th style="width:64px">재료비</th><th style="width:54px"></th></tr>
-    ${SESSIONS.map((s,i)=> s.blocked
-      ? `<tr class="blocked"><td>—</td><td>${dl(s)}</td><td colspan="4">🚫 ${esc(s.reason)} — 학교 휴강</td></tr>`
-      : s.skip
-      ? `<tr class="blocked" style="background:#FFF7E6;color:#92400E"><td>—</td><td>${dl(s)}</td><td colspan="3">⏸ 강사 휴강${s.skipReason?' — '+esc(s.skipReason):''}</td><td>${isOpen()?`<button type="button" class="btn line" style="padding:4px 8px;font-size:11px" onclick="toggleSkip(${i})">복원</button>`:''}</td></tr>`
-      : `<tr><td>${s.no}</td><td>${dl(s)}</td>
-         <td><input value="${esc(s.content||'')}" data-big="활동 내용 · ${dl(s)}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'content',this)" ${isOpen()?'':'disabled'}></td>
-         <td><input value="${esc(s.materials||'')}" data-big="준비물 · ${dl(s)}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'materials',this)" ${isOpen()?'':'disabled'}></td>
-         <td><input value="${esc(s.cost||'')}" data-big="재료비 · ${dl(s)}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'cost',this)" ${isOpen()?'':'disabled'}></td>
-         <td>${isOpen()?`<button type="button" class="btn line" style="padding:4px 8px;font-size:11px" onclick="toggleSkip(${i})">휴강</button>`:''}</td></tr>`).join('')}
-    </table></div>` : '<div class="small">요일을 고르면 회차가 나타납니다.</div>';
+  const ed = isOpen();
+  // 준비물 병합 그룹 계산: 편집 가능한 연속 행에서 matSame이면 위 행과 한 칸
+  const spanOf = {}; let leader = -1;
+  SESSIONS.forEach((x,i)=>{
+    if(x.blocked || x.skip){ leader = -1; return; }
+    if(leader>=0 && x.matSame){ spanOf[leader]++; }
+    else { leader = i; spanOf[i] = 1; x.matSame = false; }
+  });
+  const rows = SESSIONS.map((x,i)=>{
+    if(x.blocked) return `<tr class="blocked"><td>—</td><td>${dl(x)}</td><td colspan="4">🚫 ${esc(x.reason)} — 학교 휴강</td></tr>`;
+    if(x.skip) return `<tr class="blocked" style="background:#FFF7E6;color:#92400E"><td>—</td><td>${dl(x)}</td><td colspan="3">⏸ 강사 휴강${x.skipReason?' — '+esc(x.skipReason):''}</td><td>${ed?`<button type="button" class="btn line" style="padding:4px 8px;font-size:11px" onclick="toggleSkip(${i})">복원</button>`:''}</td></tr>`;
+    // 준비물 셀: 그룹 대표만 rowspan으로 그린다
+    let matCell = '';
+    if(spanOf[i]){
+      const n = spanOf[i];
+      matCell = `<td rowspan="${n}" style="vertical-align:middle;background:${n>1?'#FBFAF4':'transparent'}">
+        <input value="${esc(x.materials||'')}" data-big="준비물${n>1?` · ${n}회 공통`:` · ${dl(x)}`}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'materials',this)" ${ed?'':'disabled'}>
+        ${n>1?`<div class="small" style="margin-top:3px;text-align:center">〃 ${n}회 공통${ed?` · <a href="#" onclick="unmerge(${i});return false" style="color:#B45309">한 회 분리</a>`:''}</div>`:''}</td>`;
+    }
+    const canMerge = ed && !spanOf[i];   // 대표가 아니면 이미 병합됨
+    const mergeBtn = ed && spanOf[i]===1 && prevEditable(i)>=0
+      ? `<button type="button" class="btn line" title="위 회차와 준비물 묶기" style="padding:4px 7px;font-size:10.5px" onclick="mergeUp(${i})">〃위와 같음</button>` : '';
+    return `<tr><td>${x.no}</td><td>${dl(x)}</td>
+      <td><input value="${esc(x.ctitle||'')}" placeholder="제목 (선택)" data-big="활동 제목 · ${dl(x)}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'ctitle',this)" ${ed?'':'disabled'}
+            style="font-weight:800;color:#1D4ED8;margin-bottom:4px">
+          <input value="${esc(x.content||'')}" placeholder="활동 내용" data-big="활동 내용 · ${dl(x)}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'content',this)" ${ed?'':'disabled'}></td>
+      ${matCell}
+      <td><input value="${esc(x.cost||'')}" data-big="재료비 · ${dl(x)}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'cost',this)" ${ed?'':'disabled'}></td>
+      <td style="white-space:nowrap">${ed?`<button type="button" class="btn line" style="padding:4px 8px;font-size:11px" onclick="toggleSkip(${i})">휴강</button>`:''}<div style="margin-top:3px">${mergeBtn}</div></td></tr>`;
+  }).join('');
+  $('sess').innerHTML = SESSIONS.length ? `<div class="small">총 <b>${live}회</b> · 학교 휴강 ${schoolOff}일 · 강사 휴강 ${myOff}일 제외 — 칸 <b>더블클릭</b>(폰: 길게)=큰 창 · «〃위와 같음»=준비물 묶기</div>
+    <div class="sess-scroll"><table class="tb">
+    <tr><th style="width:34px">회</th><th style="width:96px">수업일</th><th>활동 내용 <span style="font-weight:400">(제목 + 내용)</span></th><th style="width:130px">준비물</th><th style="width:64px">재료비</th><th style="width:86px"></th></tr>
+    ${rows}</table></div>` : '<div class="small">요일을 고르면 회차가 나타납니다.</div>';
 }
+function prevEditable(i){ for(let j=i-1;j>=0;j--){ const x=SESSIONS[j]; if(x.blocked||x.skip) return -1; return j; } return -1; }
+window.mergeUp = (i)=>{ if(prevEditable(i)<0) return; SESSIONS[i].matSame = true; renderSessions(); draftSave(); };
+window.unmerge = (leaderI)=>{   // 그룹 마지막 회차를 분리
+  let last = leaderI;
+  for(let j=leaderI+1;j<SESSIONS.length;j++){ const x=SESSIONS[j]; if(x.blocked||x.skip) break; if(x.matSame) last=j; else break; }
+  if(last>leaderI){ SESSIONS[last].matSame = false; renderSessions(); draftSave(); }
+};
 window.recalc = ()=>{
   const dur = Number($('f-dur')?.value||0), rate = TYPE==='joy' ? (SEM.feeJoy||0) : (SEM.feeClub||0);
   const per = Math.round(rate*dur/60), live = liveN();
@@ -513,21 +549,22 @@ window.recalc = ()=>{
 };
 window.updSess = (i, k, el)=>{ if(SESSIONS[i]) SESSIONS[i][k] = el.value; draftSave(); };
 
-window.saveApp = async ()=>{
+window.saveApp = async (mode)=>{
   const v = id => ($(id)?.value||'').trim();
   const weekdays = selWeekdays();
-  if(!v('f-name')) return say('f-msg','err','강사 이름을 입력해 주세요.');
+  const draft = mode==='draft';
   if(!v('f-title')) return say('f-msg','err','프로그램 이름을 입력해 주세요.');
-  if(!weekdays.length) return say('f-msg','err','요일을 하나 이상 골라주세요.');
+  if(!draft && !v('f-name')) return say('f-msg','err','강사 이름을 입력해 주세요.');
+  if(!draft && !weekdays.length) return say('f-msg','err','요일을 하나 이상 골라주세요.');
   const gradeSel = [...document.querySelectorAll('.gsel input:checked')].map(i=>i.value);
-  if(SEM.gradeList && SEM.gradeList.length && !gradeSel.length) return say('f-msg','err','수강 대상 학년을 하나 이상 골라주세요.');
+  if(!draft && SEM.gradeList && SEM.gradeList.length && !gradeSel.length) return say('f-msg','err','수강 대상 학년을 하나 이상 골라주세요.');
   const answers = {}; let missing = null;
   (SEM.questions||[]).forEach(q=>{ if(!(q.forType==='both'||q.forType===TYPE)) return; const val = v('q-'+q.id); answers[q.id]=val; if(q.required && !val && !missing) missing = q.label; });
-  if(missing) return say('f-msg','err','필수 질문에 답해 주세요: '+missing);
+  if(!draft && missing) return say('f-msg','err','필수 질문에 답해 주세요: '+missing);
   const rec = { semId:SEM.id, org:SEM.org, uid:ME.uid, email:ME.email||'', type:TYPE,
     instructorName:v('f-name'), coInstructors:v('f-co'), phone:v('f-phone'),
     title:v('f-title'), intro:v('f-intro'),
-    gradeSel, grades: gradeSel.length ? gradeSel.join('·') : v('f-grades'),
+    gradeSel, gradeNote: v('f-gnote'), grades: gradeSel.length ? gradeSel.join('·') : v('f-grades'),
     poster: POSTER, posterTheme: PTHEME,
     minN:Number(v('f-min'))||0, maxN:Number(v('f-max'))||0,
     place:v('f-place'), materials:v('f-mat'), answers, weekdays, start:v('f-start'), durMin:Number(v('f-dur'))||60,
@@ -535,15 +572,22 @@ window.saveApp = async ()=>{
     sessions: renumber(SESSIONS), sessionCount: liveN(), bank: { bank:PROF.bank||'', account:PROF.account||'', holder:PROF.holder||'' },
     updatedAt: Timestamp.now() };
   try{
-    if(EDIT) await updateDoc(doc(db,'clubApplications',EDIT.id), rec);
-    else await addDoc(collection(db,'clubApplications'), { ...rec, status:'submitted', published:false, createdAt:Timestamp.now() });
+    const newStatus = mode==='submit' ? 'submitted' : (mode==='draft' ? 'draft' : (EDIT?.status||'submitted'));
+    if(EDIT) await updateDoc(doc(db,'clubApplications',EDIT.id), { ...rec, status:newStatus });
+    else {
+      const ref = await addDoc(collection(db,'clubApplications'), { ...rec, status:newStatus, published:false, createdAt:Timestamp.now() });
+      EDIT = { id: ref.id, status:newStatus };   // 임시 저장 후 이어서 수정 가능
+    }
+    if(EDIT) EDIT.status = newStatus;
     // 프로필 이름·연락처 갱신
     await setDoc(doc(db,'clubInstructors',ME.uid), { name:rec.instructorName, phone:rec.phone, email:ME.email||'', updatedAt:Timestamp.now() }, { merge:true });
     PROF.name = rec.instructorName; PROF.phone = rec.phone; $('me-name').textContent = PROF.name;
     draftClear();
-    say('f-msg','ok', EDIT ? '수정을 저장했습니다 ✓' : '신청서를 제출했습니다 ✓ 마감 전까지 언제든 수정할 수 있어요.');
+    say('f-msg','ok', mode==='draft' ? '💾 임시 저장했습니다 — 언제든 이어서 쓰고, 준비되면 «최종 제출»을 눌러주세요.'
+       : mode==='submit' ? '✅ 최종 제출했습니다! 마감 전까지는 수정할 수 있어요.'
+       : '수정을 저장했습니다 ✓');
     await loadMine(); renderMine();
-    if(!EDIT){ setTimeout(()=>{ $('form-area').innerHTML=''; window.scrollTo({top:0,behavior:'smooth'}); }, 1200); }
+    if(mode==='submit'){ setTimeout(()=>{ $('form-area').innerHTML=''; window.scrollTo({top:0,behavior:'smooth'}); }, 1200); }
     if(!PROF.account) say('f-msg','info','제출 완료 ✓ — «내 정보·계좌»에서 강사료 입금 계좌도 등록해 주세요.');
   }catch(e){ say('f-msg','err','저장 실패: '+(e.code==='permission-denied'?'지금은 접수 기간이 아니거나 권한이 없습니다.':(e.message||''))); }
 };
