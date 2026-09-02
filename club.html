@@ -542,7 +542,7 @@ function selWeekdays(){ return [...document.querySelectorAll('.wd input:checked'
 window.rebuildSessions = ()=>{ SESSIONS = genSessions(selWeekdays(), SESSIONS, $('f-from')?.value, $('f-to')?.value); renderSessions(); recalc(); draftSave(); };
 window.overrideOn = (i)=>{
   const x = SESSIONS[i]; if(!x?.blocked) return;
-  if(!confirm(`${x.date.slice(5)}는 «${x.reason||'학교 일정'}»로 학교 휴강일이에요.\n이 동아리는 영향 없이 그대로 진행할까요?\n(세부 사항은 담당 선생님과 협의해 주세요)`)) return;
+  if(!confirm(`${x.date.slice(5)}는 «${x.reason||'학교 일정'}»로 학사 휴강(기본 휴강)인 날이에요.\n이 동아리는 영향 없이 그대로 진행할까요?\n(세부 사항은 담당 선생님과 협의해 주세요)`)) return;
   x.override = true; syncBlocked(); renderSessions(); recalc(); draftSave();
 };
 window.overrideOff = (i)=>{
@@ -567,7 +567,7 @@ function syncBlocked(){
         if(x.schoolNote!==m[x.date]){ x.schoolNote=m[x.date]; changed=true; }
       } else if(!x.blocked || x.reason!==m[x.date]){ x.blocked=true; x.reason=m[x.date]; x.skip=false; delete x.schoolNote; changed=true; }
     } else {
-      if(x.override || x.schoolNote){ delete x.override; delete x.schoolNote; changed=true; }   // 학교 휴강이 풀림 — 표시 원복
+      if(x.override || x.schoolNote){ delete x.override; delete x.schoolNote; changed=true; }   // 학사 휴강이 풀림 — 표시 원복
       if(x.blocked){ x.blocked=false; delete x.reason; changed=true; }
     }
   });
@@ -597,7 +597,7 @@ function renderSessions(){
     ? `<div class="mgf">〃 ${n}회 공통${ed?` · <a href="#" onclick="unmergeCol(${i},'${col}');return false">분리</a>`:''}</div>` : '';
   const cell = (i,col,inner,n)=> `<td rowspan="${n}" class="${n>1?'mgc':''}">${inner}${foot(i,col,n)}</td>`;
   const rows = SESSIONS.map((x,i)=>{
-    if(x.blocked) return `<tr class="blocked"><td>—</td><td>${dl(x)}</td><td colspan="4">🚫 ${esc(x.reason)} — 학교 휴강 <span class="small" style="color:#B91C1C">(영향 없는 동아리는 진행 가능 — 담당 선생님과 협의)</span></td><td>${ed?`<button type="button" class="btn line" style="padding:4px 8px;font-size:11px;color:#15803D" onclick="overrideOn(${i})">그래도 진행</button>`:''}</td></tr>`;
+    if(x.blocked) return `<tr class="blocked"><td>—</td><td>${dl(x)}</td><td colspan="4">🚫 ${esc(x.reason)} — 학사 휴강 <span class="small" style="color:#B91C1C">(학사 일정 기본 휴강 — 영향 없는 동아리는 진행 가능, 담당 선생님과 협의)</span></td><td>${ed?`<button type="button" class="btn line" style="padding:4px 8px;font-size:11px;color:#15803D" onclick="overrideOn(${i})">그래도 진행</button>`:''}</td></tr>`;
     if(x.skip) return `<tr class="blocked" style="background:#FFF7E6;color:#92400E"><td>—</td><td>${dl(x)}</td><td colspan="4">⏸ 강사 휴강${x.skipReason?' — '+esc(x.skipReason):''}</td><td>${ed?`<button type="button" class="btn line" style="padding:4px 8px;font-size:11px" onclick="toggleSkip(${i})">복원</button>`:''}</td></tr>`;
     let tds = '';
     if(SP.act[i]) tds += cell(i,'act', `<div class="cwrap">
@@ -621,7 +621,7 @@ function renderSessions(){
     return `<tr>${x.extra?'<td style="background:#F6F2FF">':'<td>'}${x.no}</td><td ${x.extra?'style="background:#F6F2FF"':''}>${dayCell}</td>${tds}
       <td style="white-space:nowrap">${btnCell}</td></tr>`;
   }).join('');
-  $('sess').innerHTML = SESSIONS.length ? `<div class="small">총 <b>${live}회</b> · 학교 휴강 ${schoolOff}일 · 강사 휴강 ${myOff}일 제외 — 칸 <b>더블클릭</b>(폰: 길게)=큰 창 · 각 칸의 <b>〃</b>=위 회차와 묶기</div>
+  $('sess').innerHTML = SESSIONS.length ? `<div class="small">총 <b>${live}회</b> · 학사 휴강 ${schoolOff}일 · 강사 휴강 ${myOff}일 제외 — 칸 <b>더블클릭</b>(폰: 길게)=큰 창 · 각 칸의 <b>〃</b>=위 회차와 묶기</div>
     <div class="sess-scroll"><table class="tb tb-sess">
     <tr><th style="width:34px">회</th><th style="width:92px">수업일</th><th>활동 내용 <span style="font-weight:400">(제목+내용)</span></th><th style="width:150px">준비물</th><th style="width:96px">재료비</th><th style="width:130px">비고</th><th style="width:56px"></th></tr>
     ${rows}</table></div>
@@ -641,10 +641,10 @@ window.addExtra = ()=>{
   if(!ds) return alert('날짜를 골라주세요.');
   const dup = SESSIONS.find(x=>x.date===ds);
   if(dup) return alert(dup.blocked
-    ? '그 날짜는 회차표에 «학교 휴강»으로 있어요.\n그 줄의 [그래도 진행] 버튼을 누르면 정규 회차로 살아납니다.'
+    ? '그 날짜는 회차표에 «학사 휴강»으로 있어요.\n그 줄의 [그래도 진행] 버튼을 누르면 정규 회차로 살아납니다.'
     : '그 날짜에는 이미 회차가 있어요.');
   const bk = (SEM.blocked||[]).find(b=>b.date===ds);
-  if(bk && !confirm(`${ds}는 «${bk.reason||'운영 불가'}»로 학교 휴강일이에요.\n그래도 특별 회차로 넣을까요?`)) return;
+  if(bk && !confirm(`${ds}는 «${bk.reason||'운영 불가'}»로 학사 휴강일이에요.\n그래도 특별 회차로 넣을까요?`)) return;
   SESSIONS.push({ date:ds, extra:true, extraLabel:label, blocked:false, skip:false,
     ...(exStart?{start:exStart}:{}), ...(exDur?{durMin:exDur}:{}),
     ctitle:'', content:'', materials:'', cost:'', note:'', sameAct:false, matSame:false, sameCost:false, sameNote:false });
