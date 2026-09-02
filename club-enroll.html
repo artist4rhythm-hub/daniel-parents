@@ -250,6 +250,8 @@ function ms(role){ return (SEM.milestones||[]).find(m=>m.role===role) || null; }
 const STL = { enrolling:['신청 접수중','ok'], adjusting:['순위 조정·최종 결정','blue'], confirmed:['확정','ok'], running:['운영중','ok'] };
 const fmtMin = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
 const endOf = c => fmtMin(toMin(c.start)+(c.durMin||0));
+const timeClash = (a,b) => (a.weekdays||[]).some(w=>(b.weekdays||[]).includes(w))
+  && toMin(a.start) < toMin(b.start)+(b.durMin||0) && toMin(b.start) < toMin(a.start)+(a.durMin||0);
 const mdShort = d => d ? `${+String(d).slice(5,7)}.${+String(d).slice(8,10)}` : '';
 const wdOf = d => { const p=String(d||'').split('-').map(Number); if(p.length<3) return ''; return WD[new Date(p[0],p[1]-1,p[2]).getDay()]||''; };
 const liveSess = c => { const m=bkm(); return (c.sessions||[]).filter(x=>!isOff(x,m)); };
@@ -368,7 +370,7 @@ function renderMain(){
       ${SEM.status==='adjusting' ? `<div class="small" style="margin-top:6px">최종 결정 마감 전까지 참여 확정/취소를 바꿀 수 있어요. 취소하면 그 자리는 대기자에게 갑니다.</div>`:''}</div>`;
   }
   html += `<div class="card"><h3>${PUBLIC ? '개설 동아리 공고' : (canEdit?'신청':'신청 내용')+' — '+esc(KID.studentName)}</h3>
-    <div class="small" style="margin-bottom:8px">${PUBLIC ? '자녀 확인만 하면 학년에 맞는 동아리가 표시되고, 1·2·3순위로 바로 신청할 수 있어요.' : canEdit ? '원하는 동아리에 1·2·3순위를 매기세요. 시간이 겹치지 않으면 여러 개 참여할 수 있고, 정원 초과 시 1순위 신청자끼리 추첨합니다.' : '지금은 신청 기간이 아니라 내용만 볼 수 있어요.'}</div>
+    <div class="small" style="margin-bottom:8px">${PUBLIC ? '자녀 확인만 하면 학년에 맞는 동아리가 표시되고, 1·2·3순위로 바로 신청할 수 있어요.' : canEdit ? '시간이 겹치지 않는 동아리는 몇 개든 각각 1순위로 신청해도 됩니다 — 전부 참여해요. 시간이 겹치는 동아리끼리는 1·2·3순위로 우선순위를 정하세요(그중 하나만 배정). 정원 초과 시 1순위끼리 추첨합니다.' : '지금은 신청 기간이 아니라 내용만 볼 수 있어요.'}</div>
     ${CLUBS.map(c=>{ const r = picks[c.id]||0; const el = eligOf(c);
       const sortG = a=>(a||[]).slice().sort((x,y)=>{const nx=parseInt(x),ny=parseInt(y);if(!isNaN(nx)&&!isNaN(ny))return nx-ny;if(!isNaN(nx))return -1;if(!isNaN(ny))return 1;return String(x).localeCompare(String(y),'ko');});
       const gLabel = (c.gradeSel&&c.gradeSel.length)?sortG(c.gradeSel).join('·'):(c.grades||'전체');
@@ -389,7 +391,7 @@ function renderMain(){
         <details class="plan"><summary><span>📋 수업 계획 · ${sess.length}회</span><i></i></summary><div style="margin-top:6px">${planRows(c)}</div></details></div>
         <div>${PUBLIC ? `<button class="btn line" style="width:100%;margin-top:10px;padding:11px" onclick="simpleDlg()">✍️ 이 동아리 신청하기</button>` : canEdit ? (el==='no'
             ? `<div class="small" style="margin-top:8px">신청 대상: ${esc(gLabel)}</div>`
-            : `<div class="rank">${[1,2,3].map(n=>`<button class="${r===n?'on':''}" onclick="setRank('${c.id}', ${r===n?0:n})">${r===n?'✓ ':''}${n}순위</button>`).join('')}</div>`)
+            : `<div class="rank">${[1,2,3].map(n=>`<button class="${r===n?'on':''}" onclick="setRank('${c.id}', ${r===n?0:n})">${r===n?'✓ ':''}${n}순위</button>`).join('')}</div>${(()=>{const ov=Object.keys(picks).filter(k=>k!==c.id).map(id=>CLUBS.find(x=>x.id===id)).filter(o=>o&&timeClash(c,o)).map(o=>o.title); return ov.length?`<div class="small" style="margin-top:6px;color:#B45309">⏱ ${ov.map(esc).join(', ')}와 시간이 겹쳐요 — 순위가 높은 하나만 배정됩니다.</div>`:'';})()}`)
           : (r?`<span class="pill blue" style="margin-top:8px;display:inline-block">${r}순위</span>`:'')}</div></div></div>`; }).join('') || '<div class="small" style="padding:6px 0">아직 공고된 동아리가 없어요 — 공고가 올라오면 이 링크에서 바로 볼 수 있습니다.</div>'}
     <div class="alert" id="msg"></div></div>`;
   html += weekGridHTML(picks);
@@ -432,8 +434,7 @@ function weekGridHTML(picks){
     const chosen=Object.keys(picks).map(id=>CLUBS.find(c=>c.id===id)).filter(Boolean);
     if(chosen.length){ let clash=false;
       for(let i=0;i<chosen.length;i++) for(let j=i+1;j<chosen.length;j++){ const a=chosen[i], b=chosen[j];
-        if((a.weekdays||[]).some(w=>(b.weekdays||[]).includes(w))
-          && toMin(a.start) < toMin(b.start)+(b.durMin||0) && toMin(b.start) < toMin(a.start)+(a.durMin||0)) clash=true; }
+        if(timeClash(a,b)) clash=true; }
       ov = `<div class="small" style="margin-top:8px">${clash?'<span style="color:#B45309;font-weight:800">⚠ 내가 고른 동아리 중 시간이 겹치는 조합이 있어요 — 겹치면 순위가 높은 것만 배정됩니다.</span>':'내가 고른 동아리끼리 겹치는 시간 없음 — 모두 참여할 수 있어요.'}</div>`; }
   }
   const selLab = sel.length ? sel.slice().sort((a,b)=>{const na=parseInt(a),nb=parseInt(b);
@@ -479,7 +480,15 @@ window.wbGo = (id)=>{
   t.classList.add('flash'); setTimeout(()=>t.classList.remove('flash'), 1350);
 };
 
-window.setRank = (cid, rank)=>{ const p = window.__picks; if(rank){ Object.keys(p).forEach(k=>{ if(p[k]===rank && k!==cid) delete p[k]; }); p[cid]=rank; } else delete p[cid]; renderMainKeep(p); };
+window.setRank = (cid, rank)=>{
+  const p = window.__picks; const me = CLUBS.find(c=>c.id===cid);
+  if(rank){
+    // 시간이 겹치는 동아리끼리만 같은 순위를 못 갖는다 — 겹치지 않으면 각각 1순위도 OK
+    Object.keys(p).forEach(k=>{ if(k===cid) return; const o=CLUBS.find(c=>c.id===k);
+      if(p[k]===rank && me && o && timeClash(me,o)) delete p[k]; });
+    p[cid]=rank;
+  } else delete p[cid];
+  renderMainKeep(p); };
 function renderMainKeep(p){ const e = ENR[KID.studentId] || (ENR[KID.studentId] = {picks:[]}); e.picks = Object.entries(p).map(([clubId,rank])=>({clubId,rank})); renderMain(); }
 window.savePicks = async ()=>{
   const e = ENR[KID.studentId]; const picks = e?.picks || [];
