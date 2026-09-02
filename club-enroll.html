@@ -75,6 +75,23 @@ const WD = ['일','월','화','수','목','금','토'];
 const toMin = t => { const [h,m]=String(t||'0:0').split(':').map(Number); return h*60+m; };
 
 let ME=null, KIDS=[], SEM=null, CLUBS=[], ENR={}, KID=null;
+const PTHEMES = { navy:['#0C2A44','#1E4B74','#D8B45A'], forest:['#1E3932','#2E5A47','#EAD9A0'],
+  plum:['#5E4B8B','#8A6FC0','#F6EDFF'], sunset:['#B4530A','#E28413','#FFF3DF'], ink:['#22262B','#4A5560','#E8E4DA'] };
+function posterHTML(c, h){
+  if(c.poster) return `<img src="${c.poster}" style="width:100%;height:${h}px;object-fit:cover;border-radius:10px;display:block">`;
+  const [a,b,pt] = PTHEMES[c.posterTheme] || PTHEMES.navy;
+  return `<div style="position:relative;height:${h}px;border-radius:10px;overflow:hidden;background:linear-gradient(135deg,${a},${b});display:flex;flex-direction:column;justify-content:center;padding:10px 14px">
+    <div style="position:absolute;right:-22px;top:-22px;width:84px;height:84px;border-radius:50%;background:${pt};opacity:.18"></div>
+    <div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;color:${pt}">${c.type==='joy'?'JOY CLASS':'AFTER SCHOOL'}</div>
+    <div style="font-size:${(c.title||'').length>10?15:18}px;font-weight:900;color:#fff;line-height:1.25;margin-top:2px;word-break:keep-all">${esc(c.title||'')}</div>
+    <div style="font-size:10px;font-weight:700;color:${pt};margin-top:4px">강사 ${esc(c.instructorName||'')}</div>
+  </div>`;
+}
+function eligOf(c){   // 자녀 학년으로 신청 가능 여부: ok | no | unknown
+  if(!c.gradeSel || !c.gradeSel.length) return 'ok';
+  if(!KID?.grade) return 'unknown';
+  return c.gradeSel.includes(KID.grade) ? 'ok' : 'no';
+}
 
 onAuthStateChanged(auth, async user=>{
   if(!user){ location.replace(`login-${ORG}.html?next=${encodeURIComponent('club-enroll.html?org='+ORG)}`); return; }
@@ -114,7 +131,7 @@ function renderHead(){
   $('head').innerHTML = `<h3>🎨 ${esc(SEM.name)} 동아리 · 조이클래스 <span class="pill ${cls}">${lab}</span></h3>
     <div class="small">${ORGS[ORG]} · 수업 ${SEM.timeStart}~${SEM.timeEnd}${ee?.at?` · 신청 마감 ${ee.at.replace('T',' ')}`:''}${fn?.at?` · 최종 결정 ${fn.at.replace('T',' ')}`:''}</div>
     ${SEM.refundRule?`<details style="margin-top:6px"><summary>환불 기준 보기</summary><div class="small" style="white-space:pre-wrap;margin-top:4px">${esc(SEM.refundRule)}</div></details>`:''}
-    <div class="kid" style="margin-top:10px">${KIDS.map(k=>`<button class="${KID&&KID.studentId===k.studentId?'on':''}" onclick="pickKid('${k.studentId}')">${esc(k.studentName)}${k.className?' · '+esc(k.className):''}</button>`).join('')}</div>`;
+    <div class="kid" style="margin-top:10px">${KIDS.map(k=>`<button class="${KID&&KID.studentId===k.studentId?'on':''}" onclick="pickKid('${k.studentId}')">${esc(k.studentName)}${k.grade?' · '+esc(k.grade):''}${k.className?' ('+esc(k.className)+')':''}</button>`).join('')}</div>`;
 }
 window.pickKid = (sid)=>{ KID = KIDS.find(k=>k.studentId===sid); renderHead(); renderMain(); };
 
@@ -136,14 +153,21 @@ function renderMain(){
   }
   html += `<div class="card"><h3>${canEdit?'신청':'신청 내용'} — ${esc(KID.studentName)}</h3>
     <div class="small" style="margin-bottom:8px">${canEdit ? '원하는 동아리에 1·2·3순위를 매기세요. 시간이 겹치지 않으면 여러 개 참여할 수 있고, 정원 초과 시 1순위 신청자끼리 추첨합니다.' : '지금은 신청 기간이 아니라 내용만 볼 수 있어요.'}</div>
-    ${CLUBS.map(c=>{ const r = picks[c.id]||0;
-      return `<div class="club ${r===1?'r1':''}"><div>
-        <div class="t"><span class="pill ${c.type==='joy'?'blue':'ok'}">${c.type==='joy'?'조이클래스':'동아리'}</span> ${esc(c.title)}</div>
-        <div class="m">👤 ${esc(c.instructorName)}${c.coInstructors?' · '+esc(c.coInstructors):''} · 🎯 ${esc(c.grades||'전체')} · 👥 ${c.minN}~${c.maxN}명<br>
+    ${CLUBS.map(c=>{ const r = picks[c.id]||0; const el = eligOf(c);
+      const gLabel = (c.gradeSel&&c.gradeSel.length)?c.gradeSel.join('·'):(c.grades||'전체');
+      return `<div class="club ${r===1?'r1':''}" style="grid-template-columns:1fr;${el==='no'?'opacity:.8':''}">
+        <div style="margin-bottom:8px">${posterHTML(c, 110)}</div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start"><div>
+        <div class="t"><span class="pill ${c.type==='joy'?'blue':'ok'}">${c.type==='joy'?'조이클래스':'동아리'}</span> ${esc(c.title)}
+          ${el==='no'?`<span class="pill bad">⛔ ${esc(KID.grade||'')}은 신청 대상 아님</span>`:el==='unknown'?'<span class="pill warn">학년 정보 없음</span>':''}</div>
+        <div class="m">👤 ${esc(c.instructorName)}${c.coInstructors?' · '+esc(c.coInstructors):''} · 🎯 ${esc(gLabel)} · 👥 ${c.minN}~${c.maxN}명<br>
           🗓 ${(c.weekdays||[]).map(w=>WD[w]+'요일').join(', ')} ${c.start} · ${c.durMin}분 · ${live(c)}회 · 📍 ${esc(c.room||c.place||'미정')}<br>
           💰 1회 ${fee(c).toLocaleString()}원 → <b>학기 ${(fee(c)*live(c)).toLocaleString()}원</b> (출석 기준 학기 말 정산)${c.intro?'<br>💬 '+esc(c.intro):''}</div>
         <details><summary>수업 계획 보기</summary><div class="small" style="margin-top:4px">${(c.startDate||c.endDate)?`기간 ${c.startDate||''} ~ ${c.endDate||''}<br>`:''}${(c.sessions||[]).filter(s=>!s.blocked&&!s.skip).map(s=>`${s.no}. ${s.date.slice(5)} ${esc(s.content||'')}`).join('<br>')}</div></details></div>
-        <div>${canEdit ? `<select onchange="setRank('${c.id}', Number(this.value))"><option value="0"${!r?' selected':''}>선택 안 함</option><option value="1"${r===1?' selected':''}>1순위</option><option value="2"${r===2?' selected':''}>2순위</option><option value="3"${r===3?' selected':''}>3순위</option></select>` : (r?`<span class="pill blue">${r}순위</span>`:'')}</div></div>`; }).join('') || '<div class="small">공고된 동아리가 아직 없습니다.</div>'}
+        <div>${canEdit ? (el==='no'
+            ? `<span class="small">신청 대상: ${esc(gLabel)}</span>`
+            : `<select onchange="setRank('${c.id}', Number(this.value))"><option value="0"${!r?' selected':''}>선택 안 함</option><option value="1"${r===1?' selected':''}>1순위</option><option value="2"${r===2?' selected':''}>2순위</option><option value="3"${r===3?' selected':''}>3순위</option></select>`)
+          : (r?`<span class="pill blue">${r}순위</span>`:'')}</div></div></div>`; }).join('') || '<div class="small">공고된 동아리가 아직 없습니다.</div>'}
     ${canEdit ? `<div style="margin-top:12px"><button class="btn" onclick="savePicks()">신청 저장</button></div>` : ''}
     <div class="alert" id="msg"></div></div>`;
   html += gridHTML(Object.keys(picks).map(id=>CLUBS.find(c=>c.id===id)).filter(Boolean));

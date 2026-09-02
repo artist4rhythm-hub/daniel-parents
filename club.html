@@ -154,6 +154,33 @@ const SEM_ID = qs.get('sem') || localStorage.getItem('club_sem') || '';
 if(qs.get('sem')) localStorage.setItem('club_sem', qs.get('sem'));
 
 let ME=null, PROF=null, SEM=null, MY=[], EDIT=null, SESSIONS=[];
+/* 🖼 자동 포스터 테마 — [배경1, 배경2, 포인트] */
+const PTHEMES = { navy:['#0C2A44','#1E4B74','#D8B45A'], forest:['#1E3932','#2E5A47','#EAD9A0'],
+  plum:['#5E4B8B','#8A6FC0','#F6EDFF'], sunset:['#B4530A','#E28413','#FFF3DF'], ink:['#22262B','#4A5560','#E8E4DA'] };
+const PTHEME_NAMES = { navy:'네이비', forest:'포레스트', plum:'플럼', sunset:'선셋', ink:'잉크' };
+function autoPosterHTML(title, instructor, type, theme, h){
+  const [a,b,pt] = PTHEMES[theme] || PTHEMES.navy;
+  return `<div style="position:relative;height:${h||150}px;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,${a},${b});display:flex;flex-direction:column;justify-content:center;padding:14px 18px">
+    <div style="position:absolute;right:-28px;top:-28px;width:110px;height:110px;border-radius:50%;background:${pt};opacity:.18"></div>
+    <div style="position:absolute;right:22px;bottom:-36px;width:84px;height:84px;border-radius:50%;border:2px solid ${pt};opacity:.25"></div>
+    <div style="font-size:10.5px;font-weight:800;letter-spacing:.14em;color:${pt}">${type==='joy'?'JOY CLASS · 조이클래스':'AFTER SCHOOL · 동아리'}</div>
+    <div style="font-size:${(title||'').length>10?19:23}px;font-weight:900;color:#fff;line-height:1.25;margin-top:4px;word-break:keep-all">${esc(title||'동아리 이름')}</div>
+    ${instructor?`<div style="font-size:11.5px;font-weight:700;color:${pt};margin-top:7px">강사 ${esc(instructor)}</div>`:''}
+  </div>`;
+}
+function compressImg(file, maxW, q){
+  return new Promise((res, rej)=>{
+    const r = new FileReader();
+    r.onload = ()=>{ const img = new Image();
+      img.onload = ()=>{ const sc = Math.min(1, (maxW||720)/img.width);
+        const cv = document.createElement('canvas'); cv.width = Math.round(img.width*sc); cv.height = Math.round(img.height*sc);
+        cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+        res(cv.toDataURL('image/jpeg', q||0.8)); };
+      img.onerror = rej; img.src = r.result; };
+    r.onerror = rej; r.readAsDataURL(file);
+  });
+}
+let POSTER = '', PTHEME = 'navy';
 function show(id){ document.querySelectorAll('.step').forEach(s=>s.classList.toggle('on', s.id===id)); }
 const say = (id, cls, t) => { const m=$(id); m.className='alert '+cls; m.textContent=t; };
 
@@ -292,13 +319,21 @@ function renderForm(a){
     </div>
     <label>프로그램(동아리) 이름</label><input id="f-title" value="${esc(a.title||'')}" placeholder="예: 워십댄스 동아리">
     <label>한 줄 소개</label><input id="f-intro" value="${esc(a.intro||'')}" placeholder="예: 찬양에 맞추어 춤으로 예배합니다">
+    ${(SEM.gradeList&&SEM.gradeList.length) ? `
+    <label>수강 대상 학년 <span class="small">(카드를 눌러 선택 — 여기서 고른 학년만 신청할 수 있어요)</span></label>
+    <div class="wd" style="flex-wrap:wrap">${SEM.gradeList.map(g=>`<label style="flex:0 0 auto;min-width:72px;padding:9px 14px" class="gsel ${(a.gradeSel||[]).includes(g)?'on':''}"><input type="checkbox" value="${esc(g)}" ${(a.gradeSel||[]).includes(g)?'checked':''} onchange="this.parentNode.classList.toggle('on',this.checked)">${esc(g)}</label>`).join('')}</div>`
+    : `<label>수강 대상 (학년·반)</label><input id="f-grades" value="${esc(a.grades||'')}" placeholder="예: 4~6학년 / 로이반">`}
     <div class="g2">
-      <div><label>수강 대상 (학년·반)</label><input id="f-grades" value="${esc(a.grades||'')}" placeholder="예: 4~6학년 / 로이반"></div>
       <div><label>최소 인원</label><input type="number" id="f-min" value="${a.minN||3}"></div>
       <div><label>최대 인원</label><input type="number" id="f-max" value="${a.maxN||10}"></div>
       <div><label>희망 장소</label><input id="f-place" value="${esc(a.place||'')}" placeholder="미정이면 비워두세요"></div>
     </div>
     <label>준비물</label><input id="f-mat" value="${esc(a.materials||'')}">
+    <h3 style="margin-top:16px">🖼 대표 포스터 <span class="small">(있으면 올리고, 없으면 자동 포스터가 만들어져요)</span></h3>
+    <div class="row"><input type="file" id="f-poster" accept="image/*" style="width:auto" onchange="pickPoster(this)" ${ro?'disabled':''}>
+      <button type="button" class="btn line" id="b-poster-del" style="display:none;padding:8px 12px;font-size:12.5px" onclick="delPoster()">포스터 제거</button></div>
+    <div id="poster-prev" style="margin-top:10px;max-width:420px"></div>
+    <div id="theme-pick" class="row" style="margin-top:8px"></div>
     ${qsAll.map(q=>`<div class="q" data-for="${q.forType}"><label>${esc(q.label)}${q.required?' <span style="color:#C0392B">*</span>':''}</label>
       ${q.type==='long'?`<textarea id="q-${q.id}">${esc((a.answers||{})[q.id]||'')}</textarea>`:`<input id="q-${q.id}" value="${esc((a.answers||{})[q.id]||'')}">`}</div>`).join('')}
 
@@ -323,16 +358,41 @@ function renderForm(a){
     <div class="row" style="margin-top:16px">${ro?'':`<button class="btn gold" onclick="saveApp()">${EDIT?'수정 저장':'신청서 제출'}</button>`}<button class="btn line" onclick="document.getElementById('form-area').innerHTML=''">닫기</button></div>
     <div class="alert" id="f-msg"></div>
   </div>`;
+  POSTER = a.poster||''; PTHEME = a.posterTheme||'navy';
   setType(a.type||'club', true);
   durOptions(a.durMin||60);
+  paintPoster();
   if(!SESSIONS.length && (a.weekdays||[]).length) SESSIONS = genSessions(a.weekdays, a.sessions||[], a.startDate||SEM.rangeFrom, a.endDate||SEM.rangeTo);
   else if(SESSIONS.length) renumber(SESSIONS);
   renderSessions(); recalc();
+  ['f-title','f-name'].forEach(id=>{ const el=$(id); if(el) el.addEventListener('input', ()=>{ if(!POSTER) paintPoster(); }); });
   $('form').scrollIntoView({behavior:'smooth'});
 }
+function paintPoster(){
+  const prev = $('poster-prev'), tp = $('theme-pick'); if(!prev) return;
+  $('b-poster-del').style.display = POSTER ? '' : 'none';
+  if(POSTER){ prev.innerHTML = `<img src="${POSTER}" style="width:100%;border-radius:12px;border:1px solid var(--line)">`; tp.innerHTML=''; return; }
+  const title = $('f-title')?.value || '동아리 이름';
+  const inst = $('f-name')?.value || '';
+  prev.innerHTML = autoPosterHTML(title, inst, TYPE, PTHEME, 150);
+  tp.innerHTML = `<span class="small" style="margin-right:4px">자동 포스터 색:</span>` + Object.keys(PTHEMES).map(k=>
+    `<button type="button" onclick="PTHEME='${k}'; paintPoster()" title="${PTHEME_NAMES[k]}"
+      style="width:30px;height:30px;border-radius:50%;cursor:pointer;border:${k===PTHEME?'3px solid #22262B':'2px solid #E7E4DC'};background:linear-gradient(135deg,${PTHEMES[k][0]},${PTHEMES[k][1]})"></button>`).join('');
+}
+window.pickPoster = async (inp)=>{
+  const f = inp.files && inp.files[0]; if(!f) return;
+  try{
+    let d = await compressImg(f, 720, 0.8);
+    if(d.length > 900000) d = await compressImg(f, 560, 0.72);
+    if(d.length > 900000) return alert('사진이 너무 큽니다. 다른 사진으로 시도해 주세요.');
+    POSTER = d; paintPoster();
+  }catch(e){ alert('사진을 읽지 못했어요.'); }
+};
+window.delPoster = ()=>{ POSTER=''; const f=$('f-poster'); if(f) f.value=''; paintPoster(); };
 let TYPE='club';
 window.setType = (t, silent)=>{ TYPE=t; $('t-club').classList.toggle('on',t==='club'); $('t-joy').classList.toggle('on',t==='joy');
-  document.querySelectorAll('.q').forEach(q=>{ const f=q.dataset.for; q.style.display = (f==='both'||f===t)?'':'none'; }); if(!silent) recalc(); };
+  document.querySelectorAll('.q').forEach(q=>{ const f=q.dataset.for; q.style.display = (f==='both'||f===t)?'':'none'; });
+  if(!silent){ recalc(); if(!POSTER) paintPoster(); } };
 window.durOptions = (sel)=>{ const s = $('f-start').value, mx = maxDur(s), cur = sel || Number($('f-dur').value)||60;
   $('f-dur').innerHTML = [30,40,50,60,70,80,90,100,110,120].filter(x=>x<=mx).map(x=>`<option value="${x}"${x===cur?' selected':''}>${x}분</option>`).join(''); };
 function selWeekdays(){ return [...document.querySelectorAll('.wd input:checked')].map(i=>Number(i.value)); }
@@ -373,12 +433,17 @@ window.saveApp = async ()=>{
   if(!v('f-name')) return say('f-msg','err','강사 이름을 입력해 주세요.');
   if(!v('f-title')) return say('f-msg','err','프로그램 이름을 입력해 주세요.');
   if(!weekdays.length) return say('f-msg','err','요일을 하나 이상 골라주세요.');
+  const gradeSel = [...document.querySelectorAll('.gsel input:checked')].map(i=>i.value);
+  if(SEM.gradeList && SEM.gradeList.length && !gradeSel.length) return say('f-msg','err','수강 대상 학년을 하나 이상 골라주세요.');
   const answers = {}; let missing = null;
   (SEM.questions||[]).forEach(q=>{ if(!(q.forType==='both'||q.forType===TYPE)) return; const val = v('q-'+q.id); answers[q.id]=val; if(q.required && !val && !missing) missing = q.label; });
   if(missing) return say('f-msg','err','필수 질문에 답해 주세요: '+missing);
   const rec = { semId:SEM.id, org:SEM.org, uid:ME.uid, email:ME.email||'', type:TYPE,
     instructorName:v('f-name'), coInstructors:v('f-co'), phone:v('f-phone'),
-    title:v('f-title'), intro:v('f-intro'), grades:v('f-grades'), minN:Number(v('f-min'))||0, maxN:Number(v('f-max'))||0,
+    title:v('f-title'), intro:v('f-intro'),
+    gradeSel, grades: gradeSel.length ? gradeSel.join('·') : v('f-grades'),
+    poster: POSTER, posterTheme: PTHEME,
+    minN:Number(v('f-min'))||0, maxN:Number(v('f-max'))||0,
     place:v('f-place'), materials:v('f-mat'), answers, weekdays, start:v('f-start'), durMin:Number(v('f-dur'))||60,
     startDate: v('f-from')||SEM.rangeFrom, endDate: v('f-to')||SEM.rangeTo,
     sessions: renumber(SESSIONS), sessionCount: liveN(), bank: { bank:PROF.bank||'', account:PROF.account||'', holder:PROF.holder||'' },
