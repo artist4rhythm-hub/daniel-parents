@@ -394,7 +394,8 @@ function renderForm(a){
     <div class="wd" style="flex-wrap:wrap">${SEM.gradeList.map(g=>`<label style="flex:0 0 auto;min-width:72px;padding:9px 14px" class="gsel ${(a.gradeSel||[]).includes(g)?'on':''}"><input type="checkbox" value="${esc(g)}" ${(a.gradeSel||[]).includes(g)?'checked':''} onchange="this.parentNode.classList.toggle('on',this.checked); draftSave()">${esc(g)}</label>`).join('')}</div>
     <label>대상 설명 <span class="small">(선택 — 학부모에게 학년 옆에 함께 보입니다)</span></label>
     <input id="f-gnote" value="${esc(a.gradeNote||'')}" data-big="대상 설명" ondblclick="bigEdit(this,this.dataset.big)" placeholder="예: 4학년은 강사 상담 후 가능 / 초보 환영">`
-    : `<label>수강 대상 (학년·반)</label><input id="f-grades" value="${esc(a.grades||'')}" placeholder="예: 4~6학년 / 로이반">`}
+    : `<label>수강 대상 (학년·반)</label><input id="f-grades" value="${esc(a.grades||'')}" placeholder="예: 4~6학년 / 로이반">
+    <div class="small" style="margin-top:2px">ℹ️ 학교 관리자가 학기 설정에 «지원 가능 학년»을 채우면 이 칸이 학년 카드 선택으로 바뀝니다.</div>`}
     <div class="g2">
       <div><label>최소 인원</label><input type="number" id="f-min" value="${a.minN||3}"></div>
       <div><label>최대 인원</label><input type="number" id="f-max" value="${a.maxN||10}"></div>
