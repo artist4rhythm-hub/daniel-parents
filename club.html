@@ -20,7 +20,15 @@ body.w-wide .wrap{max-width:96vw}
 .wsel button{border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.08);color:#fff;border-radius:100px;padding:4px 11px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit}
 .wsel button.on{background:#fff;color:var(--pt);border-color:#fff}
 .sess-scroll{overflow-x:auto}
-.sess-scroll table.tb{min-width:620px}
+.sess-scroll table.tb{min-width:780px}
+.tb-sess td{vertical-align:middle}
+.cwrap{position:relative;padding-left:16px}
+.cwrap input{padding-left:8px}
+.mgb{position:absolute;left:-2px;top:50%;transform:translateY(-50%);border:1px solid var(--line);background:var(--wh);border-radius:6px;width:16px;height:22px;font-size:10px;color:var(--ink3);cursor:pointer;padding:0;line-height:1}
+.mgb:hover{color:var(--pt);border-color:var(--pt)}
+.mgc{background:#FBFAF4}
+.mgf{font-size:10.5px;color:var(--ink3);text-align:center;margin-top:3px}
+.mgf a{color:#B45309}
 .bigbg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px}
 .bigbox{background:var(--wh);border-radius:14px;max-width:560px;width:100%;padding:18px 20px}
 .bigbox textarea{min-height:130px;font-size:15px;line-height:1.7}
@@ -358,6 +366,8 @@ function renderMine(){
 
 /* ── 회차 자동 생성 ── */
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;   // 로컬 날짜 (UTC 밀림 방지)
+function sortG(arr){ return (arr||[]).slice().sort((a,b)=>{ const na=parseInt(a), nb=parseInt(b);
+  if(!isNaN(na)&&!isNaN(nb)) return na-nb; if(!isNaN(na)) return -1; if(!isNaN(nb)) return 1; return String(a).localeCompare(String(b),'ko'); }); }
 /* 옛 자유 텍스트에서 학년 추정: 목록 이름이 그대로 들어있거나 «4~6학년» 범위 표기면 펼쳐서 체크 */
 function guessGrades(text, list){
   if(!text) return [];
@@ -379,7 +389,9 @@ function genSessions(weekdays, keepContent, from, to){
     if(weekdays.includes(d.getDay())){
       const ds = ymd(d), p = prev[ds]||{};
       if(blocked[ds]) out.push({ date:ds, blocked:true, reason:blocked[ds] });
-      else out.push({ date:ds, blocked:false, skip:!!p.skip, skipReason:p.skipReason||'', content:p.content||'', materials:p.materials||'', cost:p.cost||'' });
+      else out.push({ date:ds, blocked:false, skip:!!p.skip, skipReason:p.skipReason||'',
+        ctitle:p.ctitle||'', content:p.content||'', materials:p.materials||'', cost:p.cost||'', note:p.note||'',
+        sameAct:!!p.sameAct, matSame:!!p.matSame, sameCost:!!p.sameCost, sameNote:!!p.sameNote });
     }
     d.setDate(d.getDate()+1);
   }
@@ -418,7 +430,7 @@ function renderForm(a){
       return `
     <label>수강 대상 학년 <span class="small">(카드를 눌러 선택 — 여기서 고른 학년의 학생만 신청할 수 있어요)</span></label>
     ${a.grades && !(a.gradeSel&&a.gradeSel.length) ? `<div class="small" style="margin:-2px 0 5px;color:#B45309">이전에 글로 적은 대상: «${esc(a.grades)}»${guessed?' — 아래에 자동으로 표시해 뒀어요. 확인 후 저장해 주세요.':' — 아래 카드에서 골라주세요.'}</div>`:''}
-    <div class="wd" style="flex-wrap:wrap">${SEM.gradeList.map(g=>`<label style="flex:0 0 auto;min-width:72px;padding:9px 14px" class="gsel ${sel.includes(g)?'on':''}"><input type="checkbox" value="${esc(g)}" ${sel.includes(g)?'checked':''} onchange="this.parentNode.classList.toggle('on',this.checked); draftSave()">${esc(g)}</label>`).join('')}</div>
+    <div class="wd" style="flex-wrap:wrap">${sortG(SEM.gradeList).map(g=>`<label style="flex:0 0 auto;min-width:72px;padding:9px 14px" class="gsel ${sel.includes(g)?'on':''}"><input type="checkbox" value="${esc(g)}" ${sel.includes(g)?'checked':''} onchange="this.parentNode.classList.toggle('on',this.checked); draftSave()">${esc(g)}</label>`).join('')}</div>
     <label>대상 설명 <span class="small">(선택 — 학부모에게 학년 옆에 함께 보입니다)</span></label>
     <input id="f-gnote" value="${esc(a.gradeNote||'')}" data-big="대상 설명" ondblclick="bigEdit(this,this.dataset.big)" placeholder="예: 4학년은 강사 상담 후 가능 / 초보 환영">`; })()
     : `<label>수강 대상 (학년·반)</label><input id="f-grades" value="${esc(a.grades||'')}" placeholder="예: 4~6학년 / 로이반">
@@ -529,47 +541,51 @@ function renderSessions(){
   const live = liveN(), schoolOff = SESSIONS.filter(s=>s.blocked).length, myOff = SESSIONS.filter(s=>s.skip).length;
   const dl = s => `${s.date.slice(5)} (${WD[new Date(s.date+'T00:00:00').getDay()]})`;
   const ed = isOpen();
-  // 준비물 병합 그룹 계산: 편집 가능한 연속 행에서 matSame이면 위 행과 한 칸
-  const spanOf = {}; let leader = -1;
-  SESSIONS.forEach((x,i)=>{
-    if(x.blocked || x.skip){ leader = -1; return; }
-    if(leader>=0 && x.matSame){ spanOf[leader]++; }
-    else { leader = i; spanOf[i] = 1; x.matSame = false; }
-  });
+  // 칸별 병합 그룹 — 휴강(학교·강사) 행이 끼면 그룹이 끊긴다
+  const COLS = { act:'sameAct', mat:'matSame', cost:'sameCost', note:'sameNote' };
+  const SP = {};
+  for(const [col, flag] of Object.entries(COLS)){
+    const sp = {}; let leader = -1;
+    SESSIONS.forEach((x,i)=>{
+      if(x.blocked || x.skip){ leader = -1; return; }
+      if(leader>=0 && x[flag]){ sp[leader]++; }
+      else { leader = i; sp[i] = 1; x[flag] = false; }
+    });
+    SP[col] = sp;
+  }
+  const mBtn = (i,col)=> ed && prevEditable(i)>=0
+    ? `<button type="button" class="mgb" title="위 회차와 묶기" onclick="mergeCol(${i},'${col}')">〃</button>` : '';
+  const foot = (i,col,n)=> n>1
+    ? `<div class="mgf">〃 ${n}회 공통${ed?` · <a href="#" onclick="unmergeCol(${i},'${col}');return false">분리</a>`:''}</div>` : '';
+  const cell = (i,col,inner,n)=> `<td rowspan="${n}" class="${n>1?'mgc':''}">${inner}${foot(i,col,n)}</td>`;
   const rows = SESSIONS.map((x,i)=>{
-    if(x.blocked) return `<tr class="blocked"><td>—</td><td>${dl(x)}</td><td colspan="4">🚫 ${esc(x.reason)} — 학교 휴강</td></tr>`;
-    if(x.skip) return `<tr class="blocked" style="background:#FFF7E6;color:#92400E"><td>—</td><td>${dl(x)}</td><td colspan="3">⏸ 강사 휴강${x.skipReason?' — '+esc(x.skipReason):''}</td><td>${ed?`<button type="button" class="btn line" style="padding:4px 8px;font-size:11px" onclick="toggleSkip(${i})">복원</button>`:''}</td></tr>`;
-    // 준비물 셀: 그룹 대표만 rowspan으로 그린다
-    let matCell = '';
-    if(spanOf[i]){
-      const n = spanOf[i];
-      matCell = `<td rowspan="${n}" style="vertical-align:middle;background:${n>1?'#FBFAF4':'transparent'}">
-        <input value="${esc(x.materials||'')}" data-big="준비물${n>1?` · ${n}회 공통`:` · ${dl(x)}`}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'materials',this)" ${ed?'':'disabled'}>
-        ${n>1?`<div class="small" style="margin-top:3px;text-align:center">〃 ${n}회 공통${ed?` · <a href="#" onclick="unmerge(${i});return false" style="color:#B45309">한 회 분리</a>`:''}</div>`:''}</td>`;
-    }
-    const canMerge = ed && !spanOf[i];   // 대표가 아니면 이미 병합됨
-    const mergeBtn = ed && spanOf[i]===1 && prevEditable(i)>=0
-      ? `<button type="button" class="btn line" title="위 회차와 준비물 묶기" style="padding:4px 7px;font-size:10.5px" onclick="mergeUp(${i})">〃위와 같음</button>` : '';
-    return `<tr><td>${x.no}</td><td>${dl(x)}</td>
-      <td><input value="${esc(x.ctitle||'')}" placeholder="제목 (선택)" data-big="활동 제목 · ${dl(x)}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'ctitle',this)" ${ed?'':'disabled'}
-            style="font-weight:800;color:#1D4ED8;margin-bottom:4px">
-          <input value="${esc(x.content||'')}" placeholder="활동 내용" data-big="활동 내용 · ${dl(x)}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'content',this)" ${ed?'':'disabled'}></td>
-      ${matCell}
-      <td><input value="${esc(x.cost||'')}" data-big="재료비 · ${dl(x)}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'cost',this)" ${ed?'':'disabled'}></td>
-      <td style="white-space:nowrap">${ed?`<button type="button" class="btn line" style="padding:4px 8px;font-size:11px" onclick="toggleSkip(${i})">휴강</button>`:''}<div style="margin-top:3px">${mergeBtn}</div></td></tr>`;
+    if(x.blocked) return `<tr class="blocked"><td>—</td><td>${dl(x)}</td><td colspan="5">🚫 ${esc(x.reason)} — 학교 휴강</td></tr>`;
+    if(x.skip) return `<tr class="blocked" style="background:#FFF7E6;color:#92400E"><td>—</td><td>${dl(x)}</td><td colspan="4">⏸ 강사 휴강${x.skipReason?' — '+esc(x.skipReason):''}</td><td>${ed?`<button type="button" class="btn line" style="padding:4px 8px;font-size:11px" onclick="toggleSkip(${i})">복원</button>`:''}</td></tr>`;
+    let tds = '';
+    if(SP.act[i]) tds += cell(i,'act', `<div class="cwrap">
+        <input value="${esc(x.ctitle||'')}" placeholder="제목 (선택)" data-big="활동 제목 · ${dl(x)}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'ctitle',this)" ${ed?'':'disabled'} style="font-weight:800;color:#1D4ED8;margin-bottom:4px">
+        <input value="${esc(x.content||'')}" placeholder="활동 내용" data-big="활동 내용 · ${dl(x)}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'content',this)" ${ed?'':'disabled'}>${mBtn(i,'act')}</div>`, SP.act[i]);
+    if(SP.mat[i]) tds += cell(i,'mat', `<div class="cwrap"><input value="${esc(x.materials||'')}" data-big="준비물${SP.mat[i]>1?` · ${SP.mat[i]}회 공통`:` · ${dl(x)}`}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'materials',this)" ${ed?'':'disabled'}>${mBtn(i,'mat')}</div>`, SP.mat[i]);
+    if(SP.cost[i]) tds += cell(i,'cost', `<div class="cwrap"><input value="${esc(x.cost||'')}" data-big="재료비 · ${dl(x)}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'cost',this)" ${ed?'':'disabled'}>${mBtn(i,'cost')}</div>`, SP.cost[i]);
+    if(SP.note[i]) tds += cell(i,'note', `<div class="cwrap"><input value="${esc(x.note||'')}" data-big="비고 · ${dl(x)}" ondblclick="bigEdit(this,this.dataset.big)" oninput="updSess(${i},'note',this)" ${ed?'':'disabled'}>${mBtn(i,'note')}</div>`, SP.note[i]);
+    return `<tr><td>${x.no}</td><td>${dl(x)}</td>${tds}
+      <td style="white-space:nowrap">${ed?`<button type="button" class="btn line" style="padding:4px 8px;font-size:11px" onclick="toggleSkip(${i})">휴강</button>`:''}</td></tr>`;
   }).join('');
-  $('sess').innerHTML = SESSIONS.length ? `<div class="small">총 <b>${live}회</b> · 학교 휴강 ${schoolOff}일 · 강사 휴강 ${myOff}일 제외 — 칸 <b>더블클릭</b>(폰: 길게)=큰 창 · «〃위와 같음»=준비물 묶기</div>
-    <div class="sess-scroll"><table class="tb">
-    <tr><th style="width:34px">회</th><th style="width:96px">수업일</th><th>활동 내용 <span style="font-weight:400">(제목 + 내용)</span></th><th style="width:130px">준비물</th><th style="width:64px">재료비</th><th style="width:86px"></th></tr>
+  $('sess').innerHTML = SESSIONS.length ? `<div class="small">총 <b>${live}회</b> · 학교 휴강 ${schoolOff}일 · 강사 휴강 ${myOff}일 제외 — 칸 <b>더블클릭</b>(폰: 길게)=큰 창 · 각 칸의 <b>〃</b>=위 회차와 묶기</div>
+    <div class="sess-scroll"><table class="tb tb-sess">
+    <tr><th style="width:34px">회</th><th style="width:92px">수업일</th><th>활동 내용 <span style="font-weight:400">(제목+내용)</span></th><th style="width:150px">준비물</th><th style="width:96px">재료비</th><th style="width:130px">비고</th><th style="width:56px"></th></tr>
     ${rows}</table></div>` : '<div class="small">요일을 고르면 회차가 나타납니다.</div>';
 }
-function prevEditable(i){ for(let j=i-1;j>=0;j--){ const x=SESSIONS[j]; if(x.blocked||x.skip) return -1; return j; } return -1; }
-window.mergeUp = (i)=>{ if(prevEditable(i)<0) return; SESSIONS[i].matSame = true; renderSessions(); draftSave(); };
-window.unmerge = (leaderI)=>{   // 그룹 마지막 회차를 분리
+window.mergeCol = (i,col)=>{ if(prevEditable(i)<0) return;
+  const flag = {act:'sameAct',mat:'matSame',cost:'sameCost',note:'sameNote'}[col];
+  SESSIONS[i][flag] = true; renderSessions(); draftSave(); };
+window.unmergeCol = (leaderI,col)=>{
+  const flag = {act:'sameAct',mat:'matSame',cost:'sameCost',note:'sameNote'}[col];
   let last = leaderI;
-  for(let j=leaderI+1;j<SESSIONS.length;j++){ const x=SESSIONS[j]; if(x.blocked||x.skip) break; if(x.matSame) last=j; else break; }
-  if(last>leaderI){ SESSIONS[last].matSame = false; renderSessions(); draftSave(); }
+  for(let j=leaderI+1;j<SESSIONS.length;j++){ const x=SESSIONS[j]; if(x.blocked||x.skip) break; if(x[flag]) last=j; else break; }
+  if(last>leaderI){ SESSIONS[last][flag] = false; renderSessions(); draftSave(); }
 };
+function prevEditable(i){ for(let j=i-1;j>=0;j--){ const x=SESSIONS[j]; if(x.blocked||x.skip) return -1; return j; } return -1; }
 window.recalc = ()=>{
   const dur = Number($('f-dur')?.value||0), rate = TYPE==='joy' ? (SEM.feeJoy||0) : (SEM.feeClub||0);
   const per = Math.round(rate*dur/60), live = liveN();
@@ -585,7 +601,7 @@ window.saveApp = async (mode)=>{
   if(!v('f-title')) return say('f-msg','err','프로그램 이름을 입력해 주세요.');
   if(!draft && !v('f-name')) return say('f-msg','err','강사 이름을 입력해 주세요.');
   if(!draft && !weekdays.length) return say('f-msg','err','요일을 하나 이상 골라주세요.');
-  const gradeSel = [...document.querySelectorAll('.gsel input:checked')].map(i=>i.value);
+  const gradeSel = sortG([...document.querySelectorAll('.gsel input:checked')].map(i=>i.value));
   if(!draft && SEM.gradeList && SEM.gradeList.length && !gradeSel.length) return say('f-msg','err','수강 대상 학년을 하나 이상 골라주세요.');
   const answers = {}; let missing = null;
   (SEM.questions||[]).forEach(q=>{ if(!(q.forType==='both'||q.forType===TYPE)) return; const val = v('q-'+q.id); answers[q.id]=val; if(q.required && !val && !missing) missing = q.label; });

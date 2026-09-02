@@ -154,7 +154,8 @@ function renderMain(){
   html += `<div class="card"><h3>${canEdit?'신청':'신청 내용'} — ${esc(KID.studentName)}</h3>
     <div class="small" style="margin-bottom:8px">${canEdit ? '원하는 동아리에 1·2·3순위를 매기세요. 시간이 겹치지 않으면 여러 개 참여할 수 있고, 정원 초과 시 1순위 신청자끼리 추첨합니다.' : '지금은 신청 기간이 아니라 내용만 볼 수 있어요.'}</div>
     ${CLUBS.map(c=>{ const r = picks[c.id]||0; const el = eligOf(c);
-      const gLabel = (c.gradeSel&&c.gradeSel.length)?c.gradeSel.join('·'):(c.grades||'전체');
+      const sortG = a=>(a||[]).slice().sort((x,y)=>{const nx=parseInt(x),ny=parseInt(y);if(!isNaN(nx)&&!isNaN(ny))return nx-ny;if(!isNaN(nx))return -1;if(!isNaN(ny))return 1;return String(x).localeCompare(String(y),'ko');});
+      const gLabel = (c.gradeSel&&c.gradeSel.length)?sortG(c.gradeSel).join('·'):(c.grades||'전체');
       return `<div class="club ${r===1?'r1':''}" style="grid-template-columns:1fr;${el==='no'?'opacity:.8':''}">
         <div style="margin-bottom:8px">${posterHTML(c, 110)}</div>
         <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start"><div>
