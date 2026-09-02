@@ -133,6 +133,7 @@ tr.blocked td{background:#FEF2F2;color:#B91C1C;font-size:12px}
       </div>
       <h3 style="margin-top:14px">💳 입금 계좌 (강사료 정산용)</h3>
       <div class="g2">
+        <div class="small" style="grid-column:1/-1;color:#15803D">💳 계좌는 학기 말 정산용으로 담당 선생님만 봅니다 — 학부모·공고에는 절대 표시되지 않아요.</div>
         <div><label>은행</label><input id="pf-bank"></div>
         <div><label>계좌번호</label><input id="pf-acct"></div>
         <div><label>예금주</label><input id="pf-holder"></div>
@@ -153,7 +154,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getAuth, onAuthStateChanged, signOut, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
   signInWithEmailAndPassword, updatePassword, setPersistence, browserLocalPersistence }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, initializeFirestore, doc, getDoc, setDoc, addDoc, updateDoc, collection, getDocs, query, where, Timestamp }
+import { getFirestore, initializeFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteField, collection, getDocs, query, where, Timestamp }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const app = initializeApp({
@@ -749,13 +750,13 @@ window.saveApp = async (mode)=>{
     minN:Number(v('f-min'))||0, maxN:Number(v('f-max'))||0,
     place:v('f-place'), materials:v('f-mat'), answers, weekdays, start:v('f-start'), durMin:Number(v('f-dur'))||60,
     startDate: v('f-from')||SEM.rangeFrom, endDate: v('f-to')||SEM.rangeTo,
-    sessions: renumber(SESSIONS), sessionCount: liveN(), bank: { bank:PROF.bank||'', account:PROF.account||'', holder:PROF.holder||'' },
+    sessions: renumber(SESSIONS), sessionCount: liveN(),
     updatedAt: Timestamp.now() };
   try{
     const adminFix = IS_STAFF && EDIT && EDIT.uid && EDIT.uid !== ME.uid;   // 관리자 대리 수정
     const newStatus = adminFix ? (EDIT.status||'submitted')
       : mode==='submit' ? 'submitted' : (mode==='draft' ? 'draft' : (EDIT?.status||'submitted'));
-    if(EDIT) await updateDoc(doc(db,'clubApplications',EDIT.id), { ...rec, status:newStatus });
+    if(EDIT) await updateDoc(doc(db,'clubApplications',EDIT.id), { ...rec, status:newStatus, bank: deleteField() });
     else {
       const ref = await addDoc(collection(db,'clubApplications'), { ...rec, status:newStatus, published:false, createdAt:Timestamp.now() });
       EDIT = { id: ref.id, status:newStatus };   // 임시 저장 후 이어서 수정 가능
