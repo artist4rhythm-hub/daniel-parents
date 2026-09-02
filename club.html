@@ -306,7 +306,7 @@ onAuthStateChanged(auth, async user=>{
     try{
       const d = await getDoc(doc(db,'clubApplications', editId));
       if(d.exists()){ const a = {id:d.id, ...d.data()};
-        EDIT = a; SESSIONS = (a.sessions||[]).map(x=>({...x}));
+        EDIT = cleanWd(a); SESSIONS = (a.sessions||[]).map(x=>({...x}));
         renderForm(a);
         say('f-msg','info', `🛠 관리자 수정 모드 — ${esc(a.instructorName||'')} 선생님의 «${esc(a.title||'')}» 신청서를 대신 수정합니다. 저장해도 상태·주인 계정은 바뀌지 않아요.`);
       } else alert('신청서를 찾을 수 없습니다.');
@@ -417,7 +417,8 @@ function maxDur(start){ const [h,m]=start.split(':').map(Number), [h1,m1]=SEM.ti
 
 /* ── 신청서 폼 ── */
 window.newApp = ()=>{ EDIT=null; SESSIONS=[]; renderForm({ type:'club', instructorName:PROF.name||'', phone:PROF.phone||'', weekdays:[], start:SEM.timeStart, durMin:60 }); };
-window.editApp = (id)=>{ const a = MY.find(x=>x.id===id); if(!a) return; EDIT=a; SESSIONS=(a.sessions||[]).map(s=>({...s})); renderForm(a); };
+function cleanWd(a){ a.weekdays = (a.weekdays||[]).map(Number).filter(w=>Number.isInteger(w)&&w>=0&&w<=6); return a; }
+window.editApp = (id)=>{ const a = MY.find(x=>x.id===id); if(!a) return; EDIT=cleanWd(a); SESSIONS=(a.sessions||[]).map(s=>({...s})); renderForm(a); };
 function renderForm(a){
   const ro = !isOpen();
   const qsAll = SEM.questions||[];
@@ -465,7 +466,7 @@ function renderForm(a){
     </div>
     <div class="small" style="margin-top:2px">학기 범위(${SEM.rangeFrom} ~ ${SEM.rangeTo}) 안에서 선생님 사정에 맞게 정하세요. 개별 회차는 아래 표에서 «휴강»으로 뺄 수 있어요.</div>
     <label>요일</label>
-    <div class="wd">${[1,2,3,4,5].map(w=>`<label class="${(a.weekdays||[]).includes(w)?'on':''}"><input type="checkbox" value="${w}" ${(a.weekdays||[]).includes(w)?'checked':''} onchange="this.parentNode.classList.toggle('on',this.checked); rebuildSessions()">${WD[w]}</label>`).join('')}</div>
+    <div class="wd" id="wd-days">${[1,2,3,4,5].map(w=>`<label class="${(a.weekdays||[]).includes(w)?'on':''}"><input type="checkbox" value="${w}" ${(a.weekdays||[]).includes(w)?'checked':''} onchange="this.parentNode.classList.toggle('on',this.checked); rebuildSessions()">${WD[w]}</label>`).join('')}</div>
     <div class="g2">
       <div><label>시작 시간</label><select id="f-start" onchange="durOptions(); recalc()">${timeOptions().map(t=>`<option${t===(a.start||SEM.timeStart)?' selected':''}>${t}</option>`).join('')}</select></div>
       <div><label>수업 길이</label><select id="f-dur" onchange="recalc()"></select></div>
@@ -538,7 +539,7 @@ window.setType = (t, silent)=>{ TYPE=t; $('t-club').classList.toggle('on',t==='c
   if(!silent){ recalc(); if(!POSTER) paintPoster(); } };
 window.durOptions = (sel)=>{ const s = $('f-start').value, mx = maxDur(s), cur = sel || Number($('f-dur').value)||60;
   $('f-dur').innerHTML = [30,40,50,60,70,80,90,100,110,120].filter(x=>x<=mx).map(x=>`<option value="${x}"${x===cur?' selected':''}>${x}분</option>`).join(''); };
-function selWeekdays(){ return [...document.querySelectorAll('.wd input:checked')].map(i=>Number(i.value)); }
+function selWeekdays(){ return [...document.querySelectorAll('#wd-days input:checked')].map(i=>Number(i.value)).filter(w=>Number.isInteger(w)&&w>=1&&w<=6); }
 window.rebuildSessions = ()=>{ SESSIONS = genSessions(selWeekdays(), SESSIONS, $('f-from')?.value, $('f-to')?.value); renderSessions(); recalc(); draftSave(); };
 window.overrideOn = (i)=>{
   const x = SESSIONS[i]; if(!x?.blocked) return;
