@@ -250,8 +250,14 @@ function ms(role){ return (SEM.milestones||[]).find(m=>m.role===role) || null; }
 const STL = { enrolling:['신청 접수중','ok'], adjusting:['순위 조정·최종 결정','blue'], confirmed:['확정','ok'], running:['운영중','ok'] };
 const fmtMin = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
 const endOf = c => fmtMin(toMin(c.start)+(c.durMin||0));
-const timeClash = (a,b) => (a.weekdays||[]).some(w=>(b.weekdays||[]).includes(w))
-  && toMin(a.start) < toMin(b.start)+(b.durMin||0) && toMin(b.start) < toMin(a.start)+(a.durMin||0);
+const wdN = c => (c.weekdays||[]).map(Number).filter(n=>Number.isInteger(n)&&n>=0&&n<=6);
+const clashDays = (a,b) => {              // 요일 교집합이 없으면 무조건 [] — 요일이 다르면 절대 안 겹침
+  const B = wdN(b); const days = wdN(a).filter(w=>B.includes(w));
+  if(!days.length) return [];
+  const a0=toMin(a.start), a1=a0+(Number(a.durMin)||0), b0=toMin(b.start), b1=b0+(Number(b.durMin)||0);
+  return (a0<b1 && b0<a1) ? days : [];
+};
+const timeClash = (a,b) => clashDays(a,b).length > 0;
 const mdShort = d => d ? `${+String(d).slice(5,7)}.${+String(d).slice(8,10)}` : '';
 const wdOf = d => { const p=String(d||'').split('-').map(Number); if(p.length<3) return ''; return WD[new Date(p[0],p[1]-1,p[2]).getDay()]||''; };
 const liveSess = c => { const m=bkm(); return (c.sessions||[]).filter(x=>!isOff(x,m)); };
@@ -391,7 +397,7 @@ function renderMain(){
         <details class="plan"><summary><span>📋 수업 계획 · ${sess.length}회</span><i></i></summary><div style="margin-top:6px">${planRows(c)}</div></details></div>
         <div>${PUBLIC ? `<button class="btn line" style="width:100%;margin-top:10px;padding:11px" onclick="simpleDlg()">✍️ 이 동아리 신청하기</button>` : canEdit ? (el==='no'
             ? `<div class="small" style="margin-top:8px">신청 대상: ${esc(gLabel)}</div>`
-            : `<div class="rank">${[1,2,3].map(n=>`<button class="${r===n?'on':''}" onclick="setRank('${c.id}', ${r===n?0:n})">${r===n?'✓ ':''}${n}순위</button>`).join('')}</div>${(()=>{const ov=Object.keys(picks).filter(k=>k!==c.id).map(id=>CLUBS.find(x=>x.id===id)).filter(o=>o&&timeClash(c,o)).map(o=>o.title); return ov.length?`<div class="small" style="margin-top:6px;color:#B45309">⏱ ${ov.map(esc).join(', ')}와 시간이 겹쳐요 — 순위가 높은 하나만 배정됩니다.</div>`:'';})()}`)
+            : `<div class="rank">${[1,2,3].map(n=>`<button class="${r===n?'on':''}" onclick="setRank('${c.id}', ${r===n?0:n})">${r===n?'✓ ':''}${n}순위</button>`).join('')}</div>${(()=>{const ov=Object.keys(picks).filter(k=>k!==c.id).map(id=>CLUBS.find(x=>x.id===id)).filter(o=>o&&timeClash(c,o)).map(o=>`${esc(o.title)} <b>(${clashDays(c,o).map(w=>WD[w]).join('·')} ${o.start}–${endOf(o)})</b>`); return ov.length?`<div class="small" style="margin-top:6px;color:#B45309">⏱ ${ov.join(', ')}와 시간이 겹쳐요 — 같은 시간대는 순위가 높은 하나만 배정됩니다.</div>`:'';})()}`)
           : (r?`<span class="pill blue" style="margin-top:8px;display:inline-block">${r}순위</span>`:'')}</div></div></div>`; }).join('') || '<div class="small" style="padding:6px 0">아직 공고된 동아리가 없어요 — 공고가 올라오면 이 링크에서 바로 볼 수 있습니다.</div>'}
     <div class="alert" id="msg"></div></div>`;
   html += weekGridHTML(picks);
