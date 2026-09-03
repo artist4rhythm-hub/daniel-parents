@@ -343,7 +343,7 @@ window.simpleVerify = async ()=>{
   go.disabled = true; go.textContent = '확인 중…';
   try{
     const r = await fetch(PUSH + '/club-verify', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ org: ORG, name, birth }) });
+      body: JSON.stringify({ org: ORG, name, birth, semId: SEM?.id || '' }) });
     const j = await r.json();
     if(!j.ok){ m.className='alert err'; m.textContent = j.msg || '일치하는 학생을 찾지 못했어요.'; return; }
     if(j.students.length > 1){
@@ -366,6 +366,7 @@ async function simpleEnter(st){
   const kids = simpleKids().filter(k=>k.studentId!==st.studentId);
   kids.push({ id:'', studentId:st.studentId, studentName:st.studentName, grade:st.grade||'', className:st.className||'', org:ORG });
   simpleSave(kids);
+  if(st.applied && st.applied.count) window.__remote = { sid: st.studentId, ...st.applied };
   if(auth.currentUser && !auth.currentUser.isAnonymous){
     // 계정(학부모·교직원) 세션 — 자녀를 현재 목록에 합류시키고 그대로 진행
     const hit = KIDS.find(x=>x.studentId===st.studentId);
@@ -578,8 +579,16 @@ function summaryCard(picks){
   const saved = ENR[KID.studentId];
   const savedJS = snapJS(Object.fromEntries((saved?.picks||[]).map(p=>[p.clubId, p.rank])));
   const dirty = snapJS(picks) !== savedJS;
-  if(!sel.length) return `<div class="card"><div class="sumhead"><b>📌 ${esc(KID.studentName)}의 신청 현황</b></div>
+  if(!sel.length){
+    const rm = (window.__remote && window.__remote.sid===KID.studentId && !(saved&&saved.id)) ? window.__remote : null;
+    if(rm) return `<div class="card"><div class="sumhead"><b>📌 ${esc(KID.studentName)}의 신청 현황</b><span>다른 기기에서 저장됨</span></div>
+      <div class="small" style="margin-top:8px;background:#F0F7F1;border:1px solid #CFE5D4;border-radius:11px;padding:10px 12px;line-height:1.8">
+        ✅ 이 자녀의 신청 <b>${rm.count}건</b>이 이미 안전하게 저장되어 있어요.<br>
+        ${rm.picks.map(p=>`<b>${p.rank}순위</b> ${esc(p.title)}`).join(' · ')}<br>
+        <span style="color:var(--ink3)">수정하려면 처음 저장했던 기기·브라우저에서 열어주세요. 여기서 새로 담아 저장하면 안내가 뜹니다.</span></div></div>`;
+    return `<div class="card"><div class="sumhead"><b>📌 ${esc(KID.studentName)}의 신청 현황</b></div>
     <div class="small" style="margin-top:8px">아직 고른 동아리가 없어요 — 아래 목록에서 순위 버튼을 눌러 담아보세요.</div></div>`;
+  }
   let pairs = 0; const clashSet = new Set();
   for(let i=0;i<sel.length;i++) for(let j=i+1;j<sel.length;j++) if(timeClash(sel[i].c, sel[j].c)){ pairs++; clashSet.add(sel[i].c.id); clashSet.add(sel[j].c.id); }
   const grp = {1:[],2:[],3:[]}; sel.forEach(x=>{ (grp[x.r]=grp[x.r]||[]).push(x.c); });
@@ -612,7 +621,7 @@ window.resetLinks = ()=>{
 };
 window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
 /* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
-const BUILD = '2026.09.03-04';
+const BUILD = '2026.09.03-05';
 let SERVER_V = '';
 async function checkUpdate(){ try{
   const r = await fetch('version.json?_='+Date.now(), { cache:'no-store' });
