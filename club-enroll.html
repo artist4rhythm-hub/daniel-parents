@@ -233,7 +233,9 @@ onAuthStateChanged(auth, async user=>{
   }
   await loadClubs(); await loadEnr();
   const cur0 = (()=>{ try{ return localStorage.getItem(CURKEY); }catch(e){ return null; } })();
-  KID = KIDS.find(k=>k.studentId===cur0) || KIDS[0]; renderHead(); renderMain();
+  KID = KIDS.find(k=>k.studentId===cur0) || KIDS[0];
+  if(KID && !ENR[KID.studentId]) await familySync(KID);
+  renderHead(); renderMain();
 });
 async function loadSemAny(){
   const snap = await getDocs(query(collection(db,'clubSemesters'), where('org','==',ORG)));
@@ -365,7 +367,7 @@ window.simpleVerify = async ()=>{
 async function simpleEnter(st){
   document.querySelector('.modal-bg')?.remove();
   const kids = simpleKids().filter(k=>k.studentId!==st.studentId);
-  kids.push({ id:'', studentId:st.studentId, studentName:st.studentName, grade:st.grade||'', className:st.className||'', org:ORG });
+  kids.push({ id:'', studentId:st.studentId, studentName:st.studentName, grade:st.grade||'', className:st.className||'', org:ORG, birth:(window.__lastCred&&window.__lastCred.birth)||'' });
   simpleSave(kids);
   if(window.__lastCred){ (window.__creds = window.__creds || {})[st.studentId] = window.__lastCred; }
   window.__pending = (st.applied && st.applied.count) ? { sid: st.studentId, ap: st.applied } : null;
@@ -378,9 +380,11 @@ async function simpleEnter(st){
     PUBLIC = false;
     await loadEnr();
     if(st.applied && st.applied.count && !ENR[st.studentId]){
-      ENR[st.studentId] = { picks:(st.applied.picks||[]).filter(p=>p.clubId).map(p=>({clubId:p.clubId, rank:p.rank})),
-        result: st.applied.result||[], final: st.applied.final||{} };
-      KID._fam = true;
+      const seeded2 = (st.applied.picks||[]).filter(p=>p.clubId).map(p=>({clubId:p.clubId, rank:p.rank}));
+      if(seeded2.length || (st.applied.result||[]).length){
+        ENR[st.studentId] = { picks: seeded2, result: st.applied.result||[], final: st.applied.final||{} };
+        KID._fam = true;
+      } else window.__remote = { sid: st.studentId, count: st.applied.count, picks: st.applied.picks||[] };
     }
     renderHead(); renderMain(); return;
   }
@@ -390,6 +394,28 @@ async function simpleEnter(st){
   }
   enterSimple();
 }
+async function familySync(k){
+  if(!k || !k.birth || !SEM) return false;
+  try{
+    const r = await fetch(PUSH + '/club-verify', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ org: ORG, name: k.studentName, birth: k.birth, semId: SEM.id }) });
+    const j = await r.json(); if(!j.ok) return false;
+    const st = (j.students||[]).find(x=>x.studentId===k.studentId) || (j.students||[])[0];
+    if(!st) return false;
+    (window.__creds = window.__creds || {})[k.studentId] = { name: k.studentName, birth: k.birth };
+    if(st.grade && !k.grade) k.grade = st.grade;
+    if(st.className && !k.className) k.className = st.className;
+    if(st.applied && st.applied.count){
+      const seeded = (st.applied.picks||[]).filter(p=>p.clubId).map(p=>({ clubId:p.clubId, rank:p.rank }));
+      if(seeded.length || (st.applied.result||[]).length){
+        ENR[k.studentId] = { picks: seeded, result: st.applied.result||[], final: st.applied.final||{} };
+        k._fam = true; return true;
+      }
+      window.__remote = { sid: k.studentId, count: st.applied.count, picks: st.applied.picks||[] };  // 구서버 호환: 읽기 전용 확인
+    }
+  }catch(e){}
+  return false;
+}
 async function enterSimple(){
   SIMPLE = true; PUBLIC = false;
   KIDS = simpleKids();
@@ -398,12 +424,17 @@ async function enterSimple(){
   await loadEnr();
   if(window.__pending && !ENR[window.__pending.sid]){
     const ap = window.__pending.ap;
-    ENR[window.__pending.sid] = { picks:(ap.picks||[]).filter(p=>p.clubId).map(p=>({clubId:p.clubId, rank:p.rank})),
-      result: ap.result||[], final: ap.final||{} };
-    const kk = KIDS.find(k=>k.studentId===window.__pending.sid); if(kk) kk._fam = true;
-    if(KID && KID.studentId===window.__pending.sid) KID = kk || KID;
+    const seeded = (ap.picks||[]).filter(p=>p.clubId).map(p=>({clubId:p.clubId, rank:p.rank}));
+    if(seeded.length || (ap.result||[]).length){
+      ENR[window.__pending.sid] = { picks: seeded, result: ap.result||[], final: ap.final||{} };
+      const kk = KIDS.find(k=>k.studentId===window.__pending.sid); if(kk) kk._fam = true;
+      if(KID && KID.studentId===window.__pending.sid) KID = kk || KID;
+    } else if(ap.count){
+      window.__remote = { sid: window.__pending.sid, count: ap.count, picks: ap.picks||[] };
+    }
   }
   window.__pending = null;
+  if(KID && !ENR[KID.studentId]) await familySync(KID);   // 기억 입장 기기 자동 동기화
   renderHead(); renderMain();
 }
 
@@ -417,7 +448,7 @@ function renderHead(){
     <div class="kid" style="margin-top:10px;align-items:center;${PUBLIC?'display:none':''}">${KIDS.map(k=>`<button class="${KID&&KID.studentId===k.studentId?'on':''}" onclick="pickKid('${k.studentId}')">${esc(k.studentName)}${k.grade?' · '+esc(k.grade):''}${k.className?' ('+esc(k.className)+')':''}</button>`).join('')}
       <button class="kadd" onclick="simpleDlg()">＋ 자녀 추가</button>${(SIMPLE||simpleKids().length)?`<button class="kreset" onclick="resetLinks()">연결 초기화</button>`:''}</div>`;
 }
-window.pickKid = (sid)=>{ KID = KIDS.find(k=>k.studentId===sid); try{ localStorage.setItem(CURKEY, sid); }catch(e){} renderHead(); renderMain(); };
+window.pickKid = async (sid)=>{ KID = KIDS.find(k=>k.studentId===sid); try{ localStorage.setItem(CURKEY, sid); }catch(e){} if(KID && !ENR[KID.studentId]) await familySync(KID); renderHead(); renderMain(); };
 
 function renderMain(){
   const e = PUBLIC ? null : (ENR[KID.studentId] || null);
@@ -617,7 +648,8 @@ function summaryCard(picks){
         ${rm.picks.map(p=>`<b>${p.rank}순위</b> ${esc(p.title)}`).join(' · ')}<br>
         <span style="color:var(--ink3)">수정하려면 처음 저장했던 기기·브라우저에서 열어주세요. 여기서 새로 담아 저장하면 안내가 뜹니다.</span></div></div>`;
     return `<div class="card"><div class="sumhead"><b>📌 ${esc(KID.studentName)}의 신청 현황</b></div>
-    <div class="small" style="margin-top:8px">아직 고른 동아리가 없어요 — 아래 목록에서 순위 버튼을 눌러 담아보세요.</div></div>`;
+    <div class="small" style="margin-top:8px">아직 고른 동아리가 없어요 — 아래 목록에서 순위 버튼을 눌러 담아보세요.</div>
+    <div class="small" style="margin-top:6px;color:var(--ink3)">다른 기기(가족 폰·컴퓨터)에서 신청하셨다면 <a href="#" onclick="simpleDlg();return false" style="font-weight:800">자녀 다시 확인</a>으로 바로 불러올 수 있어요.</div></div>`;
   }
   let pairs = 0; const clashSet = new Set();
   for(let i=0;i<sel.length;i++) for(let j=i+1;j<sel.length;j++) if(timeClash(sel[i].c, sel[j].c)){ pairs++; clashSet.add(sel[i].c.id); clashSet.add(sel[j].c.id); }
@@ -652,7 +684,7 @@ window.resetLinks = ()=>{
 };
 window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
 /* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
-const BUILD = '2026.09.03-06';
+const BUILD = '2026.09.03-07';
 let SERVER_V = '';
 async function checkUpdate(){ try{
   const r = await fetch('version.json?_='+Date.now(), { cache:'no-store' });
