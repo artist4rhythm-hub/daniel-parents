@@ -131,6 +131,7 @@ details.plan[open]>summary i::before{content:'접기 ▴'}
 .rrow .ovb{font-size:10px;color:#B45309;font-weight:800}
 .sumfoot{margin-top:10px;padding-top:9px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2);font-weight:700}
 .modal.pop .pop-ck{width:54px;height:54px;border-radius:50%;background:#DCFCE7;color:#15803D;font-size:26px;font-weight:900;display:flex;align-items:center;justify-content:center;margin:0 auto}
+.modal.pop .pop-ck.err{background:#FEE2E2;color:#B91C1C}
 .modal.pop .pop-list{margin-top:13px;border:1px solid var(--line);border-radius:12px;padding:2px 13px}
 .updbar{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--pt);color:#fff;display:flex;gap:12px;align-items:center;justify-content:center;padding:9px 14px calc(9px + env(safe-area-inset-top));font-size:12.5px;font-weight:800;box-shadow:0 4px 14px rgba(12,42,68,.25)}
 .updbar button{background:var(--gold);color:#20303F;border:0;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:900;font-family:inherit;cursor:pointer}
@@ -540,16 +541,35 @@ window.setRank = (cid, rank)=>{
 function renderMainKeep(p){ const e = ENR[KID.studentId] || (ENR[KID.studentId] = {picks:[]}); e.picks = Object.entries(p).map(([clubId,rank])=>({clubId,rank})); renderMain(); }
 window.savePicks = async ()=>{
   const e = ENR[KID.studentId]; const picks = e?.picks || [];
-  const m=$('msg');
-  if(!picks.length){ m.className='alert err'; m.textContent='순위를 하나 이상 골라주세요.'; return; }
+  const m = $('msg');
+  if(!picks.length){ showErrPop('저장할 것이 없어요', '순위를 하나 이상 골라주세요 — 목록에서 1·2·3순위 버튼을 눌러 담은 뒤 저장하면 됩니다.'); return; }
   const id = `${SEM.id}_${KID.studentId}`;
   try{
     await setDoc(doc(db,'clubEnrollments', id), { semId:SEM.id, org:ORG, parentUid:ME.uid, studentId:KID.studentId, studentName:KID.studentName||'', className:KID.className||'', grade:KID.grade||'', linkId:KID.id,
       picks, status:'applied', via: SIMPLE?'simple':'account', updatedAt:Timestamp.now(), ...(e?.id?{}:{createdAt:Timestamp.now()}) }, { merge:true });
+    // ✔ 여기 도달 = 저장 성공 — 이후 화면 갱신에 문제가 생겨도 성공 알림은 반드시 뜬다
     const savedItems = picks.slice().sort((a,b)=>a.rank-b.rank).map(p=>{ const c=CLUBS.find(x=>x.id===p.clubId); return c?{r:p.rank, t:c.title, d:(c.weekdays||[]).filter(w=>WD[w]).map(w=>WD[w]).join('·'), s:c.start}:null; }).filter(Boolean);
-    await loadEnr(); renderMain(); const mm=$('msg'); mm.className='alert'; mm.textContent='';
     showSavedPop(KID.studentName||'', savedItems);
-  }catch(err){ m.className='alert err'; m.textContent='저장 실패: '+(err.code==='permission-denied'?(SEM.status==='enrolling'?'이 학생은 이미 다른 기기(또는 학부모 계정)에서 신청되어 있어요 — 처음 신청한 곳에서 수정하거나 학교에 문의해 주세요.':'지금은 신청 기간이 아닙니다.'):(err.message||'')); }
+    if(m){ m.className='alert'; m.textContent=''; }
+    try{ await loadEnr(); renderMain(); }catch(_){}
+  }catch(err){
+    const why = err.code==='permission-denied'
+      ? (SEM.status==='enrolling'
+          ? '이 학생의 신청은 다른 기기(또는 다른 계정)에서 먼저 저장되어 있어요.\n처음 저장했던 그 기기·브라우저에서 이어서 수정하거나, 학교(담당 선생님)에 말씀해 주시면 정리해 드립니다.'
+          : '지금은 신청 기간이 아닙니다.')
+      : (err.message || '연결 상태를 확인하고 잠시 후 다시 시도해 주세요.');
+    if(m){ m.className='alert err'; m.textContent='저장 실패: '+why.replace('\n',' '); }
+    showErrPop('저장하지 못했어요', why);
+  }
+};
+window.showErrPop = (title, msg)=>{
+  const bg = document.createElement('div'); bg.className='modal-bg'; bg.onclick=e=>{ if(e.target===bg) bg.remove(); };
+  bg.innerHTML = `<div class="modal pop">
+    <div class="pop-ck err">!</div>
+    <h3 style="text-align:center;margin-top:12px">${esc(title)}</h3>
+    <div class="small" style="text-align:center;margin-top:8px;line-height:1.8;white-space:pre-line">${esc(msg)}</div>
+    <button class="btn" style="width:100%;margin-top:14px;padding:13px" onclick="this.closest('.modal-bg').remove()">확인</button></div>`;
+  document.body.appendChild(bg);
 };
 function snapJS(p){ return JSON.stringify(Object.entries(p).map(([k,v])=>[k,Number(v)]).sort((a,b)=>a[0]<b[0]?-1:1)); }
 function summaryCard(picks){
@@ -592,7 +612,7 @@ window.resetLinks = ()=>{
 };
 window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
 /* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
-const BUILD = '2026.09.03-03';
+const BUILD = '2026.09.03-04';
 let SERVER_V = '';
 async function checkUpdate(){ try{
   const r = await fetch('version.json?_='+Date.now(), { cache:'no-store' });
