@@ -217,15 +217,22 @@ onAuthStateChanged(auth, async user=>{
   }
   const ls = await getDocs(query(collection(db,'parentLinks'), where('parentUid','==',user.uid), where('status','==','active')));
   KIDS = ls.docs.map(d=>({id:d.id, ...d.data()})).filter(k=>(k.org||'daniel')===ORG);
+  // 이 기기에서 간편 확인해 둔 자녀를 계정 목록에 합류 (+ 학년·반 정보 보강)
+  simpleKids().forEach(k=>{ const hit = KIDS.find(x=>x.studentId===k.studentId);
+    if(hit){ if(!hit.grade && k.grade) hit.grade = k.grade; if(!hit.className && k.className) hit.className = k.className; }
+    else KIDS.push(k); });
   await loadSem();
   if(!SEM){ await loadSemAny(); renderPrep(); return; }
   if(!KIDS.length){
-    $('head').innerHTML = `<h3>🎨 동아리 신청</h3><div class="small">이 기관에 연결된 자녀가 없어요. 학교에서 받은 <b>가입코드</b>로 자녀를 연결해 주세요. (공고 열람은 아래에서 가능해요)</div>
-      <div style="margin-top:8px"><a class="btn line" style="text-decoration:none;padding:8px 12px;font-size:12.5px" href="${LOGIN_URL}">🔗 가입코드로 자녀 연결하기</a></div>`;
-    await loadClubs(); PUBLIC = true; renderMain(); PUBLIC = false; return;
+    await loadClubs();
+    PUBLIC = true; renderHead(); renderMain(); PUBLIC = false;
+    $('head').insertAdjacentHTML('beforeend',
+      `<div class="small" style="margin-top:8px">이 계정에 연결된 자녀가 없어요 — 위 <b>✍️ 간편 신청(자녀 이름+생년월일 확인)</b>으로 바로 신청할 수 있어요. 학부모 계정을 쓰신다면 <a href="${LOGIN_URL}">가입코드 연결</a>도 가능합니다.</div>`);
+    return;
   }
   await loadClubs(); await loadEnr();
-  KID = KIDS[0]; renderHead(); renderMain();
+  const cur0 = (()=>{ try{ return localStorage.getItem(CURKEY); }catch(e){ return null; } })();
+  KID = KIDS.find(k=>k.studentId===cur0) || KIDS[0]; renderHead(); renderMain();
 });
 async function loadSemAny(){
   const snap = await getDocs(query(collection(db,'clubSemesters'), where('org','==',ORG)));
@@ -358,6 +365,15 @@ async function simpleEnter(st){
   const kids = simpleKids().filter(k=>k.studentId!==st.studentId);
   kids.push({ id:'', studentId:st.studentId, studentName:st.studentName, grade:st.grade||'', className:st.className||'', org:ORG });
   simpleSave(kids);
+  if(auth.currentUser && !auth.currentUser.isAnonymous){
+    // 계정(학부모·교직원) 세션 — 자녀를 현재 목록에 합류시키고 그대로 진행
+    const hit = KIDS.find(x=>x.studentId===st.studentId);
+    if(hit){ if(!hit.grade && st.grade) hit.grade = st.grade; if(!hit.className && st.className) hit.className = st.className; KID = hit; }
+    else { const nk = { id:'', studentId:st.studentId, studentName:st.studentName, grade:st.grade||'', className:st.className||'', org:ORG }; KIDS.push(nk); KID = nk; }
+    try{ localStorage.setItem(CURKEY, st.studentId); }catch(e){}
+    PUBLIC = false;
+    await loadEnr(); renderHead(); renderMain(); return;
+  }
   if(!auth.currentUser){
     try{ await signInAnonymously(auth); return; }   // onAuthStateChanged가 이어받는다
     catch(e){ alert('간편 신청을 켜지 못했어요: '+(e.code==='auth/operation-not-allowed'?'학교 설정(익명 로그인)이 아직 꺼져 있어요 — 학교에 알려주세요.':(e.message||''))); return; }
@@ -380,7 +396,7 @@ function renderHead(){
     ${SEM.refundRule?`<details style="margin-top:6px"><summary>환불 기준 보기</summary><div class="small" style="white-space:pre-wrap;margin-top:4px">${esc(SEM.refundRule)}</div></details>`:''}
     ${PUBLIC?`<div style="margin-top:10px;background:#FFF8E6;border:1px solid #EAD9A0;border-radius:12px;padding:11px 13px;font-size:13px;line-height:1.7">👀 누구나 볼 수 있는 공고입니다. 신청은 <b>자녀 확인(이름+생년월일)</b>만 하면 끝나요 — 계정·가입코드가 필요 없습니다.<div style="margin-top:8px"><button class="btn" style="width:100%;padding:13px" onclick="simpleDlg()">✍️ 간편 신청 시작하기</button></div></div>`:''}
     <div class="kid" style="margin-top:10px;align-items:center;${PUBLIC?'display:none':''}">${KIDS.map(k=>`<button class="${KID&&KID.studentId===k.studentId?'on':''}" onclick="pickKid('${k.studentId}')">${esc(k.studentName)}${k.grade?' · '+esc(k.grade):''}${k.className?' ('+esc(k.className)+')':''}</button>`).join('')}
-      ${SIMPLE?`<button class="kadd" onclick="simpleDlg()">＋ 자녀 추가</button><button class="kreset" onclick="resetLinks()">연결 초기화</button>`:''}</div>`;
+      <button class="kadd" onclick="simpleDlg()">＋ 자녀 추가</button>${(SIMPLE||simpleKids().length)?`<button class="kreset" onclick="resetLinks()">연결 초기화</button>`:''}</div>`;
 }
 window.pickKid = (sid)=>{ KID = KIDS.find(k=>k.studentId===sid); try{ localStorage.setItem(CURKEY, sid); }catch(e){} renderHead(); renderMain(); };
 
@@ -565,7 +581,7 @@ window.showSavedPop = (name, items)=>{
   document.body.appendChild(bg);
 };
 window.resetLinks = ()=>{
-  const names = KIDS.map(k=>k.studentName).join(' · ');
+  const list = SIMPLE ? KIDS : simpleKids(); const names = (list.length?list:KIDS).map(k=>k.studentName).join(' · ');
   const bg = document.createElement('div'); bg.className='modal-bg'; bg.onclick=e=>{ if(e.target===bg) bg.remove(); };
   bg.innerHTML = `<div class="modal" style="text-align:center">
     <h3>자녀 연결을 초기화할까요?</h3>
@@ -576,7 +592,7 @@ window.resetLinks = ()=>{
 };
 window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
 /* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
-const BUILD = '2026.09.03-02';
+const BUILD = '2026.09.03-03';
 let SERVER_V = '';
 async function checkUpdate(){ try{
   const r = await fetch('version.json?_='+Date.now(), { cache:'no-store' });
