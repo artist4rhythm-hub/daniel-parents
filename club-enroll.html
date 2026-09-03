@@ -576,17 +576,25 @@ window.resetLinks = ()=>{
 };
 window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
 /* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
-const BUILD = '2026.09.03-01';
+const BUILD = '2026.09.03-02';
+let SERVER_V = '';
 async function checkUpdate(){ try{
   const r = await fetch('version.json?_='+Date.now(), { cache:'no-store' });
-  const j = await r.json(); if(j && j.v && j.v !== BUILD) showUpd();
+  const j = await r.json(); if(j && j.v && j.v !== BUILD){ SERVER_V = j.v; showUpd(); }
 }catch(e){} }
 function showUpd(){ if(document.getElementById('updbar')) return;
   const d = document.createElement('div'); d.id='updbar'; d.className='updbar';
-  d.innerHTML = `✨ 업데이트 되었습니다 <button onclick="location.reload()">새 화면 보기</button>`;
+  d.innerHTML = `✨ 업데이트 되었습니다 <button onclick="applyUpd()">새 화면 보기</button>`;
   document.body.appendChild(d); document.body.classList.add('has-upd'); }
+window.applyUpd = ()=>{                     // 사파리가 새로고침에도 캐시를 물고 오는 경우가 있어
+  try{                                      // 주소에 버전 꼬리표를 붙여 «다른 주소»로 인식시켜 강제로 새 파일을 받는다
+    const u = new URL(location.href); u.searchParams.set('_v', SERVER_V || String(Date.now()));
+    location.replace(u.toString());
+  }catch(e){ location.reload(); }
+};
 checkUpdate(); setInterval(checkUpdate, 5*60*1000);
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') checkUpdate(); });
+window.addEventListener('pageshow', e=>{ if(e.persisted) checkUpdate(); });  // 사파리 뒤로가기 캐시 복원 대응
 
 window.setFinal = async (cid, v)=>{
   const e = ENR[KID.studentId]; if(!e?.id) return;
