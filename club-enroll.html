@@ -290,8 +290,10 @@ const timeClash = (a,b) => clashDays(a,b).length > 0;
 /* 🎯 2차 추가 모집 도우미 */
 const isR2 = () => SEM && Number(SEM.round||1) === 2;
 const pkKey = () => isR2() ? 'picks2' : 'picks';
-const firstFinal = (e) => (e?.result||[]).filter(r=>r.state==='assigned' && (e?.final||{})[r.clubId]!==false)
-  .map(r=>CLUBS.find(c=>c.id===r.clubId)).filter(Boolean);   // 1차 확정 동아리들 (2차에선 잠금)
+const firstFinal = (e) => ((e && Array.isArray(e.r1Final))
+    ? e.r1Final.map(id=>CLUBS.find(c=>c.id===id))
+    : (e?.result||[]).filter(r=>r.state==='assigned' && (e?.final||{})[r.clubId]!==false).map(r=>CLUBS.find(c=>c.id===r.clubId))
+  ).filter(Boolean);   // 1차 확정 — ✅ 도장(r1Final) 우선, 없으면 결과에서 파생
 const R2LAB = { assigned:['🎯 배정 (확정)','ok'], lost:['❌ 추첨 탈락','bad'], full:['⛔ 정원 마감','bad'], overlap:['⏱ 시간 겹침','warn'], closed:['⛔ 모집 마감','bad'] };
 function r2BannerHTML(){ const at=(SEM.r2CloseAt||'').replace('T',' ');
   return `<div class="card" style="background:#FFF8EE;border-color:#F2E3C8"><b style="color:#B45309">🎯 동아리 추가 모집 중</b><div class="small" style="margin-top:4px">빈자리가 남은 동아리만 신청할 수 있어요 (1·2순위). 1차 확정 결과는 변경되지 않습니다.${at?` · <b>마감 ${esc(at)}</b>`:''}</div></div>`; }
@@ -397,7 +399,7 @@ async function simpleEnter(st){
       const seeded2 = (st.applied.picks||[]).filter(p=>p.clubId).map(p=>({clubId:p.clubId, rank:p.rank}));
       if(seeded2.length || (st.applied.result||[]).length){
         const seeded2b = (st.applied.picks2||[]).filter(p=>p.clubId).map(p=>({clubId:p.clubId, rank:p.rank}));
-        ENR[st.studentId] = { picks: seeded2, picks2: seeded2b, result: st.applied.result||[], result2: st.applied.result2||[], final: st.applied.final||{} };
+        ENR[st.studentId] = { picks: seeded2, picks2: seeded2b, result: st.applied.result||[], result2: st.applied.result2||[], final: st.applied.final||{}, r1Final: st.applied.r1Final||null };
         KID._fam = true;
       } else window.__remote = { sid: st.studentId, count: st.applied.count, picks: st.applied.picks||[] };
     }
@@ -424,7 +426,7 @@ async function familySync(k){
       const seeded = (st.applied.picks||[]).filter(p=>p.clubId).map(p=>({ clubId:p.clubId, rank:p.rank }));
       if(seeded.length || (st.applied.result||[]).length){
         const seededB = (st.applied.picks2||[]).filter(p=>p.clubId).map(p=>({ clubId:p.clubId, rank:p.rank }));
-        ENR[k.studentId] = { picks: seeded, picks2: seededB, result: st.applied.result||[], result2: st.applied.result2||[], final: st.applied.final||{} };
+        ENR[k.studentId] = { picks: seeded, picks2: seededB, result: st.applied.result||[], result2: st.applied.result2||[], final: st.applied.final||{}, r1Final: st.applied.r1Final||null };
         k._fam = true; return true;
       }
       window.__remote = { sid: k.studentId, count: st.applied.count, picks: st.applied.picks||[] };  // 구서버 호환: 읽기 전용 확인
