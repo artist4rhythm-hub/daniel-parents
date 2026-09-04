@@ -287,6 +287,20 @@ const clashDays = (a,b) => {              // 요일 교집합이 없으면 무�
   return (a0<b1 && b0<a1) ? days : [];
 };
 const timeClash = (a,b) => clashDays(a,b).length > 0;
+/* 🎯 2차 추가 모집 도우미 */
+const isR2 = () => SEM && Number(SEM.round||1) === 2;
+const pkKey = () => isR2() ? 'picks2' : 'picks';
+const firstFinal = (e) => (e?.result||[]).filter(r=>r.state==='assigned' && (e?.final||{})[r.clubId]!==false)
+  .map(r=>CLUBS.find(c=>c.id===r.clubId)).filter(Boolean);   // 1차 확정 동아리들 (2차에선 잠금)
+const R2LAB = { assigned:['🎯 배정 (확정)','ok'], lost:['❌ 추첨 탈락','bad'], full:['⛔ 정원 마감','bad'], overlap:['⏱ 시간 겹침','warn'], closed:['⛔ 모집 마감','bad'] };
+function r2BannerHTML(){ const at=(SEM.r2CloseAt||'').replace('T',' ');
+  return `<div class="card" style="background:#FFF8EE;border-color:#F2E3C8"><b style="color:#B45309">🎯 동아리 추가 모집 중</b><div class="small" style="margin-top:4px">빈자리가 남은 동아리만 신청할 수 있어요 (1·2순위). 1차 확정 결과는 변경되지 않습니다.${at?` · <b>마감 ${esc(at)}</b>`:''}</div></div>`; }
+function lockCardHTML(e){ const fs=firstFinal(e); if(!fs.length) return '';
+  return `<div class="card"><h3>🔒 1차 확정 동아리 — 변경 불가</h3>${fs.map(c=>`<div class="res"><div><b>${esc(c.title)}</b> <span class="small">${(c.weekdays||[]).filter(w=>WD[w]).map(w=>WD[w]).join('·')} ${c.start} · ${c.durMin}분</span></div><div><span class="pill ok">✅ 확정</span></div></div>`).join('')}</div>`; }
+function r2ResultHTML(e){ return `<div class="card"><h3>🎯 추가 모집 배정 결과</h3>
+  ${(e.result2||[]).map(r=>{ const c=CLUBS.find(x=>x.id===r.clubId); if(!c) return ''; const lab=R2LAB[r.state]||[r.state,'']; 
+    return `<div class="res"><div><b>${esc(c.title)}</b> <span class="small">${(c.weekdays||[]).filter(w=>WD[w]).map(w=>WD[w]).join('·')} ${c.start} · ${c.durMin}분</span></div><div><span class="pill ${lab[1]}">${lab[0]}</span></div></div>`; }).join('')}
+  <div class="small" style="margin-top:6px">추가 모집은 별도 확정 절차 없이 <b>배정 결과가 그대로 확정</b>됩니다.</div></div>`; }
 const mdShort = d => d ? `${+String(d).slice(5,7)}.${+String(d).slice(8,10)}` : '';
 const wdOf = d => { const p=String(d||'').split('-').map(Number); if(p.length<3) return ''; return WD[new Date(p[0],p[1]-1,p[2]).getDay()]||''; };
 const liveSess = c => { const m=bkm(); return (c.sessions||[]).filter(x=>!isOff(x,m)); };
@@ -382,7 +396,8 @@ async function simpleEnter(st){
     if(st.applied && st.applied.count && !ENR[st.studentId]){
       const seeded2 = (st.applied.picks||[]).filter(p=>p.clubId).map(p=>({clubId:p.clubId, rank:p.rank}));
       if(seeded2.length || (st.applied.result||[]).length){
-        ENR[st.studentId] = { picks: seeded2, result: st.applied.result||[], final: st.applied.final||{} };
+        const seeded2b = (st.applied.picks2||[]).filter(p=>p.clubId).map(p=>({clubId:p.clubId, rank:p.rank}));
+        ENR[st.studentId] = { picks: seeded2, picks2: seeded2b, result: st.applied.result||[], result2: st.applied.result2||[], final: st.applied.final||{} };
         KID._fam = true;
       } else window.__remote = { sid: st.studentId, count: st.applied.count, picks: st.applied.picks||[] };
     }
@@ -408,7 +423,8 @@ async function familySync(k){
     if(st.applied && st.applied.count){
       const seeded = (st.applied.picks||[]).filter(p=>p.clubId).map(p=>({ clubId:p.clubId, rank:p.rank }));
       if(seeded.length || (st.applied.result||[]).length){
-        ENR[k.studentId] = { picks: seeded, result: st.applied.result||[], final: st.applied.final||{} };
+        const seededB = (st.applied.picks2||[]).filter(p=>p.clubId).map(p=>({ clubId:p.clubId, rank:p.rank }));
+        ENR[k.studentId] = { picks: seeded, picks2: seededB, result: st.applied.result||[], result2: st.applied.result2||[], final: st.applied.final||{} };
         k._fam = true; return true;
       }
       window.__remote = { sid: k.studentId, count: st.applied.count, picks: st.applied.picks||[] };  // 구서버 호환: 읽기 전용 확인
@@ -452,31 +468,36 @@ window.pickKid = async (sid)=>{ KID = KIDS.find(k=>k.studentId===sid); try{ loca
 
 function renderMain(){
   const e = PUBLIC ? null : (ENR[KID.studentId] || null);
-  const picks = {}; (e?.picks||[]).forEach(p=>picks[p.clubId]=p.rank);
+  const picks = {}; (e?.[pkKey()]||[]).forEach(p=>picks[p.clubId]=p.rank);
   window.__picks = picks;
   const canEdit = SEM.status==='enrolling';
+  const R2 = isR2();
   const showRes = !PUBLIC && ['adjusting','confirmed','running'].includes(SEM.status) && e && (e.result||[]).length;
   let html = summaryCard(picks);
+  if(R2 && !PUBLIC){
+    html = r2BannerHTML() + lockCardHTML(e) + html;
+    if((e?.result2||[]).length && ['adjusting','confirmed','running'].includes(SEM.status)) html = r2BannerHTML() + lockCardHTML(e) + r2ResultHTML(e) + summaryCard(picks);
+  }
   if(showRes){
     html += `<div class="card"><h3>📌 ${esc(KID.studentName)} 배정 결과</h3>
       ${(e.result||[]).map(r=>{ const c=CLUBS.find(x=>x.id===r.clubId); if(!c) return ''; const lab={assigned:['✅ 배정','ok'],lost:['❌ 추첨 탈락','bad'],full:['⛔ 정원 마감','bad'],overlap:['⏱ 시간 겹침','warn'],cancelled:['⚫ 폐강','bad'],waitlist:['⏳ 대기','warn']}[r.state]||[r.state,''];
         const fin = (e.final||{})[c.id];
         return `<div class="res"><div><b>${esc(c.title)}</b> <span class="small">${(c.weekdays||[]).filter(w=>WD[w]).map(w=>WD[w]).join('·')} ${c.start} · ${c.durMin}분 · 학기 ${semTotal(c).toLocaleString()}원</span></div>
           <div><span class="pill ${lab[1]}">${lab[0]}</span>
-          ${r.state==='assigned' && SEM.status==='adjusting' ? ` <button class="btn line" style="padding:6px 10px;font-size:12px" onclick="setFinal('${c.id}','accept')">${fin==='accept'?'✓ 참여 확정':'참여 확정'}</button> <button class="btn line" style="padding:6px 10px;font-size:12px" onclick="setFinal('${c.id}','decline')">${fin==='decline'?'✓ 취소함':'취소'}</button>`
+          ${r.state==='assigned' && SEM.status==='adjusting' && !isR2() ? ` <button class="btn line" style="padding:6px 10px;font-size:12px" onclick="setFinal('${c.id}','accept')">${fin==='accept'?'✓ 참여 확정':'참여 확정'}</button> <button class="btn line" style="padding:6px 10px;font-size:12px" onclick="setFinal('${c.id}','decline')">${fin==='decline'?'✓ 취소함':'취소'}</button>`
           : r.state==='assigned' && fin ? ` <span class="pill ${fin==='accept'?'ok':'bad'}">${fin==='accept'?'참여 확정':'취소'}</span>` : ''}</div></div>`; }).join('')}
       ${SEM.status==='adjusting' ? `<div class="small" style="margin-top:6px">최종 결정 마감 전까지 참여 확정/취소를 바꿀 수 있어요. 취소하면 그 자리는 대기자에게 갑니다.</div>`:''}</div>`;
   }
   html += `<div class="card"><h3>${PUBLIC ? '개설 동아리 공고' : (canEdit?'신청':'신청 내용')+' — '+esc(KID.studentName)}</h3>
     <div class="small" style="margin-bottom:8px">${PUBLIC ? '자녀 확인만 하면 학년에 맞는 동아리가 표시되고, 1·2·3순위로 바로 신청할 수 있어요.' : canEdit ? '시간이 겹치지 않는 동아리는 몇 개든 각각 1순위로 신청해도 됩니다 — 전부 참여해요. 시간이 겹치는 동아리끼리는 1·2·3순위로 우선순위를 정하세요(그중 하나만 배정). 정원 초과 시 1순위끼리 추첨합니다.' : '지금은 신청 기간이 아니라 내용만 볼 수 있어요.'}</div>
-    ${CLUBS.map(c=>{ const r = picks[c.id]||0; const el = eligOf(c);
+    ${(R2 ? CLUBS.filter(c=>c.r2Open && !c.r2Closed && !c.cancelled) : CLUBS).map(c=>{ const r = picks[c.id]||0; const el = eligOf(c);
       const sortG = a=>(a||[]).slice().sort((x,y)=>{const nx=parseInt(x),ny=parseInt(y);if(!isNaN(nx)&&!isNaN(ny))return nx-ny;if(!isNaN(nx))return -1;if(!isNaN(ny))return 1;return String(x).localeCompare(String(y),'ko');});
       const gLabel = (c.gradeSel&&c.gradeSel.length)?sortG(c.gradeSel).join('·'):(c.grades||'전체');
       const sess = liveSess(c); const from = c.startDate || (sess[0]&&sess[0].date) || ''; const to = c.endDate || (sess.length&&sess[sess.length-1].date) || '';
       return `<div class="club ${r===1?'r1':''}" id="club-${c.id}" style="grid-template-columns:1fr;${el==='no'?'opacity:.8':''}">
         <div style="margin-bottom:8px">${posterHTML(c, 110)}</div>
         <div><div>
-        <div class="t"><span class="pill ${c.type==='joy'?'blue':'ok'}">${c.type==='joy'?'조이클래스':'동아리'}</span> ${esc(c.title)}
+        <div class="t"><span class="pill ${c.type==='joy'?'blue':'ok'}">${c.type==='joy'?'조이클래스':'동아리'}</span>${R2&&c.r2Left!=null?` <span class="pill warn">잔여 ${Math.max(0,Number(c.r2Left)||0)}자리</span>`:''} ${esc(c.title)}
           ${el==='no'?`<span class="pill bad">⛔ ${esc(KID.grade||'')}은 신청 대상 아님</span>`:el==='unknown'?'<span class="pill warn">학년 정보 없음</span>':''}</div>
         <div class="meta2"><span><b>강사</b>${esc(c.instructorName)}${c.coInstructors?' · '+esc(c.coInstructors):''}</span><span><b>정원</b>${c.minN}~${c.maxN}명</span><span><b>학기 회비</b>${semTotal(c).toLocaleString()}원 <i>1회 ${fee(c).toLocaleString()}원 · 출석 무관</i></span>${(c.room||c.place)?`<span><b>장소</b>${esc(c.room||c.place)}</span>`:''}</div>
         <div class="strip">
@@ -489,7 +510,9 @@ function renderMain(){
         <details class="plan"><summary><span>📋 수업 계획 · ${sess.length}회</span><i></i></summary><div style="margin-top:6px">${planRows(c)}</div></details></div>
         <div>${PUBLIC ? `<button class="btn line" style="width:100%;margin-top:10px;padding:11px" onclick="simpleDlg()">✍️ 이 동아리 신청하기</button>` : canEdit ? (el==='no'
             ? `<div class="small" style="margin-top:8px">신청 대상: ${esc(gLabel)}</div>`
-            : `<div class="rank">${[1,2,3].map(n=>`<button class="${r===n?'on':''}" onclick="setRank('${c.id}', ${r===n?0:n})">${r===n?'✓ ':''}${n}순위</button>`).join('')}</div>${(()=>{const ov=Object.keys(picks).filter(k=>k!==c.id).map(id=>CLUBS.find(x=>x.id===id)).filter(o=>o&&timeClash(c,o)).map(o=>`${esc(o.title)} <b>(${clashDays(c,o).map(w=>WD[w]).join('·')} ${o.start}–${endOf(o)})</b>`); return ov.length?`<div class="small" style="margin-top:6px;color:#B45309">⏱ ${ov.join(', ')}와 시간이 겹쳐요 — 같은 시간대는 순위가 높은 하나만 배정됩니다.</div>`:'';})()}`)
+            : (()=>{ const lockBy = R2 ? firstFinal(ENR[KID.studentId]).filter(o=>timeClash(c,o)) : [];
+              if(lockBy.length) return `<div class="small" style="color:#B45309;font-weight:800">⏱ 1차 확정된 「${esc(lockBy[0].title)}」(${clashDays(c,lockBy[0]).map(w=>WD[w]).join('·')} ${lockBy[0].start}–${endOf(lockBy[0])})와 시간이 겹쳐 신청할 수 없어요.</div>`;
+              return `<div class="rank">${(R2?[1,2]:[1,2,3]).map(n=>`<button class="${r===n?'on':''}" onclick="setRank('${c.id}', ${r===n?0:n})">${r===n?'✓ ':''}${n}순위</button>`).join('')}</div>${(()=>{const ov=Object.keys(picks).filter(k=>k!==c.id).map(id=>CLUBS.find(x=>x.id===id)).filter(o=>o&&timeClash(c,o)).map(o=>`${esc(o.title)} <b>(${clashDays(c,o).map(w=>WD[w]).join('·')} ${o.start}–${endOf(o)})</b>`); return ov.length?`<div class="small" style="margin-top:6px;color:#B45309">⏱ ${ov.join(', ')}와 시간이 겹쳐요 — 같은 시간대는 순위가 높은 하나만 배정됩니다.</div>`:'';})()}`;})())
           : (r?`<span class="pill blue" style="margin-top:8px;display:inline-block">${r}순위</span>`:'')}</div></div></div>`; }).join('') || '<div class="small" style="padding:6px 0">아직 공고된 동아리가 없어요 — 공고가 올라오면 이 링크에서 바로 볼 수 있습니다.</div>'}
     <div class="alert" id="msg"></div></div>`;
   html += weekGridHTML(picks);
@@ -580,6 +603,11 @@ window.wbGo = (id)=>{
 
 window.setRank = (cid, rank)=>{
   const p = window.__picks; const me = CLUBS.find(c=>c.id===cid);
+  if(rank && isR2()){
+    if(rank>2) return;
+    const hit = firstFinal(ENR[KID.studentId]).find(o=>me&&timeClash(me,o));
+    if(hit){ showErrPop('1차 확정과 시간이 겹쳐요', `「${hit.title}」(${clashDays(me,hit).map(w=>WD[w]).join('·')} ${hit.start}–${endOf(hit)}) 참여가 이미 확정되어 있어, 겹치는 시간의 동아리는 추가 신청할 수 없어요. 1차 확정은 변경되지 않습니다.`); return; }
+  }
   if(rank){
     // 시간이 겹치는 동아리끼리만 같은 순위를 못 갖는다 — 겹치지 않으면 각각 1순위도 OK
     Object.keys(p).forEach(k=>{ if(k===cid) return; const o=CLUBS.find(c=>c.id===k);
@@ -587,16 +615,16 @@ window.setRank = (cid, rank)=>{
     p[cid]=rank;
   } else delete p[cid];
   renderMainKeep(p); };
-function renderMainKeep(p){ const e = ENR[KID.studentId] || (ENR[KID.studentId] = {picks:[]}); e.picks = Object.entries(p).map(([clubId,rank])=>({clubId,rank})); renderMain(); }
+function renderMainKeep(p){ const e = ENR[KID.studentId] || (ENR[KID.studentId] = {picks:[]}); e[pkKey()] = Object.entries(p).map(([clubId,rank])=>({clubId,rank})); renderMain(); }
 window.savePicks = async ()=>{
-  const e = ENR[KID.studentId]; const picks = e?.picks || [];
+  const e = ENR[KID.studentId]; const picks = e?.[pkKey()] || [];
   const m = $('msg');
   if(!picks.length){ showErrPop('저장할 것이 없어요', '순위를 하나 이상 골라주세요 — 목록에서 1·2·3순위 버튼을 눌러 담은 뒤 저장하면 됩니다.'); return; }
   const cred = (window.__creds||{})[KID.studentId];
   if(cred){                                    // 👨‍👩‍👧 가족 공유 — 학생 기준으로 서버가 저장 (어느 기기든 동일)
     try{
       const r = await fetch(PUSH + '/club-save', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ org: ORG, name: cred.name, birth: cred.birth, studentId: KID.studentId, semId: SEM.id, picks }) });
+        body: JSON.stringify({ org: ORG, name: cred.name, birth: cred.birth, studentId: KID.studentId, semId: SEM.id, ...(isR2()?{picks2:picks}:{picks}) }) });
       const j = await r.json();
       if(!j.ok){ if(m){ m.className='alert err'; m.textContent='저장 실패: '+(j.msg||''); } showErrPop('저장하지 못했어요', j.msg||'잠시 후 다시 시도해 주세요.'); return; }
       const savedItems = picks.slice().sort((a,b)=>a.rank-b.rank).map(p=>{ const c=CLUBS.find(x=>x.id===p.clubId); return c?{r:p.rank, t:c.title, d:(c.weekdays||[]).filter(w=>WD[w]).map(w=>WD[w]).join('·'), s:c.start}:null; }).filter(Boolean);
@@ -608,7 +636,7 @@ window.savePicks = async ()=>{
   const id = `${SEM.id}_${KID.studentId}`;
   try{
     await setDoc(doc(db,'clubEnrollments', id), { semId:SEM.id, org:ORG, parentUid:ME.uid, studentId:KID.studentId, studentName:KID.studentName||'', className:KID.className||'', grade:KID.grade||'', linkId:KID.id,
-      picks, status:'applied', via: SIMPLE?'simple':'account', updatedAt:Timestamp.now(), ...(e?.id?{}:{createdAt:Timestamp.now()}) }, { merge:true });
+      ...(isR2()?{picks2:picks}:{picks}), status:'applied', via: SIMPLE?'simple':'account', updatedAt:Timestamp.now(), ...(e?.id?{}:{createdAt:Timestamp.now()}) }, { merge:true });
     // ✔ 여기 도달 = 저장 성공 — 이후 화면 갱신에 문제가 생겨도 성공 알림은 반드시 뜬다
     const savedItems = picks.slice().sort((a,b)=>a.rank-b.rank).map(p=>{ const c=CLUBS.find(x=>x.id===p.clubId); return c?{r:p.rank, t:c.title, d:(c.weekdays||[]).filter(w=>WD[w]).map(w=>WD[w]).join('·'), s:c.start}:null; }).filter(Boolean);
     showSavedPop(KID.studentName||'', savedItems);
@@ -684,7 +712,7 @@ window.resetLinks = ()=>{
 };
 window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
 /* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
-const BUILD = '2026.09.03-07';
+const BUILD = '2026.09.04-08';
 let SERVER_V = '';
 async function checkUpdate(){ try{
   const r = await fetch('version.json?_='+Date.now(), { cache:'no-store' });
