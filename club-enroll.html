@@ -294,7 +294,7 @@ const firstFinal = (e) => ((e && Array.isArray(e.r1Final))
     ? e.r1Final.map(id=>CLUBS.find(c=>c.id===id))
     : (e?.result||[]).filter(r=>r.state==='assigned' && (e?.final||{})[r.clubId]!==false).map(r=>CLUBS.find(c=>c.id===r.clubId))
   ).filter(Boolean);   // 1차 확정 — ✅ 도장(r1Final) 우선, 없으면 결과에서 파생
-const R2LAB = { assigned:['🎯 배정 (확정)','ok'], lost:['❌ 추첨 탈락','bad'], full:['⛔ 정원 마감','bad'], overlap:['⏱ 시간 겹침','warn'], closed:['⛔ 모집 마감','bad'] };
+const R2LAB = { assigned:['🎯 배정 (확정)','ok'], lost:['❌ 추첨 탈락','bad'], full:['⛔ 정원 마감','bad'], overlap:['⏱ 시간 겹침','warn'], closed:['⛔ 모집 마감','bad'], skipped:['⏭ 자동 미지원',''] };
 function r2BannerHTML(){ const at=(SEM.r2CloseAt||'').replace('T',' ');
   return `<div class="card" style="background:#FFF8EE;border-color:#F2E3C8"><b style="color:#B45309">🎯 동아리 추가 모집 중</b><div class="small" style="margin-top:4px">빈자리가 남은 동아리만 신청할 수 있어요 (1·2순위). 1차 확정 결과는 변경되지 않습니다.${at?` · <b>마감 ${esc(at)}</b>`:''}</div></div>`; }
 function lockCardHTML(e){ const fs=firstFinal(e); if(!fs.length) return '';
@@ -482,7 +482,7 @@ function renderMain(){
   }
   if(showRes){
     html += `<div class="card"><h3>📌 ${esc(KID.studentName)} 배정 결과</h3>
-      ${(e.result||[]).map(r=>{ const c=CLUBS.find(x=>x.id===r.clubId); if(!c) return ''; const lab={assigned:['✅ 배정','ok'],lost:['❌ 추첨 탈락','bad'],full:['⛔ 정원 마감','bad'],overlap:['⏱ 시간 겹침','warn'],cancelled:['⚫ 폐강','bad'],waitlist:['⏳ 대기','warn']}[r.state]||[r.state,''];
+      ${(e.result||[]).map(r=>{ const c=CLUBS.find(x=>x.id===r.clubId); if(!c) return ''; const lab={assigned:['✅ 배정','ok'],lost:['❌ 추첨 탈락','bad'],full:['⛔ 정원 마감','bad'],overlap:['⏱ 시간 겹침','warn'],cancelled:['⚫ 폐강','bad'],skipped:['⏭ 자동 미지원 (상위 지망 배정)',''],waitlist:['⏳ 대기','warn']}[r.state]||[r.state,''];
         const fin = (e.final||{})[c.id];
         return `<div class="res"><div><b>${esc(c.title)}</b> <span class="small">${(c.weekdays||[]).filter(w=>WD[w]).map(w=>WD[w]).join('·')} ${c.start} · ${c.durMin}분 · 학기 ${semTotal(c).toLocaleString()}원</span></div>
           <div><span class="pill ${lab[1]}">${lab[0]}</span>
@@ -714,7 +714,7 @@ window.resetLinks = ()=>{
 };
 window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
 /* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
-const BUILD = '2026.09.04-08';
+const BUILD = '2026.09.05-01';
 let SERVER_V = '';
 async function checkUpdate(){ try{
   const r = await fetch('version.json?_='+Date.now(), { cache:'no-store' });
