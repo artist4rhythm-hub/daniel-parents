@@ -303,7 +303,7 @@ function lockCardHTML(e){ const fs=firstFinal(e); if(!fs.length) return '';
     return `<div class="res"><div><b style="${xd?'color:#98A39D;text-decoration:line-through':''}">${esc(c.title)}</b> <span class="small">${(c.weekdays||[]).filter(w=>WD[w]).map(w=>WD[w]).join('·')} ${c.start} · ${c.durMin}분</span></div>
       <div style="display:flex;gap:6px;align-items:center">${xd?`<span class="pill" style="background:#FEE2E2;color:#B91C1C">🙅 지원 취소함</span>${canX?`<button class="btn line" style="font-size:11px;padding:4px 9px" onclick="toggleR2Cancel('${c.id}')">↩ 되돌리기</button>`:''}`
         :`<span class="pill ok">✅ 확정</span>${canX?`<button class="btn line" style="font-size:11px;padding:4px 9px;color:#B45309;border-color:#F1D3AE" onclick="toggleR2Cancel('${c.id}')">최종 지원하지 않기</button>`:''}`}</div></div>`; }).join('')}
-  ${canX?`<div class="small" style="margin-top:6px;color:var(--tl)">«최종 지원하지 않기»를 누르면 그 자리는 대기 학생에게 제비뽑기로 돌아갑니다 — 마감 전엔 되돌릴 수 있어요.</div>`:''}</div>`; }
+  ${canX?`<div class="small" style="margin-top:6px;color:var(--tl)">«최종 지원하지 않기»를 누르면 그 자리는 대기 학생에게 제비뽑기로 돌아갑니다 — 마감 전엔 되돌릴 수 있어요. <b style="color:#B91C1C">⚠️ 추가 모집이 끝난 뒤에는 취소할 수 없습니다.</b></div>`:''}</div>`; }
 window.toggleR2Cancel = async (cid)=>{
   const e = ENR[KID.studentId]; if(!e) return;
   const cur = !!((e.r2Cancel||{})[cid]); const c = CLUBS.find(x=>x.id===cid);
@@ -321,6 +321,8 @@ window.toggleR2Cancel = async (cid)=>{
 window.toggleWait = async (cid)=>{
   const e = ENR[KID.studentId] || (ENR[KID.studentId]={picks:[],picks2:[]});
   const has = (e.waits2||[]).includes(cid); const c = CLUBS.find(x=>x.id===cid);
+  if(!has && c && (e.waits2||[]).some(wid=>{ const w=CLUBS.find(x=>x.id===wid); return w && (w.weekdays||[]).some(d=>(c.weekdays||[]).includes(d)) && w.start < c.end && c.start < w.end; })){
+    showErrPop('같은 시간대 대기가 이미 있어요','같은 요일·시간대에는 대기를 <b>하나만</b> 걸 수 있어요.<br>이 시간대의 다른 동아리는 <b>2차 지원만</b> 가능합니다.'); return; }
   if(!has && !confirm(`«${c?c.title:''}» 대기를 걸까요?\n자리가 나면 대기 학생끼리 제비뽑기로 배정됩니다.`)) return;
   const next = has ? (e.waits2||[]).filter(x=>x!==cid) : [ ...(e.waits2||[]), cid ];
   const cred = (window.__creds||{})[KID.studentId];
@@ -337,11 +339,12 @@ function waitSectionHTML(e){
   if(!fulls.length) return '';
   const fset = firstFinal(e).filter(c=>!((e?.r2Cancel||{})[c.id]));
   return `<div class="card"><h3>⏳ 모집 완료 동아리 — 대기 걸기</h3>
-    <div class="small" style="margin-bottom:8px">취소로 자리가 나면 <b>대기 학생끼리 제비뽑기</b>로 배정돼요. 당첨되면 겹치는 다른 신청은 자동 미지원 처리됩니다.</div>
+    <div style="background:#FFF7ED;border:1.5px solid #F1D3AE;border-radius:10px;padding:9px 12px;margin-bottom:9px;font-size:12px;color:#7A4A12;line-height:1.55"><b style="color:#B45309">⚠️ 대기 신청은 신중하게!</b> 취소로 자리가 나면 <b>대기 학생끼리 제비뽑기</b>이고, <b>당첨 = 즉시 확정</b>(겹치는 다른 신청은 자동 미지원). <b>같은 요일·시간대에는 대기를 하나만</b> 걸 수 있어요 — 그 시간대의 다른 동아리는 2차 지원만 가능합니다.</div>
     ${fulls.map(c=>{ const on = (e?.waits2||[]).includes(c.id);
       const clash = fset.some(f=>f.id!==c.id && (f.weekdays||[]).some(w=>(c.weekdays||[]).includes(w)) && f.start < c.end && c.start < f.end);
+      const wcl = !on && (e?.waits2||[]).some(wid=>{ if(wid===c.id) return false; const w=CLUBS.find(x=>x.id===wid); return w && (w.weekdays||[]).some(d=>(c.weekdays||[]).includes(d)) && w.start < c.end && c.start < w.end; });
       return `<div class="res"><div><b>${esc(c.title)}</b> <span class="small">${(c.weekdays||[]).filter(w=>WD[w]).map(w=>WD[w]).join('·')} ${c.start} · ${c.durMin}분</span></div>
-        <div>${clash?`<span class="pill" style="background:#EEF1EE;color:#7C8A80">⏱ 확정과 겹침</span>`
+        <div>${clash?`<span class="pill" style="background:#EEF1EE;color:#7C8A80">⏱ 확정과 겹침</span>`:wcl?`<span class="pill" style="background:#EEF1EE;color:#7C8A80">⏱ 같은 시간 대기 중</span>`
           : on?`<button class="btn line" style="font-size:11.5px;padding:5px 11px;background:#FFF7ED;border-color:#F1D3AE;color:#B45309" onclick="toggleWait('${c.id}')">⏳ 대기 중 — 취소</button>`
           : `<button class="btn line" style="font-size:11.5px;padding:5px 11px" onclick="toggleWait('${c.id}')">⏳ 대기 걸기</button>`}</div></div>`; }).join('')}</div>`;
 }
@@ -526,7 +529,7 @@ function guideHTML(){
       <li style="${li}">🔒 <b>1차에서 확정된 동아리는 그대로 유지</b>됩니다 — 변경·취소되지 않고, 시간이 겹치는 동아리는 선택 자체가 막혀요.</li>
       <li style="${li}">그 동아리에 <b>1차에도 지원했던 학생은 추첨 없이 우선 배정</b>되고, 새로 지원한 학생은 남는 자리에서 배정됩니다 (초과 시 추첨).</li>
       <li style="${li}">1·2지망 모두 <b>초과되면 제비뽑기</b>예요 (오프라인 추첨 후 선생님이 입력) — 2지망은 1지망이 안 됐을 때만 살아납니다. <b>배정 = 즉시 확정</b>.</li>
-      <li style="${li}">🔒 확정 동아리도 이 기간엔 <b>«최종 지원하지 않기»</b>로 취소할 수 있고, ⛔ 모집 완료 동아리엔 <b>⏳ 대기</b>를 걸 수 있어요 — 자리가 나면 대기 학생끼리 제비뽑기.</li>
+      <li style="${li}">🔒 확정 취소(«최종 지원하지 않기»)는 <b>이 기간에만</b> 가능하고 <b>추가 모집이 끝나면 취소할 수 없어요</b>. ⛔ 모집 완료 동아리의 <b>⏳ 대기는 신중하게</b> — 당첨 = 즉시 확정이며, 같은 요일·시간대엔 대기 하나만 걸 수 있습니다.</li>
     </ul>
   </details>`;
   return `
@@ -788,7 +791,7 @@ window.resetLinks = ()=>{
 };
 window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
 /* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
-const BUILD = '2026.09.05-04';
+const BUILD = '2026.09.05-05';
 let SERVER_V = '';
 async function checkUpdate(){ try{
   const r = await fetch('version.json?_='+Date.now(), { cache:'no-store' });
