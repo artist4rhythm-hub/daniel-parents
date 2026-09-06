@@ -136,6 +136,11 @@ details.plan[open]>summary i::before{content:'접기 ▴'}
 .updbar{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--pt);color:#fff;display:flex;gap:12px;align-items:center;justify-content:center;padding:9px 14px calc(9px + env(safe-area-inset-top));font-size:12.5px;font-weight:800;box-shadow:0 4px 14px rgba(12,42,68,.25)}
 .updbar button{background:var(--gold);color:#20303F;border:0;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:900;font-family:inherit;cursor:pointer}
 body.has-upd{padding-top:46px}
+.wdet{border:1px solid var(--ln,#E8E5DD);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:#fff}
+.wdet summary{list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer}
+.wdet summary::-webkit-details-marker{display:none}
+.wdet[open] summary .small[style*="B45309"]{color:#1F6B4A!important}
+.wdet-b{margin-top:9px;padding:10px 12px;background:#FBFAF7;border:1px solid #EEE9DF;border-radius:10px;font-size:12px;line-height:1.6;color:#3F4A44}
 </style>
 </head>
 <body>
@@ -348,10 +353,26 @@ function waitSectionHTML(e){
     ${fulls.map(c=>{ const on = (e?.waits2||[]).includes(c.id);
       const clash = fset.some(f=>f.id!==c.id && (f.weekdays||[]).some(w=>(c.weekdays||[]).includes(w)) && f.start < c.end && c.start < f.end);
       const wcl = !on && (e?.waits2||[]).some(wid=>{ if(wid===c.id) return false; const w=CLUBS.find(x=>x.id===wid); return w && (w.weekdays||[]).some(d=>(c.weekdays||[]).includes(d)) && w.start < c.end && c.start < w.end; });
-      return `<div class="res"><div><b>${esc(c.title)}</b> <span class="small">${(c.weekdays||[]).filter(w=>WD[w]).map(w=>WD[w]).join('·')} ${c.start} · ${c.durMin}분</span></div>
-        <div>${clash?`<span class="pill" style="background:#EEF1EE;color:#7C8A80">⏱ 확정과 겹침</span>`:wcl?`<span class="pill" style="background:#EEF1EE;color:#7C8A80">⏱ 같은 시간 대기 중</span>`
+      const tch = c.instructorName ? (c.instructorName + (c.coInstructors ? ' · ' + c.coInstructors : '')) : '';
+      let feeS=''; try{ feeS = semTotal(c).toLocaleString() + '원'; }catch(_){}
+      let gr=''; try{ gr = gShort(c); }catch(_){}
+      const plc = c.room || c.place || '';
+      const dsc = c.desc || c.intro || c.description || c.summary || '';
+      let plnH=''; try{ if(typeof planRows==='function') plnH = planRows(c) || ''; }catch(_){}
+      const chips = [tch?`👩‍🏫 ${esc(String(tch))}`:'', `👥 정원 ${c.minN||''}~${c.maxN||''}명`, feeS?`💰 학기 ${feeS}`:'', gr?`🎯 ${esc(String(gr))}`:'', plc?`📍 ${esc(String(plc))}`:''].filter(Boolean)
+        .map(t=>`<span class="pill" style="background:#F4F6F4;color:#3F4A44;font-size:10.5px">${t}</span>`).join(' ');
+      return `<details class="wdet"><summary>
+        <div style="flex:1;min-width:0"><b>${esc(c.title)}</b> <span class="small">${(c.weekdays||[]).filter(w=>WD[w]).map(w=>WD[w]).join('·')} ${c.start} · ${c.durMin}분</span> <span class="small" style="color:#B45309">▾ 공고 보기</span></div>
+        <div onclick="event.preventDefault();event.stopPropagation();">${clash?`<span class="pill" style="background:#EEF1EE;color:#7C8A80">⏱ 확정과 겹침</span>`:wcl?`<span class="pill" style="background:#EEF1EE;color:#7C8A80">⏱ 같은 시간 대기 중</span>`
           : on?`<button class="btn line" style="font-size:11.5px;padding:5px 11px;background:#FFF7ED;border-color:#F1D3AE;color:#B45309" onclick="toggleWait('${c.id}')">⏳ 대기 중 — 취소</button>`
-          : `<button class="btn line" style="font-size:11.5px;padding:5px 11px" onclick="toggleWait('${c.id}')">⏳ 대기 걸기</button>`}</div></div>`; }).join('')}</div>`;
+          : `<button class="btn line" style="font-size:11.5px;padding:5px 11px" onclick="toggleWait('${c.id}')">⏳ 대기 걸기</button>`}</div>
+      </summary>
+      <div class="wdet-b">
+        ${chips?`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:${(dsc||pln)?'8px':'0'}">${chips}</div>`:''}
+        ${dsc?`<div style="white-space:pre-wrap;margin-bottom:${plnH?'8px':'0'}">${esc(String(dsc))}</div>`:''}
+        ${plnH?`<div style="font-weight:800;color:#1E3932;margin-bottom:4px">📋 수업 계획</div><div>${plnH}</div>`:''}
+        ${(!chips&&!dsc&&!plnH)?`<span class="small" style="color:var(--tl)">등록된 세부 공고가 없습니다</span>`:''}
+      </div></details>`; }).join('')}</div>`;
 }
 function r2ResultHTML(e){ return `<div class="card"><h3>🎯 추가 모집 배정 결과</h3>
   ${(e.result2||[]).map(r=>{ const c=CLUBS.find(x=>x.id===r.clubId); if(!c) return ''; const lab=R2LAB[r.state]||[r.state,'']; 
@@ -796,7 +817,7 @@ window.resetLinks = ()=>{
 };
 window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
 /* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
-const BUILD = '2026.09.06-01';
+const BUILD = '2026.09.06-03';
 let SERVER_V = '';
 async function checkUpdate(){ try{
   const r = await fetch('version.json?_='+Date.now(), { cache:'no-store' });
