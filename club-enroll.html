@@ -563,8 +563,8 @@ function guideHTML(){
     <ul style="margin:10px 0 0;padding-left:18px;font-size:12.5px;color:var(--ts,#3F4A44)">
       <li style="${li}"><b>빈자리가 남은 동아리만</b> 열려요 — 카드의 <b>「잔여 N자리」</b>가 남은 자리이고, <b>1·2지망만</b> 선택합니다.</li>
       <li style="${li}">🔒 <b>1차에서 확정된 동아리는 그대로 유지</b>됩니다 — 변경·취소되지 않고, 시간이 겹치는 동아리는 선택 자체가 막혀요.</li>
-      <li style="${li}">그 동아리에 <b>1차에도 지원했던 학생은 추첨 없이 우선 배정</b>되고, 새로 지원한 학생은 남는 자리에서 배정됩니다 (초과 시 추첨).</li>
-      <li style="${li}">1·2지망 모두 <b>초과되면 제비뽑기</b>예요 (오프라인 추첨 후 선생님이 입력) — 2지망은 1지망이 안 됐을 때만 살아납니다. <b>배정 = 즉시 확정</b>.</li>
+      <li style="${li}"><b>1차 지원 여부와 상관없이 모두 같은 조건</b>이에요 — 정원이 넘치면 <b>전원 제비뽑기</b>로 배정합니다 (오프라인 추첨 후 선생님이 입력).</li>
+      <li style="${li}"><b>꼭 가고 싶은 동아리는 1지망으로!</b> 잔여 자리 안이면 1지망은 그대로 배정되고, <b>2지망은 1지망이 탈락했을 때만 자동으로</b> 살아납니다 (같은 요일·시간대의 1지망 자리를 이어받아요). <b>배정 = 즉시 확정</b>.</li>
       <li style="${li}">🔒 확정 취소(«최종 지원하지 않기»)는 <b>이 기간에만</b> 가능하고 <b>추가 모집이 끝나면 취소할 수 없어요</b>. ⛔ 모집 완료 동아리의 <b>⏳ 대기는 신중하게</b> — 당첨 = 즉시 확정이며, 같은 요일·시간대엔 대기 하나만 걸 수 있습니다.</li>
     </ul>
   </details>`;
@@ -838,7 +838,7 @@ window.resetLinks = ()=>{
 };
 window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
 /* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
-const BUILD = '2026.09.06-05';
+const BUILD = '2026.09.06-06';
 let SERVER_V = '';
 async function checkUpdate(){ try{
   const r = await fetch('version.json?_='+Date.now(), { cache:'no-store' });
