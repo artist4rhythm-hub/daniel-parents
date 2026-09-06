@@ -300,6 +300,8 @@ const firstFinal = (e) => ((e && Array.isArray(e.r1Final))
     : (e?.result||[]).filter(r=>r.state==='assigned' && (e?.final||{})[r.clubId]!==false).map(r=>CLUBS.find(c=>c.id===r.clubId))
   ).filter(Boolean);   // 1차 확정 — ✅ 도장(r1Final) 우선, 없으면 결과에서 파생
 const R2LAB = { assigned:['🎯 배정 (확정)','ok'], lost:['❌ 추첨 탈락','bad'], full:['⛔ 정원 마감','bad'], overlap:['⏱ 시간 겹침','warn'], closed:['⛔ 모집 마감','bad'], skipped:['⏭ 자동 미지원',''] };
+const ENR_OK = {};                                    // 학생별 서버 동기 성공 여부
+async function semIdReady(){ for(let i=0;i<20 && !(SEM && SEM.id); i++) await new Promise(r=>setTimeout(r,250)); return (SEM && SEM.id) || ''; }
 async function postSave(body){
   const r = await fetch(PUSH + '/club-save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
   if(!r.ok) throw new Error('서버 응답 ' + r.status + (r.status>=500 ? ' — 서버 업데이트(재배포)가 필요할 수 있어요' : ''));
@@ -440,7 +442,7 @@ window.simpleVerify = async ()=>{
   go.disabled = true; go.textContent = '확인 중…';
   try{
     const r = await fetch(PUSH + '/club-verify', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ org: ORG, name, birth, semId: SEM?.id || '' }) });
+      body: JSON.stringify({ org: ORG, name, birth, semId: (await semIdReady()) }) });
     const j = await r.json();
     if(!j.ok){ m.className='alert err'; m.textContent = j.msg || '일치하는 학생을 찾지 못했어요.'; return; }
     window.__lastCred = { name, birth };   // 가족 공유 저장용 — 이 세션 동안만 메모리에 보관
@@ -479,6 +481,8 @@ async function simpleEnter(st){
       if(seeded2.length || (st.applied.result||[]).length){
         const seeded2b = (st.applied.picks2||[]).filter(p=>p.clubId).map(p=>({clubId:p.clubId, rank:p.rank}));
         ENR[st.studentId] = { picks: seeded2, picks2: seeded2b, result: st.applied.result||[], result2: st.applied.result2||[], final: st.applied.final||{}, r1Final: st.applied.r1Final||null, waits2: st.applied.waits2||[], r2Cancel: st.applied.r2Cancel||{} };
+      ENR_OK[st.studentId] = 1;
+      try{ localStorage.setItem('clubApp_' + (SEM&&SEM.id||'') + '_' + st.studentId, JSON.stringify(st.applied)); }catch(_){}
         KID._fam = true;
       } else window.__remote = { sid: st.studentId, count: st.applied.count, picks: st.applied.picks||[] };
     }
@@ -506,6 +510,8 @@ async function familySync(k){
       if(seeded.length || (st.applied.result||[]).length){
         const seededB = (st.applied.picks2||[]).filter(p=>p.clubId).map(p=>({ clubId:p.clubId, rank:p.rank }));
         ENR[k.studentId] = { picks: seeded, picks2: seededB, result: st.applied.result||[], result2: st.applied.result2||[], final: st.applied.final||{}, r1Final: st.applied.r1Final||null, waits2: st.applied.waits2||[], r2Cancel: st.applied.r2Cancel||{} };
+      ENR_OK[k.studentId] = 1;
+      try{ localStorage.setItem('clubApp_' + (SEM&&SEM.id||'') + '_' + k.studentId, JSON.stringify(st.applied)); }catch(_){}
         k._fam = true; return true;
       }
       window.__remote = { sid: k.studentId, count: st.applied.count, picks: st.applied.picks||[] };  // 구서버 호환: 읽기 전용 확인
@@ -574,7 +580,18 @@ function guideHTML(){
     </ul>
   </details>`;
 }
+function seedFromCache(sid){
+  if(!sid || ENR[sid] || !(SEM && SEM.id)) return;
+  try{
+    const raw = localStorage.getItem('clubApp_' + SEM.id + '_' + sid);
+    if(!raw) return;
+    const a = JSON.parse(raw);
+    ENR[sid] = { picks: a.picks||[], picks2: a.picks2||[], result: a.result||[], result2: a.result2||[],
+      final: a.final||{}, r1Final: a.r1Final||null, waits2: a.waits2||[], r2Cancel: a.r2Cancel||{}, __cached: true };
+  }catch(_){}
+}
 function renderMain(){
+  try{ if(KID && KID.studentId) seedFromCache(KID.studentId); }catch(_){}
   const e = PUBLIC ? null : (ENR[KID.studentId] || null);
   const picks = {}; (e?.[pkKey()]||[]).forEach(p=>picks[p.clubId]=p.rank);
   window.__picks = picks;
@@ -785,7 +802,7 @@ function summaryCard(picks){
         ${rm.picks.map(p=>`<b>${p.rank}순위</b> ${esc(p.title)}`).join(' · ')}<br>
         <span style="color:var(--ink3)">수정하려면 처음 저장했던 기기·브라우저에서 열어주세요. 여기서 새로 담아 저장하면 안내가 뜹니다.</span></div></div>`;
     return `<div class="card"><div class="sumhead"><b>📌 ${esc(KID.studentName)}의 신청 현황</b></div>
-    <div class="small" style="margin-top:8px">아직 고른 동아리가 없어요 — 아래 목록에서 순위 버튼을 눌러 담아보세요.</div>
+    ${((window.__creds||{})[KID.studentId] && !ENR_OK[KID.studentId] && !(e && e.__cached)) ? `<div class="small" style="margin-top:8px;color:#B45309;font-weight:700">⚠ 서버에서 신청 내역을 불러오지 못했어요 — <a href="#" onclick="simpleDlg();return false" style="font-weight:800;color:#B45309;text-decoration:underline">다시 불러오기</a></div>` : `<div class="small" style="margin-top:8px">아직 고른 동아리가 없어요 — 아래 목록에서 순위 버튼을 눌러 담아보세요.</div>`}
     <div class="small" style="margin-top:6px;color:var(--ink3)">다른 기기(가족 폰·컴퓨터)에서 신청하셨다면 <a href="#" onclick="simpleDlg();return false" style="font-weight:800">자녀 다시 확인</a>으로 바로 불러올 수 있어요.</div></div>`;
   }
   let pairs = 0; const clashSet = new Set();
@@ -821,7 +838,7 @@ window.resetLinks = ()=>{
 };
 window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
 /* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
-const BUILD = '2026.09.06-04';
+const BUILD = '2026.09.06-05';
 let SERVER_V = '';
 async function checkUpdate(){ try{
   const r = await fetch('version.json?_='+Date.now(), { cache:'no-store' });
