@@ -300,6 +300,12 @@ const firstFinal = (e) => ((e && Array.isArray(e.r1Final))
     : (e?.result||[]).filter(r=>r.state==='assigned' && (e?.final||{})[r.clubId]!==false).map(r=>CLUBS.find(c=>c.id===r.clubId))
   ).filter(Boolean);   // 1차 확정 — ✅ 도장(r1Final) 우선, 없으면 결과에서 파생
 const R2LAB = { assigned:['🎯 배정 (확정)','ok'], lost:['❌ 추첨 탈락','bad'], full:['⛔ 정원 마감','bad'], overlap:['⏱ 시간 겹침','warn'], closed:['⛔ 모집 마감','bad'], skipped:['⏭ 자동 미지원',''] };
+async function postSave(body){
+  const r = await fetch(PUSH + '/club-save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if(!r.ok) throw new Error('서버 응답 ' + r.status + (r.status>=500 ? ' — 서버 업데이트(재배포)가 필요할 수 있어요' : ''));
+  return await r.json();
+}
+const DIAG = err => '원인: ' + esc(String((err && err.message) || err)) + '<br><span style="font-size:11px;color:#98A39D">이 화면을 캡처해 학교로 보내주시면 바로 해결됩니다</span>';
 const r2Closed = () => isR2() && SEM.status==='enrolling' && !!SEM.r2CloseAt && (new Date(SEM.r2CloseAt).getTime() < Date.now());
 function r2BannerHTML(){ const at=(SEM.r2CloseAt||'').replace('T',' ');
   if(r2Closed()) return `<div class="card" style="background:#F4F5F4;border-color:#DDE2DD"><b style="color:#6B7A72">⛔ 추가 모집이 마감되었습니다</b><div class="small" style="margin-top:4px">제비뽑기·배정이 진행 중이에요 — 결과는 이 화면에 표시됩니다. (마감 ${esc(at)})</div></div>`;
@@ -319,12 +325,11 @@ window.toggleR2Cancel = async (cid)=>{
   const next = { ...(e.r2Cancel||{}) }; if(cur) delete next[cid]; else next[cid] = true;
   const cred = (window.__creds||{})[KID.studentId];
   try{
-    if(cred){ const r = await fetch(PUSH + '/club-save', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ org: ORG, name: cred.name, birth: cred.birth, studentId: KID.studentId, semId: SEM.id, r2Cancel: { clubId: cid, value: !cur } }) });
-      const j = await r.json(); if(!j.ok){ showErrPop('저장하지 못했어요', j.msg||''); return; } }
+    if(cred){ const j = await postSave({ org: ORG, name: cred.name, birth: cred.birth, studentId: KID.studentId, semId: SEM.id, r2Cancel: { clubId: cid, value: !cur } });
+      if(!j.ok){ showErrPop('저장하지 못했어요', j.msg||''); return; } }
     else { const { doc, updateDoc } = FB; await updateDoc(doc(db,'clubEnrollments', `${SEM.id}_${KID.studentId}`), { r2Cancel: next }); }
     e.r2Cancel = next; renderMain();
-  }catch(err){ showErrPop('저장하지 못했어요','잠시 후 다시 시도해 주세요.'); }
+  }catch(err){ showErrPop('저장하지 못했어요', DIAG(err)); }
 };
 window.toggleWait = async (cid)=>{
   if(r2Closed()){ showErrPop('추가 모집이 마감되었습니다','이제 변경할 수 없어요 — 제비뽑기·배정 결과를 기다려 주세요.'); return; }
@@ -336,12 +341,11 @@ window.toggleWait = async (cid)=>{
   const next = has ? (e.waits2||[]).filter(x=>x!==cid) : [ ...(e.waits2||[]), cid ];
   const cred = (window.__creds||{})[KID.studentId];
   try{
-    if(cred){ const r = await fetch(PUSH + '/club-save', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ org: ORG, name: cred.name, birth: cred.birth, studentId: KID.studentId, semId: SEM.id, waits2: next }) });
-      const j = await r.json(); if(!j.ok){ showErrPop('저장하지 못했어요', j.msg||''); return; } }
+    if(cred){ const j = await postSave({ org: ORG, name: cred.name, birth: cred.birth, studentId: KID.studentId, semId: SEM.id, waits2: next });
+      if(!j.ok){ showErrPop('저장하지 못했어요', j.msg||''); return; } }
     else { const { doc, setDoc } = FB; await setDoc(doc(db,'clubEnrollments', `${SEM.id}_${KID.studentId}`), { waits2: next }, { merge:true }); }
     e.waits2 = next; renderMain();
-  }catch(err){ showErrPop('저장하지 못했어요','잠시 후 다시 시도해 주세요.'); }
+  }catch(err){ showErrPop('저장하지 못했어요', DIAG(err)); }
 };
 function waitSectionHTML(e){
   if(r2Closed()) return '';
@@ -817,7 +821,7 @@ window.resetLinks = ()=>{
 };
 window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
 /* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
-const BUILD = '2026.09.06-03';
+const BUILD = '2026.09.06-04';
 let SERVER_V = '';
 async function checkUpdate(){ try{
   const r = await fetch('version.json?_='+Date.now(), { cache:'no-store' });
