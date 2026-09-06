@@ -295,16 +295,19 @@ const firstFinal = (e) => ((e && Array.isArray(e.r1Final))
     : (e?.result||[]).filter(r=>r.state==='assigned' && (e?.final||{})[r.clubId]!==false).map(r=>CLUBS.find(c=>c.id===r.clubId))
   ).filter(Boolean);   // 1차 확정 — ✅ 도장(r1Final) 우선, 없으면 결과에서 파생
 const R2LAB = { assigned:['🎯 배정 (확정)','ok'], lost:['❌ 추첨 탈락','bad'], full:['⛔ 정원 마감','bad'], overlap:['⏱ 시간 겹침','warn'], closed:['⛔ 모집 마감','bad'], skipped:['⏭ 자동 미지원',''] };
+const r2Closed = () => isR2() && SEM.status==='enrolling' && !!SEM.r2CloseAt && (new Date(SEM.r2CloseAt).getTime() < Date.now());
 function r2BannerHTML(){ const at=(SEM.r2CloseAt||'').replace('T',' ');
+  if(r2Closed()) return `<div class="card" style="background:#F4F5F4;border-color:#DDE2DD"><b style="color:#6B7A72">⛔ 추가 모집이 마감되었습니다</b><div class="small" style="margin-top:4px">제비뽑기·배정이 진행 중이에요 — 결과는 이 화면에 표시됩니다. (마감 ${esc(at)})</div></div>`;
   return `<div class="card" style="background:#FFF8EE;border-color:#F2E3C8"><b style="color:#B45309">🎯 동아리 추가 모집 중</b><div class="small" style="margin-top:4px">빈자리가 남은 동아리만 신청할 수 있어요 (1·2순위). 1차 확정 결과는 변경되지 않습니다.${at?` · <b>마감 ${esc(at)}</b>`:''}</div></div>`; }
 function lockCardHTML(e){ const fs=firstFinal(e); if(!fs.length) return '';
-  const canX = isR2() && SEM.status==='enrolling' && !PUBLIC;
+  const canX = isR2() && SEM.status==='enrolling' && !PUBLIC && !r2Closed();
   return `<div class="card"><h3>🔒 1차 확정 동아리</h3>${fs.map(c=>{ const xd = !!((e?.r2Cancel||{})[c.id]);
     return `<div class="res"><div><b style="${xd?'color:#98A39D;text-decoration:line-through':''}">${esc(c.title)}</b> <span class="small">${(c.weekdays||[]).filter(w=>WD[w]).map(w=>WD[w]).join('·')} ${c.start} · ${c.durMin}분</span></div>
       <div style="display:flex;gap:6px;align-items:center">${xd?`<span class="pill" style="background:#FEE2E2;color:#B91C1C">🙅 지원 취소함</span>${canX?`<button class="btn line" style="font-size:11px;padding:4px 9px" onclick="toggleR2Cancel('${c.id}')">↩ 되돌리기</button>`:''}`
         :`<span class="pill ok">✅ 확정</span>${canX?`<button class="btn line" style="font-size:11px;padding:4px 9px;color:#B45309;border-color:#F1D3AE" onclick="toggleR2Cancel('${c.id}')">최종 지원하지 않기</button>`:''}`}</div></div>`; }).join('')}
-  ${canX?`<div class="small" style="margin-top:6px;color:var(--tl)">«최종 지원하지 않기»를 누르면 그 자리는 대기 학생에게 제비뽑기로 돌아갑니다 — 마감 전엔 되돌릴 수 있어요. <b style="color:#B91C1C">⚠️ 추가 모집이 끝난 뒤에는 취소할 수 없습니다.</b></div>`:''}</div>`; }
+  ${canX?`<div class="small" style="margin-top:6px;color:var(--tl)">취소한 자리는 대기 제비뽑기로 넘어가요 · 마감 전 되돌리기 가능 · <b style="color:#B91C1C">⚠️ 마감 후 취소 불가</b></div>`:''}</div>`; }
 window.toggleR2Cancel = async (cid)=>{
+  if(r2Closed()){ showErrPop('추가 모집이 마감되었습니다','이제 변경할 수 없어요 — 제비뽑기·배정 결과를 기다려 주세요.'); return; }
   const e = ENR[KID.studentId]; if(!e) return;
   const cur = !!((e.r2Cancel||{})[cid]); const c = CLUBS.find(x=>x.id===cid);
   if(!cur && !confirm(`«${c?c.title:''}» 최종 지원을 취소할까요?\n자리는 대기 학생에게 제비뽑기로 배정됩니다. (마감 전 되돌리기 가능)`)) return;
@@ -319,6 +322,7 @@ window.toggleR2Cancel = async (cid)=>{
   }catch(err){ showErrPop('저장하지 못했어요','잠시 후 다시 시도해 주세요.'); }
 };
 window.toggleWait = async (cid)=>{
+  if(r2Closed()){ showErrPop('추가 모집이 마감되었습니다','이제 변경할 수 없어요 — 제비뽑기·배정 결과를 기다려 주세요.'); return; }
   const e = ENR[KID.studentId] || (ENR[KID.studentId]={picks:[],picks2:[]});
   const has = (e.waits2||[]).includes(cid); const c = CLUBS.find(x=>x.id===cid);
   if(!has && c && (e.waits2||[]).some(wid=>{ const w=CLUBS.find(x=>x.id===wid); return w && (w.weekdays||[]).some(d=>(c.weekdays||[]).includes(d)) && w.start < c.end && c.start < w.end; })){
@@ -335,11 +339,12 @@ window.toggleWait = async (cid)=>{
   }catch(err){ showErrPop('저장하지 못했어요','잠시 후 다시 시도해 주세요.'); }
 };
 function waitSectionHTML(e){
+  if(r2Closed()) return '';
   const fulls = CLUBS.filter(c=>!c.cancelled && !c.r2Open && (c.r1Class==='full' || Number(c.r2Left)===0));
   if(!fulls.length) return '';
   const fset = firstFinal(e).filter(c=>!((e?.r2Cancel||{})[c.id]));
   return `<div class="card"><h3>⏳ 모집 완료 동아리 — 대기 걸기</h3>
-    <div style="background:#FFF7ED;border:1.5px solid #F1D3AE;border-radius:10px;padding:9px 12px;margin-bottom:9px;font-size:12px;color:#7A4A12;line-height:1.55"><b style="color:#B45309">⚠️ 대기 신청은 신중하게!</b> 취소로 자리가 나면 <b>대기 학생끼리 제비뽑기</b>이고, <b>당첨 = 즉시 확정</b>(겹치는 다른 신청은 자동 미지원). <b>같은 요일·시간대에는 대기를 하나만</b> 걸 수 있어요 — 그 시간대의 다른 동아리는 2차 지원만 가능합니다.</div>
+    <div style="background:#FFF7ED;border:1.5px solid #F1D3AE;border-radius:10px;padding:9px 12px;margin-bottom:9px;font-size:12px;color:#7A4A12;line-height:1.55"><b style="color:#B45309">⚠️ 대기는 신중하게</b> — 당첨 = <b>즉시 확정</b> · 겹치는 신청 자동 미지원 · 같은 시간대 <b>대기 1개만</b></div>
     ${fulls.map(c=>{ const on = (e?.waits2||[]).includes(c.id);
       const clash = fset.some(f=>f.id!==c.id && (f.weekdays||[]).some(w=>(c.weekdays||[]).includes(w)) && f.start < c.end && c.start < f.end);
       const wcl = !on && (e?.waits2||[]).some(wid=>{ if(wid===c.id) return false; const w=CLUBS.find(x=>x.id===wid); return w && (w.weekdays||[]).some(d=>(c.weekdays||[]).includes(d)) && w.start < c.end && c.start < w.end; });
@@ -519,7 +524,7 @@ window.pickKid = async (sid)=>{ KID = KIDS.find(k=>k.studentId===sid); try{ loca
 
 function guideHTML(){
   const R2 = isR2();
-  const openAttr = SEM.status==='enrolling' ? ' open' : '';
+  const openAttr = '';   // 기본 접힘 — 필요한 분만 펼쳐 봄
   const li = 'margin:0 0 7px;padding-left:2px;line-height:1.55';
   if(R2) return `
   <details class="card" style="padding:14px 16px"${openAttr}>
@@ -548,7 +553,7 @@ function renderMain(){
   const e = PUBLIC ? null : (ENR[KID.studentId] || null);
   const picks = {}; (e?.[pkKey()]||[]).forEach(p=>picks[p.clubId]=p.rank);
   window.__picks = picks;
-  const canEdit = SEM.status==='enrolling';
+  const canEdit = SEM.status==='enrolling' && !r2Closed();
   const R2 = isR2();
   const showRes = !PUBLIC && ['adjusting','confirmed','running'].includes(SEM.status) && e && (e.result||[]).length;
   let html = guideHTML() + summaryCard(picks);
@@ -791,7 +796,7 @@ window.resetLinks = ()=>{
 };
 window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
 /* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
-const BUILD = '2026.09.05-05';
+const BUILD = '2026.09.06-01';
 let SERVER_V = '';
 async function checkUpdate(){ try{
   const r = await fetch('version.json?_='+Date.now(), { cache:'no-store' });
