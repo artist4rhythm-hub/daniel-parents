@@ -447,7 +447,6 @@ window.simpleVerify = async ()=>{
   if(!name || !birth){ m.className='alert err'; m.textContent='이름과 생년월일을 입력해 주세요.'; return; }
   go.disabled = true; go.textContent = '확인 중…';
   try{
-    ENR_ERR[k.studentId] = '';
     const r = await fetch(PUSH + '/club-verify', { method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ org: ORG, name, birth, semId: (await semIdReady()) }) });
     if(!r.ok) throw new Error('서버 응답 ' + r.status);
@@ -524,6 +523,7 @@ async function familySync(k){
   const bt = k.birth || (((window.__creds||{})[k.studentId])||{}).birth;
   if(!bt){ ENR_ERR[k.studentId] = '이 기기에 생년월일 정보가 없어요 — «자녀 다시 확인» 한 번이면 됩니다'; return false; }
   try{
+    ENR_ERR[k.studentId] = '';
     const r = await fetch(PUSH + '/club-verify', { method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ org: ORG, name: k.studentName, birth: bt, semId: SEM.id }) });
     if(!r.ok){ ENR_ERR[k.studentId] = '서버 응답 ' + r.status; return false; }
@@ -883,7 +883,7 @@ window.resetLinks = ()=>{
 };
 window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
 /* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
-const BUILD = '2026.09.07-08';
+const BUILD = '2026.09.07-09';
 try{ document.body.insertAdjacentHTML('beforeend',
   '<div id="bd-badge" style="position:fixed;left:8px;bottom:8px;z-index:9999;font-size:10px;color:#98A39D;background:rgba(255,255,255,.88);border:1px solid #E3E1DA;border-radius:8px;padding:2px 7px;pointer-events:none">v'+BUILD+'</div>'); }catch(_){}
 /* 🧯 렌더 오류 포획막 — 그리다 죽으면 원인을 화면에 그대로 띄운다 (배지-본문 시차 거짓말 차단) */
