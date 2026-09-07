@@ -626,7 +626,7 @@ function renderMain(){
   const PUB = PUBLIC && !KID;
   try{ const b=document.getElementById('bd-badge'); if(b) b.textContent = 'v'+BUILD+' · P'+(PUBLIC?1:0)+' K'+((KIDS&&KIDS.length)||0)+(KID?'✓':'✗'); }catch(_){}                                                  // 🛡 이중 벨트 — 자녀가 선택돼 있으면 목록은 절대 공고형이 되지 않는다
   try{ if(KID && KID.studentId) seedFromCache(KID.studentId); }catch(_){}
-  const e = PUBLIC ? null : (ENR[KID.studentId] || null);
+  const e = (!PUBLIC && KID) ? (ENR[KID.studentId] || null) : null;
   const picks = {}; (e?.[pkKey()]||[]).forEach(p=>picks[p.clubId]=p.rank);
   window.__picks = picks;
   const canEdit = SEM.status==='enrolling' && !r2Closed();
@@ -836,7 +836,7 @@ function summaryCard(picks){
         ${rm.picks.map(p=>`<b>${p.rank}순위</b> ${esc(p.title)}`).join(' · ')}<br>
         <span style="color:var(--ink3)">수정하려면 처음 저장했던 기기·브라우저에서 열어주세요. 여기서 새로 담아 저장하면 안내가 뜹니다.</span></div></div>`;
     return `<div class="card"><div class="sumhead"><b>📌 ${esc(KID.studentName)}의 신청 현황</b></div>
-    ${((SIMPLE || (window.__creds||{})[KID.studentId]) && !ENR_OK[KID.studentId] && !(e && e.__cached)) ? `<div class="small" style="margin-top:8px;color:#B45309;font-weight:700">⚠ 서버에서 신청 내역을 불러오지 못했어요 — <a href="#" onclick="simpleDlg();return false" style="font-weight:800;color:#B45309;text-decoration:underline">다시 불러오기</a></div>` : `<div class="small" style="margin-top:8px">아직 고른 동아리가 없어요 — 아래 목록에서 순위 버튼을 눌러 담아보세요.</div>`}
+    ${((SIMPLE || (window.__creds||{})[KID.studentId]) && !ENR_OK[KID.studentId] && !(saved && saved.__cached)) ? `<div class="small" style="margin-top:8px;color:#B45309;font-weight:700">⚠ 서버에서 신청 내역을 불러오지 못했어요 — <a href="#" onclick="simpleDlg();return false" style="font-weight:800;color:#B45309;text-decoration:underline">다시 불러오기</a></div>` : `<div class="small" style="margin-top:8px">아직 고른 동아리가 없어요 — 아래 목록에서 순위 버튼을 눌러 담아보세요.</div>`}
     <div class="small" style="margin-top:6px;color:var(--ink3)">다른 기기(가족 폰·컴퓨터)에서 신청하셨다면 <a href="#" onclick="simpleDlg();return false" style="font-weight:800">자녀 다시 확인</a>으로 바로 불러올 수 있어요.</div></div>`;
   }
   let pairs = 0; const clashSet = new Set();
@@ -872,7 +872,7 @@ window.resetLinks = ()=>{
 };
 window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
 /* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
-const BUILD = '2026.09.07-05';
+const BUILD = '2026.09.07-06';
 try{ document.body.insertAdjacentHTML('beforeend',
   '<div id="bd-badge" style="position:fixed;left:8px;bottom:8px;z-index:9999;font-size:10px;color:#98A39D;background:rgba(255,255,255,.88);border:1px solid #E3E1DA;border-radius:8px;padding:2px 7px;pointer-events:none">v'+BUILD+'</div>'); }catch(_){}
 /* 🧯 렌더 오류 포획막 — 그리다 죽으면 원인을 화면에 그대로 띄운다 (배지-본문 시차 거짓말 차단) */
