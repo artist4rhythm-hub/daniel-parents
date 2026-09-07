@@ -450,6 +450,7 @@ window.simpleVerify = async ()=>{
     ENR_ERR[k.studentId] = '';
     const r = await fetch(PUSH + '/club-verify', { method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ org: ORG, name, birth, semId: (await semIdReady()) }) });
+    if(!r.ok) throw new Error('서버 응답 ' + r.status);
     const j = await r.json();
     if(!j.ok){ m.className='alert err'; m.textContent = j.msg || '일치하는 학생을 찾지 못했어요.'; return; }
     window.__lastCred = { name, birth };   // 가족 공유 저장용 — 이 세션 동안만 메모리에 보관
@@ -465,7 +466,7 @@ window.simpleVerify = async ()=>{
     }
     simpleEnter(j.students[0]);
   }catch(e){
-    m.className='alert err'; m.textContent='확인 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.';
+    m.className='alert err'; m.textContent = '확인 서버에 연결하지 못했어요 — ' + String((e && e.message) || e) + ' · 이 화면을 캡처해 학교로 보내주세요.';
   }finally{ if(go.textContent==='확인 중…'){ go.disabled=false; go.textContent='확인'; } }
 };
 async function simpleEnter(st){
@@ -801,7 +802,7 @@ window.savePicks = async ()=>{
       showSavedPop(KID.studentName||'', savedItems);
       if(m){ m.className='alert'; m.textContent=''; }
       renderMain(); return;
-    }catch(err){ showErrPop('저장하지 못했어요', '확인 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.'); return; }
+    }catch(err){ showErrPop('저장하지 못했어요', DIAG(err)); return; }
   }
   const id = `${SEM.id}_${KID.studentId}`;
   try{
@@ -882,7 +883,7 @@ window.resetLinks = ()=>{
 };
 window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
 /* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
-const BUILD = '2026.09.07-07';
+const BUILD = '2026.09.07-08';
 try{ document.body.insertAdjacentHTML('beforeend',
   '<div id="bd-badge" style="position:fixed;left:8px;bottom:8px;z-index:9999;font-size:10px;color:#98A39D;background:rgba(255,255,255,.88);border:1px solid #E3E1DA;border-radius:8px;padding:2px 7px;pointer-events:none">v'+BUILD+'</div>'); }catch(_){}
 /* 🧯 렌더 오류 포획막 — 그리다 죽으면 원인을 화면에 그대로 띄운다 (배지-본문 시차 거짓말 차단) */
@@ -933,7 +934,7 @@ window.setFinal = async (cid, v)=>{
       const j = await r.json();
       if(!j.ok){ showErrPop('저장하지 못했어요', j.msg||'잠시 후 다시 시도해 주세요.'); return; }
       const fin = {...(e.final||{})}; fin[cid]=v; e.final=fin; renderMain(); return;
-    }catch(err){ showErrPop('저장하지 못했어요', '확인 서버에 연결하지 못했어요.'); return; }
+    }catch(err){ showErrPop('저장하지 못했어요', DIAG(err)); return; }
   }
   if(!e.id) return;
   const fin = {...(e.final||{})}; fin[cid]=v;
