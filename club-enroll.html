@@ -221,6 +221,10 @@ onAuthStateChanged(auth, async user=>{
     renderHead(); renderMain();
     return;
   }
+  if(!user){                                                                  // 🛡 로그인 전 순간 — 자녀 저장이 있으면 익명 로그인을 직접 점화하고 다음 콜백을 기다린다
+    if((typeof simpleKids==='function') && simpleKids().length){ try{ signInAnonymously(auth); }catch(_){} }
+    return;
+  }
   const ls = await getDocs(query(collection(db,'parentLinks'), where('parentUid','==',user.uid), where('status','==','active')));
   KIDS = ls.docs.map(d=>({id:d.id, ...d.data()})).filter(k=>(k.org||'daniel')===ORG);
   // 이 기기에서 간편 확인해 둔 자녀를 계정 목록에 합류 (+ 학년·반 정보 보강)
@@ -496,6 +500,22 @@ async function simpleEnter(st){
   }
   enterSimple();
 }
+function resyncFromStorage(){
+  try{
+    const ks = (typeof simpleKids==='function') ? simpleKids() : [];
+    if(!ks.length && !SIMPLE) return;
+    SIMPLE = true; PUBLIC = false;
+    KIDS = ks;
+    KIDS.forEach(k=>{ k._fam = true;
+      if(k.birth){ (window.__creds = window.__creds||{})[k.studentId] = { name: k.studentName, birth: k.birth }; } });
+    const cur = (()=>{ try{ return localStorage.getItem(CURKEY); }catch(e){ return null; } })();
+    KID = KIDS.find(k=>k.studentId===cur) || KIDS[0] || null;
+    renderHead(); renderMain();
+    for(const k of KIDS){ if(!ENR_OK[k.studentId]) familySync(k).then(ok=>{ if(ok){ renderHead(); renderMain(); } }).catch(()=>{}); }
+  }catch(_){}
+}
+window.addEventListener('storage', ev=>{ if(ev && ev.key && (ev.key===SKEY || ev.key===CURKEY || String(ev.key).indexOf('clubApp_')===0)) resyncFromStorage(); });
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && SEM && (SIMPLE || ((typeof simpleKids==='function') && simpleKids().length))) resyncFromStorage(); });
 async function familySync(k){
   if(!k || !SEM) return false;
   const bt = k.birth || (((window.__creds||{})[k.studentId])||{}).birth;
@@ -602,7 +622,9 @@ function seedFromCache(sid){
 }
 function renderMain(){
   try{ if(PUBLIC && ((KIDS && KIDS.length) || (typeof simpleKids==='function' && simpleKids().length))) PUBLIC = false; }catch(_){}   // 🛡 자녀가 있으면 공개 화면이 될 수 없다 — 어떤 레이스든 최종 렌더에서 복구
-  const PUB = PUBLIC && !KID;                                                  // 🛡 이중 벨트 — 자녀가 선택돼 있으면 목록은 절대 공고형이 되지 않는다
+  if(!KID && KIDS && KIDS.length) KID = KIDS[0];                             // 🛡 자녀가 있으면 선택도 자동 복구
+  const PUB = PUBLIC && !KID;
+  try{ const b=document.getElementById('bd-badge'); if(b) b.textContent = 'v'+BUILD+' · P'+(PUBLIC?1:0)+' K'+((KIDS&&KIDS.length)||0)+(KID?'✓':'✗'); }catch(_){}                                                  // 🛡 이중 벨트 — 자녀가 선택돼 있으면 목록은 절대 공고형이 되지 않는다
   try{ if(KID && KID.studentId) seedFromCache(KID.studentId); }catch(_){}
   const e = PUBLIC ? null : (ENR[KID.studentId] || null);
   const picks = {}; (e?.[pkKey()]||[]).forEach(p=>picks[p.clubId]=p.rank);
@@ -850,9 +872,9 @@ window.resetLinks = ()=>{
 };
 window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
 /* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
-const BUILD = '2026.09.07-03';
+const BUILD = '2026.09.07-04';
 try{ document.body.insertAdjacentHTML('beforeend',
-  '<div style="position:fixed;left:8px;bottom:8px;z-index:9999;font-size:10px;color:#98A39D;background:rgba(255,255,255,.88);border:1px solid #E3E1DA;border-radius:8px;padding:2px 7px;pointer-events:none">v'+BUILD+'</div>'); }catch(_){}
+  '<div id="bd-badge" style="position:fixed;left:8px;bottom:8px;z-index:9999;font-size:10px;color:#98A39D;background:rgba(255,255,255,.88);border:1px solid #E3E1DA;border-radius:8px;padding:2px 7px;pointer-events:none">v'+BUILD+'</div>'); }catch(_){}
 let SERVER_V = '';
 async function checkUpdate(){ try{
   const r = await fetch('version.json?_='+Date.now(), { cache:'no-store' });
