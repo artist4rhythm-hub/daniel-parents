@@ -447,6 +447,7 @@ window.simpleVerify = async ()=>{
   if(!name || !birth){ m.className='alert err'; m.textContent='이름과 생년월일을 입력해 주세요.'; return; }
   go.disabled = true; go.textContent = '확인 중…';
   try{
+    ENR_ERR[k.studentId] = '';
     const r = await fetch(PUSH + '/club-verify', { method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ org: ORG, name, birth, semId: (await semIdReady()) }) });
     const j = await r.json();
@@ -516,31 +517,40 @@ function resyncFromStorage(){
 }
 window.addEventListener('storage', ev=>{ if(ev && ev.key && (ev.key===SKEY || ev.key===CURKEY || String(ev.key).indexOf('clubApp_')===0)) resyncFromStorage(); });
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && SEM && (SIMPLE || ((typeof simpleKids==='function') && simpleKids().length))) resyncFromStorage(); });
+const ENR_ERR = {};
 async function familySync(k){
   if(!k || !SEM) return false;
   const bt = k.birth || (((window.__creds||{})[k.studentId])||{}).birth;
-  if(!bt) return false;
+  if(!bt){ ENR_ERR[k.studentId] = '이 기기에 생년월일 정보가 없어요 — «자녀 다시 확인» 한 번이면 됩니다'; return false; }
   try{
     const r = await fetch(PUSH + '/club-verify', { method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ org: ORG, name: k.studentName, birth: bt, semId: SEM.id }) });
-    const j = await r.json(); if(!j.ok) return false;
+    if(!r.ok){ ENR_ERR[k.studentId] = '서버 응답 ' + r.status; return false; }
+    const j = await r.json(); if(!j.ok){ ENR_ERR[k.studentId] = j.msg || '서버가 확인을 거절했어요'; return false; }
     const st = (j.students||[]).find(x=>x.studentId===k.studentId) || (j.students||[])[0];
-    if(!st) return false;
+    if(!st){ ENR_ERR[k.studentId] = '학생 정보를 찾지 못했어요'; return false; }
     (window.__creds = window.__creds || {})[k.studentId] = { name: k.studentName, birth: bt };
+    try{ const ks = simpleKids(); const hit = ks.find(x=>x.studentId===k.studentId);
+      if(hit && !hit.birth){ hit.birth = bt; localStorage.setItem(SKEY, JSON.stringify(ks)); } }catch(_){}
     if(st.grade && !k.grade) k.grade = st.grade;
     if(st.className && !k.className) k.className = st.className;
-    if(st.applied && st.applied.count){
-      const seeded = (st.applied.picks||[]).filter(p=>p.clubId).map(p=>({ clubId:p.clubId, rank:p.rank }));
-      if(seeded.length || (st.applied.result||[]).length){
-        const seededB = (st.applied.picks2||[]).filter(p=>p.clubId).map(p=>({ clubId:p.clubId, rank:p.rank }));
-        ENR[k.studentId] = { picks: seeded, picks2: seededB, result: st.applied.result||[], result2: st.applied.result2||[], final: st.applied.final||{}, r1Final: st.applied.r1Final||null, waits2: st.applied.waits2||[], r2Cancel: st.applied.r2Cancel||{} };
-      ENR_OK[k.studentId] = 1;
-      try{ localStorage.setItem('clubApp_' + (SEM&&SEM.id||'') + '_' + k.studentId, JSON.stringify(st.applied)); }catch(_){}
-        k._fam = true; return true;
+    if(st.applied){
+      const ap = st.applied;
+      if(!('picks' in ap) && ap.count){                                        // 구서버(개수만 응답) 호환
+        window.__remote = { sid: k.studentId, count: ap.count, picks: [] };
+        ENR_ERR[k.studentId] = '서버 업데이트가 필요해요 (관리자에게 알려주세요)';
+        return false;
       }
-      window.__remote = { sid: k.studentId, count: st.applied.count, picks: st.applied.picks||[] };  // 구서버 호환: 읽기 전용 확인
+      const seeded  = (ap.picks ||[]).filter(p=>p.clubId).map(p=>({ clubId:p.clubId, rank:p.rank }));
+      const seededB = (ap.picks2||[]).filter(p=>p.clubId).map(p=>({ clubId:p.clubId, rank:p.rank }));
+      ENR[k.studentId] = { picks: seeded, picks2: seededB, result: ap.result||[], result2: ap.result2||[],
+        final: ap.final||{}, r1Final: ap.r1Final||null, waits2: ap.waits2||[], r2Cancel: ap.r2Cancel||{} };
+      ENR_OK[k.studentId] = 1;                                                 // 🚧 관문 철거 — 1·2차 어느 흔적이든, 빈손이어도 «서버 확인 완료»
+      try{ localStorage.setItem('clubApp_' + (SEM&&SEM.id||'') + '_' + k.studentId, JSON.stringify(ap)); }catch(_){}
+      k._fam = true;
+      return true;
     }
-  }catch(e){}
+  }catch(e){ ENR_ERR[k.studentId] = String((e && e.message) || e); }
   return false;
 }
 async function enterSimple(){
@@ -836,7 +846,7 @@ function summaryCard(picks){
         ${rm.picks.map(p=>`<b>${p.rank}순위</b> ${esc(p.title)}`).join(' · ')}<br>
         <span style="color:var(--ink3)">수정하려면 처음 저장했던 기기·브라우저에서 열어주세요. 여기서 새로 담아 저장하면 안내가 뜹니다.</span></div></div>`;
     return `<div class="card"><div class="sumhead"><b>📌 ${esc(KID.studentName)}의 신청 현황</b></div>
-    ${((SIMPLE || (window.__creds||{})[KID.studentId]) && !ENR_OK[KID.studentId] && !(saved && saved.__cached)) ? `<div class="small" style="margin-top:8px;color:#B45309;font-weight:700">⚠ 서버에서 신청 내역을 불러오지 못했어요 — <a href="#" onclick="simpleDlg();return false" style="font-weight:800;color:#B45309;text-decoration:underline">다시 불러오기</a></div>` : `<div class="small" style="margin-top:8px">아직 고른 동아리가 없어요 — 아래 목록에서 순위 버튼을 눌러 담아보세요.</div>`}
+    ${((SIMPLE || (window.__creds||{})[KID.studentId]) && !ENR_OK[KID.studentId] && !(saved && saved.__cached)) ? `<div class="small" style="margin-top:8px;color:#B45309;font-weight:700">⚠ 서버에서 신청 내역을 불러오지 못했어요 — <a href="#" onclick="simpleDlg();return false" style="font-weight:800;color:#B45309;text-decoration:underline">다시 불러오기</a>${(ENR_ERR[KID.studentId])?`<br><span style=\"font-weight:400;font-size:11px\">사유: ${esc(ENR_ERR[KID.studentId])}</span>`:''}</div>` : `<div class="small" style="margin-top:8px">아직 고른 동아리가 없어요 — 아래 목록에서 순위 버튼을 눌러 담아보세요.</div>`}
     <div class="small" style="margin-top:6px;color:var(--ink3)">다른 기기(가족 폰·컴퓨터)에서 신청하셨다면 <a href="#" onclick="simpleDlg();return false" style="font-weight:800">자녀 다시 확인</a>으로 바로 불러올 수 있어요.</div></div>`;
   }
   let pairs = 0; const clashSet = new Set();
@@ -872,7 +882,7 @@ window.resetLinks = ()=>{
 };
 window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
 /* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
-const BUILD = '2026.09.07-06';
+const BUILD = '2026.09.07-07';
 try{ document.body.insertAdjacentHTML('beforeend',
   '<div id="bd-badge" style="position:fixed;left:8px;bottom:8px;z-index:9999;font-size:10px;color:#98A39D;background:rgba(255,255,255,.88);border:1px solid #E3E1DA;border-radius:8px;padding:2px 7px;pointer-events:none">v'+BUILD+'</div>'); }catch(_){}
 /* 🧯 렌더 오류 포획막 — 그리다 죽으면 원인을 화면에 그대로 띄운다 (배지-본문 시차 거짓말 차단) */
