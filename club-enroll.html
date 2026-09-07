@@ -329,7 +329,8 @@ window.toggleR2Cancel = async (cid)=>{
   try{
     if(cred){ const j = await postSave({ org: ORG, name: cred.name, birth: cred.birth, studentId: KID.studentId, semId: SEM.id, r2Cancel: { clubId: cid, value: !cur } });
       if(!j.ok){ showErrPop('저장하지 못했어요', j.msg||''); return; } }
-    else { const { doc, updateDoc } = FB; await updateDoc(doc(db,'clubEnrollments', `${SEM.id}_${KID.studentId}`), { r2Cancel: next }); }
+    else if(ME){ await updateDoc(doc(db,'clubEnrollments', `${SEM.id}_${KID.studentId}`), { r2Cancel: next }); }
+    else { showErrPop('자녀 확인이 한 번 필요해요','이 기기의 저장 정보가 오래되어 그래요.<br><b>자녀 다시 확인</b>(이름+생년월일)만 하면 바로 저장됩니다.'); setTimeout(()=>{ try{ simpleDlg(); }catch(_){} }, 700); return; }
     e.r2Cancel = next; renderMain();
   }catch(err){ showErrPop('저장하지 못했어요', DIAG(err)); }
 };
@@ -345,7 +346,8 @@ window.toggleWait = async (cid)=>{
   try{
     if(cred){ const j = await postSave({ org: ORG, name: cred.name, birth: cred.birth, studentId: KID.studentId, semId: SEM.id, waits2: next });
       if(!j.ok){ showErrPop('저장하지 못했어요', j.msg||''); return; } }
-    else { const { doc, setDoc } = FB; await setDoc(doc(db,'clubEnrollments', `${SEM.id}_${KID.studentId}`), { waits2: next }, { merge:true }); }
+    else if(ME){ await setDoc(doc(db,'clubEnrollments', `${SEM.id}_${KID.studentId}`), { semId:SEM.id, org:ORG, parentUid:ME.uid, studentId:KID.studentId, studentName:KID.studentName||'', waits2: next }, { merge:true }); }
+    else { showErrPop('자녀 확인이 한 번 필요해요','이 기기의 저장 정보가 오래되어 그래요.<br><b>자녀 다시 확인</b>(이름+생년월일)만 하면 바로 저장됩니다.'); setTimeout(()=>{ try{ simpleDlg(); }catch(_){} }, 700); return; }
     e.waits2 = next; renderMain();
   }catch(err){ showErrPop('저장하지 못했어요', DIAG(err)); }
 };
@@ -495,14 +497,16 @@ async function simpleEnter(st){
   enterSimple();
 }
 async function familySync(k){
-  if(!k || !k.birth || !SEM) return false;
+  if(!k || !SEM) return false;
+  const bt = k.birth || (((window.__creds||{})[k.studentId])||{}).birth;
+  if(!bt) return false;
   try{
     const r = await fetch(PUSH + '/club-verify', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ org: ORG, name: k.studentName, birth: k.birth, semId: SEM.id }) });
+      body: JSON.stringify({ org: ORG, name: k.studentName, birth: bt, semId: SEM.id }) });
     const j = await r.json(); if(!j.ok) return false;
     const st = (j.students||[]).find(x=>x.studentId===k.studentId) || (j.students||[])[0];
     if(!st) return false;
-    (window.__creds = window.__creds || {})[k.studentId] = { name: k.studentName, birth: k.birth };
+    (window.__creds = window.__creds || {})[k.studentId] = { name: k.studentName, birth: bt };
     if(st.grade && !k.grade) k.grade = st.grade;
     if(st.className && !k.className) k.className = st.className;
     if(st.applied && st.applied.count){
@@ -522,7 +526,9 @@ async function familySync(k){
 async function enterSimple(){
   SIMPLE = true; PUBLIC = false;
   KIDS = simpleKids();
-  KIDS.forEach(k=>{ k._fam = true; });                                        // 🛡 확인해 둔 자녀 = 신청 화면 대상
+  KIDS.forEach(k=>{ k._fam = true;
+    if(k.birth){ window.__creds = window.__creds || {}; if(!window.__creds[k.studentId]) window.__creds[k.studentId] = { name: k.studentName, birth: k.birth }; }
+  });                                                                          // 🛡 확인해 둔 자녀 = 신청 화면 대상 + 자격 복원
   const cur = (()=>{ try{ return localStorage.getItem(CURKEY); }catch(e){ return null; } })();
   KID = KIDS.find(k=>k.studentId===cur) || KIDS[KIDS.length-1] || null;
   renderHead(); renderMain();                                                  // 🛡 서버보다 화면 먼저 — 캐시가 마지막 내역 선표시
@@ -808,7 +814,7 @@ function summaryCard(picks){
         ${rm.picks.map(p=>`<b>${p.rank}순위</b> ${esc(p.title)}`).join(' · ')}<br>
         <span style="color:var(--ink3)">수정하려면 처음 저장했던 기기·브라우저에서 열어주세요. 여기서 새로 담아 저장하면 안내가 뜹니다.</span></div></div>`;
     return `<div class="card"><div class="sumhead"><b>📌 ${esc(KID.studentName)}의 신청 현황</b></div>
-    ${((window.__creds||{})[KID.studentId] && !ENR_OK[KID.studentId] && !(e && e.__cached)) ? `<div class="small" style="margin-top:8px;color:#B45309;font-weight:700">⚠ 서버에서 신청 내역을 불러오지 못했어요 — <a href="#" onclick="simpleDlg();return false" style="font-weight:800;color:#B45309;text-decoration:underline">다시 불러오기</a></div>` : `<div class="small" style="margin-top:8px">아직 고른 동아리가 없어요 — 아래 목록에서 순위 버튼을 눌러 담아보세요.</div>`}
+    ${((SIMPLE || (window.__creds||{})[KID.studentId]) && !ENR_OK[KID.studentId] && !(e && e.__cached)) ? `<div class="small" style="margin-top:8px;color:#B45309;font-weight:700">⚠ 서버에서 신청 내역을 불러오지 못했어요 — <a href="#" onclick="simpleDlg();return false" style="font-weight:800;color:#B45309;text-decoration:underline">다시 불러오기</a></div>` : `<div class="small" style="margin-top:8px">아직 고른 동아리가 없어요 — 아래 목록에서 순위 버튼을 눌러 담아보세요.</div>`}
     <div class="small" style="margin-top:6px;color:var(--ink3)">다른 기기(가족 폰·컴퓨터)에서 신청하셨다면 <a href="#" onclick="simpleDlg();return false" style="font-weight:800">자녀 다시 확인</a>으로 바로 불러올 수 있어요.</div></div>`;
   }
   let pairs = 0; const clashSet = new Set();
@@ -844,7 +850,7 @@ window.resetLinks = ()=>{
 };
 window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
 /* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
-const BUILD = '2026.09.07-02';
+const BUILD = '2026.09.07-03';
 try{ document.body.insertAdjacentHTML('beforeend',
   '<div style="position:fixed;left:8px;bottom:8px;z-index:9999;font-size:10px;color:#98A39D;background:rgba(255,255,255,.88);border:1px solid #E3E1DA;border-radius:8px;padding:2px 7px;pointer-events:none">v'+BUILD+'</div>'); }catch(_){}
 let SERVER_V = '';
