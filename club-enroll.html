@@ -203,7 +203,7 @@ function eligOf(c){   // 자녀 학년으로 신청 가능 여부: ok | no | unk
 
 onAuthStateChanged(auth, async user=>{
   ME = user || null;
-  PUBLIC = !user;
+  PUBLIC = !user && !(typeof simpleKids==='function' && simpleKids().length);   // 가족공유 자녀가 있으면 공개 모드 아님
   if(user && user.isAnonymous){
     // ✍️ 간편 신청 세션 — 같은 브라우저에서 확인해 둔 자녀로 이어간다
     await loadSem();
@@ -522,9 +522,11 @@ async function familySync(k){
 async function enterSimple(){
   SIMPLE = true; PUBLIC = false;
   KIDS = simpleKids();
+  KIDS.forEach(k=>{ k._fam = true; });                                        // 🛡 확인해 둔 자녀 = 신청 화면 대상
   const cur = (()=>{ try{ return localStorage.getItem(CURKEY); }catch(e){ return null; } })();
-  KID = KIDS.find(k=>k.studentId===cur) || KIDS[KIDS.length-1];
-  await loadEnr();
+  KID = KIDS.find(k=>k.studentId===cur) || KIDS[KIDS.length-1] || null;
+  renderHead(); renderMain();                                                  // 🛡 서버보다 화면 먼저 — 캐시가 마지막 내역 선표시
+  try{ await loadEnr(); }catch(_){}
   if(window.__pending && !ENR[window.__pending.sid]){
     const ap = window.__pending.ap;
     const seeded = (ap.picks||[]).filter(p=>p.clubId).map(p=>({clubId:p.clubId, rank:p.rank}));
@@ -536,8 +538,10 @@ async function enterSimple(){
       window.__remote = { sid: window.__pending.sid, count: ap.count, picks: ap.picks||[] };
     }
   }
-  window.__pending = null;
-  if(KID && !ENR[KID.studentId]) await familySync(KID);   // 기억 입장 기기 자동 동기화
+  for(const k of KIDS){                                                        // 🛡 저장된 모든 자녀 서버 동기 — 재방문에도 내역 복원
+    if(ENR_OK[k.studentId]) continue;
+    try{ await familySync(k); }catch(_){ }
+  }
   renderHead(); renderMain();
 }
 
@@ -551,7 +555,7 @@ function renderHead(){
     <div class="kid" style="margin-top:10px;align-items:center;${PUBLIC?'display:none':''}">${KIDS.map(k=>`<button class="${KID&&KID.studentId===k.studentId?'on':''}" onclick="pickKid('${k.studentId}')">${esc(k.studentName)}${k.grade?' · '+esc(k.grade):''}${k.className?' ('+esc(k.className)+')':''}</button>`).join('')}
       <button class="kadd" onclick="simpleDlg()">＋ 자녀 추가</button>${(SIMPLE||simpleKids().length)?`<button class="kreset" onclick="resetLinks()">연결 초기화</button>`:''}</div>`;
 }
-window.pickKid = async (sid)=>{ KID = KIDS.find(k=>k.studentId===sid); try{ localStorage.setItem(CURKEY, sid); }catch(e){} if(KID && !ENR[KID.studentId]) await familySync(KID); renderHead(); renderMain(); };
+window.pickKid = async (sid)=>{ KID = KIDS.find(k=>k.studentId===sid); try{ localStorage.setItem(CURKEY, sid); }catch(e){} renderHead(); renderMain(); if(KID && (!ENR[KID.studentId] || !ENR_OK[KID.studentId])){ try{ await familySync(KID); }catch(_){} renderHead(); renderMain(); } };
 
 function guideHTML(){
   const R2 = isR2();
@@ -591,6 +595,7 @@ function seedFromCache(sid){
   }catch(_){}
 }
 function renderMain(){
+  try{ if(PUBLIC && ((KIDS && KIDS.length) || (typeof simpleKids==='function' && simpleKids().length))) PUBLIC = false; }catch(_){}   // 🛡 자녀가 있으면 공개 화면이 될 수 없다 — 어떤 레이스든 최종 렌더에서 복구
   try{ if(KID && KID.studentId) seedFromCache(KID.studentId); }catch(_){}
   const e = PUBLIC ? null : (ENR[KID.studentId] || null);
   const picks = {}; (e?.[pkKey()]||[]).forEach(p=>picks[p.clubId]=p.rank);
@@ -838,7 +843,7 @@ window.resetLinks = ()=>{
 };
 window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
 /* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
-const BUILD = '2026.09.06-06';
+const BUILD = '2026.09.07-01';
 let SERVER_V = '';
 async function checkUpdate(){ try{
   const r = await fetch('version.json?_='+Date.now(), { cache:'no-store' });
