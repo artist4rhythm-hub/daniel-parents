@@ -153,7 +153,7 @@ body.has-upd{padding-top:46px}
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, initializeFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where, Timestamp }
+import { getFirestore, initializeFirestore, doc, getDoc, setDoc, updateDoc, addDoc, collection, getDocs, query, where, Timestamp, serverTimestamp }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const app = initializeApp({
@@ -263,11 +263,29 @@ function renderPrep(){
   $('main').innerHTML = '';
 }
 
+
+/* 📊 게시 링크 조회 기록 — 실패해도 화면 영향 없음 (규칙 v18 게시 후부터 쌓입니다) */
+async function logShareView(kind, shareId, title){
+  try{
+    const ua = navigator.userAgent || '';
+    const os = /iPhone|iPad|iPod/.test(ua)?'iOS' : /Android/.test(ua)?'Android'
+             : /Macintosh/.test(ua)?'Mac' : /Windows/.test(ua)?'Windows' : '기타';
+    const mob = /Mobi|Android|iPhone|iPad/.test(ua);
+    await addDoc(collection(db,'shareViewLogs'), {
+      kind, shareId: String(shareId||''), title: String(title||'').slice(0,80),
+      at: serverTimestamp(),
+      device: os + (mob?' · 모바일':' · PC'),
+      lang: navigator.language || '',
+      ref: String(document.referrer||'').slice(0,200)
+    });
+  }catch(_){/* 무시 */}
+}
 async function loadSem(){
   const snap = await getDocs(query(collection(db,'clubSemesters'), where('org','==',ORG)));
   const list = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(s=>['enrolling','adjusting','confirmed','running'].includes(s.status))
     .sort((a,b)=>String(b.rangeFrom||'').localeCompare(String(a.rangeFrom||'')));
   SEM = list[0] || null;
+  if(SEM && !window.__vlogged){ window.__vlogged=1; logShareView('clubEnroll', SEM.id, `동아리 신청 · ${SEM.name||''}`); }
 }
 async function loadClubs(){
   const snap = await getDocs(query(collection(db,'clubApplications'), where('semId','==',SEM.id), where('published','==',true)));
@@ -883,7 +901,7 @@ window.resetLinks = ()=>{
 };
 window.doResetLinks = ()=>{ try{ localStorage.removeItem(SKEY); localStorage.removeItem(CURKEY); sessionStorage.removeItem(SKEY); }catch(e){} location.reload(); };
 /* ── ✨ 업데이트 알림 — version.json의 v가 바뀌면 상단 배너 ── */
-const BUILD = '2026.09.07-21';
+const BUILD = '2026.09.07-23';
 try{ document.body.insertAdjacentHTML('beforeend',
   '<div id="bd-badge" style="position:fixed;left:8px;bottom:8px;z-index:9999;font-size:10px;color:#98A39D;background:rgba(255,255,255,.88);border:1px solid #E3E1DA;border-radius:8px;padding:2px 7px;pointer-events:none">v'+BUILD+'</div>'); }catch(_){}
 /* 🧯 렌더 오류 포획막 — 그리다 죽으면 원인을 화면에 그대로 띄운다 (배지-본문 시차 거짓말 차단) */
