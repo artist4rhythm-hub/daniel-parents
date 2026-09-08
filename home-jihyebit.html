@@ -449,7 +449,11 @@ onAuthStateChanged(auth, async (user)=>{
     try{
       const ix = await getDoc(doc(db,'sharedFamily','_index'));
       const items = ix.exists() && Array.isArray(ix.data().items) ? ix.data().items : [];
-      famItems = items.filter(it=>(it.org||'daniel')===ORG).slice(0,3);
+      famItems = items.filter(it=>(it.org||'daniel')===ORG)
+        .filter(it=>{ const a=it.aud;                                   // 🎯 대상 필터: 전체 or 우리 반
+          if(!a || a.t==='all') return true;
+          return !!cls && Array.isArray(a.c) && a.c.includes(cls); })
+        .slice(0,3);
     }catch(e){}
     let posts = [];
     try{
