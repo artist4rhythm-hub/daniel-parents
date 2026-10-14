@@ -107,6 +107,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, initializeFirestore, doc, getDoc, updateDoc, addDoc, deleteDoc, collection, query, where, getDocs, Timestamp }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { loadPass, canWriteOrg, canWriteClass, kidNote } from './gate.js?v=122';   // 🎫 출입증 (v122)
 
 const firebaseConfig = {
   apiKey: "AIzaSyCtgr79jKqkec6HwqkxYNxSubWAhfEkM7g",
@@ -145,7 +146,7 @@ const ORG_L = { daniel:'다니엘 아마츠', jihyebit:'지혜빛 선교원' };
 document.body.classList.toggle('org-jihyebit', ORG==='jihyebit');
 document.getElementById('back-home').href = 'home-'+ORG+'.html';
 
-let ME=null, LINKS=[], CLASSKEY='', POSTS=[], CMTS={};
+let ME=null, LINKS=[], CLASSKEY='', POSTS=[], CMTS={}, PASS=null;
 let TMODE=false, TME=null;   // 👩‍🏫 교사 모드
 
 /* ═══ 🚫 고운 말 필터 ═══
@@ -168,15 +169,40 @@ const fmt = ts => { if(!ts?.seconds) return ''; const d=new Date(ts.seconds*1000
   return `${d.getFullYear()}.${p(d.getMonth()+1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
 
 function myClassKids(){ return LINKS.filter(l=>(l.org||'daniel')===ORG && l.className); }
+// 내 자녀들의 반 이름 (출입증 기준 — 한 자녀가 두 반이면 둘 다)
+function myClassKeys(){ return [...new Set(myClassKids().flatMap(k => (k.classNames && k.classNames.length) ? k.classNames : [k.className]))]; }
+// 지금 보는 게시판에 글 · 댓글을 쓸 수 있나 (휴학 · 졸업 유예면 읽기만)
+function canWriteHere(){
+  if(TMODE) return true;
+  if(!PASS || PASS.legacy) return true;
+  return SCOPE==='class' ? canWriteClass(PASS, ORG, CLASSKEY) : canWriteOrg(PASS, ORG);
+}
+// 글 · 댓글에 «○○ 학부모»로 붙일 수 있는 자녀 — 보기만 하는 자녀는 빼고, 반 게시판이면 그 반 자녀 먼저
+function writerKids(){
+  const all = LINKS.filter(l=>(l.org||'daniel')===ORG);
+  const w = all.filter(l=>!l.ro); const base = w.length ? w : all;
+  if(SCOPE!=='class') return base;
+  const inCls = base.filter(l=>(l.classNames||[l.className]).includes(CLASSKEY));
+  return inCls.length ? inCls : base;
+}
 function kidLabel(k){ return `${k.grade?esc(k.grade)+' ':''}${esc(k.studentName||'학생')}`; }
 
 async function setupTeacherBanner(){
   let classes = [];
+  const set = new Set();
+  try {   // 반편성 — 올해 반 (없으면 작년 반)
+    const y = new Date().getFullYear();
+    for(const yy of [y, y-1]){
+      const cs = await getDocs(query(collection(db,'classes'), where('year','==',yy)));
+      cs.forEach(d=>{ const v=d.data(); if((v.org||'daniel')===ORG && v.name) set.add(String(v.name).trim()); });
+      if(set.size) break;
+    }
+  } catch(e){}
   try {
     const ss = await getDocs(query(collection(db,'students'), where('org','==',ORG)));
-    const set = new Set(); ss.forEach(d=>{ const c=(d.data().className||'').trim(); if(c) set.add(c); });
-    classes = [...set].sort((a,b)=>a.localeCompare(b,'ko'));
+    ss.forEach(d=>{ const c=(d.data().className||'').trim(); if(c) set.add(c); });
   } catch(e){}
+  classes = [...set].sort((a,b)=>a.localeCompare(b,'ko'));
   const bar = document.createElement('div');
   bar.style.cssText = 'position:sticky;top:0;z-index:60;background:var(--pt,#0C2A44);color:#fff;padding:9px 14px;display:flex;align-items:center;gap:9px;font-size:12.5px;flex-wrap:wrap';
   bar.innerHTML = `👩‍🏫 <b>교사 모드</b> — 학부모에게 보이는 그대로 봅니다
@@ -205,21 +231,39 @@ function renderTabs(){
     return;
   }
   const kids = myClassKids();
-  const keys = [...new Set(kids.map(k=>k.className))];
+  const keys = myClassKeys();
   $('hd-t').childNodes[0].textContent = '💬 우리 반 게시판';
   $('hd-s').textContent = ORG_L[ORG];
   if(!keys.length){ $('tabs').style.display='none'; return; }
-  if(!CLASSKEY) CLASSKEY = keys[0];
+  if(!CLASSKEY || !keys.includes(CLASSKEY)) CLASSKEY = keys[0];
   $('tabs').innerHTML = keys.map(k=>{
-    const g = kids.find(x=>x.className===k)?.grade || '';
-    return `<button class="tab ${k===CLASSKEY?'on':''}" onclick="pickClass('${esc(k)}')">${g?esc(g)+' · ':''}${esc(k)}</button>`;
+    const kk = kids.filter(x=>(x.classNames||[x.className]).includes(k));
+    const g = kk[0]?.grade || '';
+    const who = kk.length && kids.length > 1 ? ' · ' + kk.map(x=>x.studentName||'').join('·') : '';
+    return `<button class="tab ${k===CLASSKEY?'on':''}" onclick="pickClass('${esc(k)}')">${g?esc(g)+' ':''}${esc(k)}${esc(who)}</button>`;
   }).join('');
   $('tabs').style.display = keys.length>1 ? 'flex' : 'none';
 }
-window.pickClass = k => { CLASSKEY=k; renderTabs(); loadPosts(); };
+window.pickClass = k => { CLASSKEY=k; renderTabs(); paintWriter(); loadPosts(); };
+// ✍️ 쓰기 칸 — 쓸 수 없는 게시판이면 이유를 보여 준다
+function paintWriter(){
+  const w = $('writer'); if(!w) return;
+  const ok = canWriteHere();
+  w.style.display = ok ? '' : 'none';
+  let n = $('ro-line');
+  if(!ok){
+    if(!n){ n = document.createElement('div'); n.id='ro-line'; n.className='card';
+      n.style.cssText='background:#FFF8E8;border-color:#F3DDA8;color:#5B4310;font-size:12.5px;line-height:1.7';
+      w.parentNode.insertBefore(n, w); }
+    const ro = LINKS.filter(l=>(l.org||'daniel')===ORG && l.ro && (SCOPE!=='class' || (l.classNames||[l.className]).includes(CLASSKEY)));
+    n.innerHTML = (ro.length ? ro.map(k=>`${k.state==='grace'?'🎓':'🏖'} <b>${esc(k.studentName||'')}</b> — ${esc(kidNote(k))}`).join('<br>') : '이 게시판은 읽기만 할 수 있어요.')
+      + '<br><small style="color:#8A6A2A">글은 읽을 수 있지만 새 글 · 댓글은 쓸 수 없어요.</small>';
+    n.style.display='';
+  } else if(n) n.style.display='none';
+}
 
 function renderChildSelect(){
-  const kids = LINKS.filter(l=>(l.org||'daniel')===ORG);
+  const kids = writerKids();
     if(TMODE){
     $('w-child').innerHTML = `<option>👩‍🏫 ${esc(TME?.name||'선생님')} 선생님으로 쓰기</option>`;
     $('w-child').disabled = true;
@@ -261,7 +305,7 @@ function renderPosts(){
       </div>
       <div class="cmts" id="cmts-${p.id}">
         <div id="cmt-list-${p.id}"></div>
-        <div class="cmt-in">
+        <div class="cmt-in" ${canWriteHere()?'':'style="display:none"'}>
           <input id="cmt-in-${p.id}" placeholder="따뜻한 댓글을 남겨 주세요" maxlength="500">
           <button class="bs" onclick="submitCmt('${p.id}')">등록</button>
         </div>
@@ -278,7 +322,11 @@ async function loadCmts(pid){
   const list = $('cmt-list-'+pid);
   list.innerHTML = '<div style="font-size:11px;color:var(--ink3);padding:6px 0">불러오는 중…</div>';
   try{
-    const snap = await getDocs(query(collection(db,'parentComments'), where('postId','==',pid)));
+    // 댓글은 글과 같은 범위(전체 · 반)로 묻는다 — 규칙 v30이 반이 맞는지 확인
+    const P0 = POSTS.find(x=>x.id===pid) || {};
+    const cc = [where('org','==',ORG), where('postId','==',pid), where('scope','==',P0.scope||'org')];
+    if((P0.scope||'org')==='class') cc.push(where('classKey','==',P0.classKey||''));
+    const snap = await getDocs(query(collection(db,'parentComments'), ...cc));
     const arr=[]; snap.forEach(d=>arr.push({id:d.id, ...d.data()}));
     arr.sort((a,b)=>(a.createdAt?.seconds||0)-(b.createdAt?.seconds||0));
     CMTS[pid]=arr; renderCmts(pid);
@@ -301,7 +349,7 @@ function authorBits(){
       authorAvatar: TME?.avatar||'', authorPhoto: (typeof TME?.photo==='string'&&TME.photo.startsWith('data:image/'))?TME.photo:'',
       childLabel:'', childStudentId:'', linkId:'' };
   }
-  const kids = LINKS.filter(l=>(l.org||'daniel')===ORG);
+  const kids = writerKids();
   const k = kids[Number($('w-child')?.value||0)] || kids[0] || {};
   return {
     authorUid: auth.currentUser.uid,
@@ -367,7 +415,8 @@ window.submitCmt = async (pid)=>{
     const a = authorBits();
     const p = POSTS.find(x=>x.id===pid);
     await addDoc(collection(db,'parentComments'), {
-      postId: pid, org: ORG, body, ...a, createdAt: Timestamp.now()
+      postId: pid, org: ORG, scope: (p&&p.scope)||'org', classKey: (p&&p.scope)==='class' ? (p.classKey||'') : '',
+      body, ...a, createdAt: Timestamp.now()
     });
     try{ await updateDoc(doc(db,'parentPosts',pid), { commentCount:(p?.commentCount||0)+1 }); }catch(e){}
     inp.value=''; delete CMTS[pid]; await loadCmts(pid);
@@ -396,9 +445,9 @@ onAuthStateChanged(auth, async (user)=>{
   try{
     const ps = await getDoc(doc(db,'parents',user.uid));
     ME = ps.exists()? ps.data() : {};
-    const snap = await getDocs(query(collection(db,'parentLinks'),
-      where('parentUid','==',user.uid), where('status','==','active')));
-    LINKS=[]; snap.forEach(d=>LINKS.push(d.data()));
+    // 🎫 자녀 · 반은 출입증에서 (휴학 · 졸업 유예면 읽기만)
+    const PR = await loadPass(auth, db); PASS = PR.pass;
+    LINKS = ((PASS && PASS.kids) || []).map(k => Object.assign({}, k, { studentName: k.name }));
     // 👩‍🏫 교사 모드 — 교직원 계정이면 학부모 연결 없이도 «학부모에게 보이는 그대로» 열람·참여
     if(!LINKS.some(l=>(l.org||'daniel')===ORG)){
       let isTeacher = false;
@@ -420,8 +469,9 @@ onAuthStateChanged(auth, async (user)=>{
 
     renderTabs(); renderChildSelect();
     $('loading').style.display='none'; $('main').style.display='';
+    paintWriter();
     if(SCOPE==='class' && !myClassKids().length){
-      $('writer').style.display='none';
+      $('writer').style.display='none'; if($('ro-line')) $('ro-line').style.display='none';
       $('posts').innerHTML = `<div class="empty">아직 반 정보가 연결된 자녀가 없어요.<br>
         담임 선생님께 <b>새 가입 코드</b>를 받아 자녀를 다시 연결하면<br>우리 반 게시판이 열립니다 ☺️</div>`;
       return;

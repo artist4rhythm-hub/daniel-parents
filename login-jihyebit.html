@@ -37,7 +37,7 @@ body{
   font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
   background:#4A4266; color:var(--ink);
   display:flex; align-items:center; justify-content:center; padding:20px;
-  -webkit-font-smoothing:antialiased; position:relative; overflow:hidden;
+  -webkit-font-smoothing:antialiased; position:relative; overflow-x:hidden;
 }
 /* 물안개 호수 배경 (캔버스) */
 .sky{ position:fixed; inset:0; z-index:0; pointer-events:none; display:block; width:100%; height:100%; }
@@ -94,6 +94,48 @@ html[data-theme="dark"] .btn-ghost{ color:var(--gm); }
 .spin{ width:18px; height:18px; border:2.5px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:sp .6s linear infinite; }
 html[data-theme="dark"] .spin{ border-color:rgba(6,19,14,.35); border-top-color:#06130E; }
 @keyframes sp{ to{transform:rotate(360deg)} }
+:root{ --lk-surface:rgba(94,75,139,.06); --lk-line:rgba(94,75,139,.18); --lk-line2:rgba(94,75,139,.35); --lk-ink:#2A2440; --lk-sub:#5A5270; --lk-acc:#5E4B8B;
+  --lk-ok-bg:#E7F6EF; --lk-ok-line:#9ED8BD; --lk-ok-ink:#17694A;
+  --lk-warn-bg:#FFF5E0; --lk-warn-line:#F0C878; --lk-warn-ink:#8A5A08;
+  --lk-info-bg:#EEF3FF; --lk-info-line:#BCD0F5; }
+/* ── v122 · 구글 로그인 · 한 화면 자녀 연결 ── */
+.btn-google{ background:#fff; color:#1F1F1F; border:1px solid #DADCE0; font-weight:700; margin-top:4px; }
+.btn-google .g-ic{ width:19px; height:19px; flex:none; }
+.or{ display:flex; align-items:center; gap:10px; font-size:11.5px; color:var(--lk-sub); margin:16px 0 0; }
+.or:before,.or:after{ content:''; flex:1; height:1px; background:var(--lk-line); }
+#btn-email-open{ margin-top:12px; }
+.note.center{ text-align:center; }
+.lp-track{ background:var(--lk-line); border-radius:100px; height:10px; overflow:hidden; }
+.acct{ display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; background:var(--lk-surface);
+  border:1px solid var(--lk-line); border-radius:10px; padding:8px 11px; margin-bottom:12px; color:var(--lk-ink); }
+.acct a{ color:var(--lk-acc); font-weight:800; text-decoration:none; white-space:nowrap; }
+#link-hello{ font-weight:800; font-size:15px; color:var(--lk-ink); margin-top:2px; }
+#link-hello .sub{ display:block; font-weight:500; font-size:12px; color:var(--lk-sub); margin-top:4px; }
+.sec{ font-size:12px; font-weight:800; color:var(--lk-sub); margin:16px 0 4px; }
+.li{ display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:12px; background:var(--lk-surface); border:1px solid var(--lk-line); margin-top:8px; }
+.li .av{ width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#F0DFAE,#C9A64E); color:#1B2230; font-weight:900; font-size:14px;
+  display:flex; align-items:center; justify-content:center; flex:none; }
+.li .t{ flex:1; font-size:14px; font-weight:800; color:var(--lk-ink); min-width:0; }
+.li .t small{ display:block; font-weight:500; color:var(--lk-sub); font-size:11.5px; margin-top:1px; }
+.li .pill{ font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:100px; background:var(--lk-ok-bg); color:var(--lk-ok-ink); white-space:nowrap; }
+.li .pill.ro{ background:var(--lk-warn-bg); color:var(--lk-warn-ink); }
+#kid-list .empty{ font-size:12.5px; color:var(--lk-sub); padding:6px 0 2px; }
+.more{ width:100%; margin-top:12px; border:1.5px dashed var(--lk-line2); background:none; border-radius:12px; padding:12px; font-size:13px;
+  color:var(--lk-acc); font-weight:800; font-family:inherit; cursor:pointer; }
+.lk-box{ margin-top:12px; border-radius:12px; padding:11px 13px; font-size:12.5px; line-height:1.6; background:var(--lk-surface); border:1px solid var(--lk-line); color:var(--lk-ink); text-align:left; }
+.lk-box.ok{ background:var(--lk-ok-bg); border-color:var(--lk-ok-line); }
+.lk-box.ok .lk-t, .lk-box.ok b{ color:var(--lk-ok-ink); }
+.lk-box.warn{ background:var(--lk-warn-bg); border-color:var(--lk-warn-line); }
+.lk-box.info{ background:var(--lk-info-bg); border-color:var(--lk-info-line); }
+.lk-box .lk-ic{ font-size:24px; line-height:1; margin-bottom:6px; }
+.lk-box .lk-t{ font-size:14px; font-weight:900; line-height:1.45; }
+.lk-box .lk-s{ font-size:12px; color:var(--lk-sub); margin-top:3px; }
+.lk-box .btn{ margin-top:10px; padding:11px; font-size:13.5px; }
+.lk-box.code-hint{ margin:0 0 12px; text-align:center; background:var(--lk-ok-bg); border-color:var(--lk-ok-line); }
+#ended-box .lk-box{ text-align:center; }
+.pwset{ margin-top:16px; border-top:1px solid var(--lk-line); padding-top:14px; text-align:left; color:var(--lk-ink); }
+.pwset .pw-in{ width:100%; margin-bottom:7px; padding:11px 12px; border-radius:9px; border:1.5px solid var(--lk-line2); background:var(--lk-surface); color:inherit; font-family:inherit; font-size:14px; }
+.pw-ok{ background:var(--lk-ok-bg); color:var(--lk-ok-ink); } .pw-err{ background:var(--lk-warn-bg); color:var(--lk-warn-ink); }
 </style>
 <script>
 /* 메일 링크로 돌아온 경우, 무거운 코드가 로드되기 전에도 진행 화면부터 보여준다 */
@@ -128,24 +170,33 @@ html[data-theme="dark"] .spin{ border-color:rgba(6,19,14,.35); border-top-color:
     <p>학부모 서비스</p>
   </div>
 
-  <!-- STEP 1: 이메일 입력 -->
+  <!-- STEP 1: 로그인 — 구글이 맨 위, 이메일 · 비밀번호는 «다른 방법» -->
   <div class="step on" id="step-email">
-    <label for="email">이메일 주소</label>
-    <input type="email" id="email" placeholder="parent@example.com" autocomplete="email" inputmode="email">
-    <div class="alert err" id="email-err"></div>
-    <div id="pw-wrap" style="display:none;margin-top:2px">
-      <label for="pw-in">비밀번호</label>
-      <input type="password" id="pw-in" autocomplete="current-password" placeholder="설정해 둔 비밀번호">
+    <div class="lk-box code-hint" id="code-hint" style="display:none"></div>
+    <button class="btn btn-google" id="btn-google" type="button" onclick="googleLogin()"><svg class="g-ic" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.2C12.5 13.6 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.8c4.3-4 6.9-9.9 6.9-17.2z"/><path fill="#FBBC05" d="M10.5 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.2C1 16.6 0 20.2 0 24s1 7.4 2.7 10.8l7.8-6.2z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.8c-2.1 1.4-4.8 2.3-8.5 2.3-6.2 0-11.5-4.2-13.4-9.9l-7.9 6.2C6.6 42.6 14.6 48 24 48z"/></svg><span>구글로 계속하기</span></button>
+    <div class="lk-box info" id="inapp-box" style="display:none"></div>
+    <div class="alert err" id="g-err"></div>
+    <div class="or" id="g-or"><span>또는</span></div>
+    <button class="btn btn-ghost" id="btn-email-open" type="button" onclick="openEmail()">✉️ 이메일로 로그인</button>
+    <div id="email-wrap" style="display:none">
+      <label for="email">이메일 주소</label>
+      <input type="email" id="email" placeholder="parent@example.com" autocomplete="email" inputmode="email">
+      <div class="alert err" id="email-err"></div>
+      <div id="pw-wrap" style="display:none;margin-top:2px">
+        <label for="pw-in">비밀번호</label>
+        <input type="password" id="pw-in" autocomplete="current-password" placeholder="설정해 둔 비밀번호">
+      </div>
+      <button class="btn" id="btn-send" onclick="sendLink()">
+        <span>로그인 링크 받기</span>
+      </button>
+      <button class="btn" id="btn-pw" style="display:none" onclick="pwLogin()">
+        <span>비밀번호로 로그인</span>
+      </button>
+      <button class="btn btn-ghost" id="btn-mode" onclick="togglePwMode()">🔑 비밀번호로 로그인하기</button>
+      <p class="note" id="mode-note">비밀번호가 없어도 됩니다 — 이메일로 로그인 링크를 보내드려요.
+        <b>홈 화면에 설치한 앱</b>에서는 비밀번호 로그인이 편해요 (아래에서 전환).</p>
     </div>
-    <button class="btn" id="btn-send" onclick="sendLink()">
-      <span>로그인 링크 받기</span>
-    </button>
-    <button class="btn" id="btn-pw" style="display:none" onclick="pwLogin()">
-      <span>비밀번호로 로그인</span>
-    </button>
-    <button class="btn btn-ghost" id="btn-mode" onclick="togglePwMode()">🔑 비밀번호로 로그인하기</button>
-    <p class="note" id="mode-note">비밀번호가 없어도 됩니다 — 이메일로 로그인 링크를 보내드려요.
-      <b>홈 화면에 설치한 앱</b>에서는 비밀번호 로그인이 편해요 (아래에서 전환).</p>
+    <p class="note center" id="g-note">처음 한 번만 자녀 코드를 넣으면<br>다음부터는 <b>«구글로 계속하기»</b> 한 번이면 돼요.</p>
   </div>
 
   <!-- STEP 2: 메일 확인 대기 -->
@@ -161,9 +212,9 @@ html[data-theme="dark"] .spin{ border-color:rgba(6,19,14,.35); border-top-color:
   <!-- STEP 3: 로그인 처리 중 -->
   <div class="step" id="step-verify">
     <div class="bigicon" id="lp-icon">🔐</div>
-    <p class="msg center" id="lp-label">메일 링크 확인 중…</p>
+    <p class="msg center" id="lp-label">로그인 확인 중…</p>
     <div style="max-width:280px;margin:14px auto 6px">
-      <div style="background:rgba(255,255,255,.15);border-radius:100px;height:10px;overflow:hidden">
+      <div class="lp-track">
         <div id="lp-bar" style="width:3%;height:100%;border-radius:100px;
           background:linear-gradient(90deg,#D8B45A,#F0DFAE);transition:width .25s"></div>
       </div>
@@ -175,20 +226,25 @@ html[data-theme="dark"] .spin{ border-color:rgba(6,19,14,.35); border-top-color:
     <p class="note center" style="margin-top:10px">첫 로그인은 <b>10~20초</b>쯤 걸릴 수 있어요 —<br>오류가 아니니 잠시만 기다려 주세요 🙂</p>
   </div>
 
-  <!-- STEP 4: 자녀 연결 -->
+  <!-- STEP 4: 자녀 연결 — 한 화면에서 끝 (코드 → 자녀 확인 → 연결) -->
   <div class="step" id="step-link">
-    <div class="bigicon">👨‍👩‍👧</div>
-    <p class="msg center" id="link-hello">로그인되었습니다.<br>자녀를 연결해 주세요.</p>
-    <div class="child-list" id="child-list"></div>
-    <label for="code">자녀 가입코드</label>
-    <input type="text" id="code" class="code-input" placeholder="예: DA-3B-7K2P" autocapitalize="characters" autocomplete="off">
-    <div class="alert err" id="code-err"></div>
-    <div class="alert ok" id="code-ok"></div>
-    <button class="btn" id="btn-link" onclick="linkChild()">
-      <span>자녀 연결하기</span>
-    </button>
-    <p class="note">학교에서 받은 자녀별 가입코드를 입력하세요. 자녀가 여럿이면 하나씩 연결할 수 있어요.</p>
-    <button class="btn btn-ghost" id="btn-go-home" style="display:none" onclick="goHome()">홈으로 이동 →</button>
+    <div class="acct" id="acct"><span id="acct-email">👤</span><a href="#" onclick="switchAccount();return false">계정 바꾸기</a></div>
+    <p class="note" id="acct-hint" style="display:none;margin:-4px 0 10px">전에 <b>다른 계정</b>으로 연결하셨다면 위 «계정 바꾸기»로 그 계정으로 들어와 주세요.</p>
+    <p class="msg center" id="link-hello">자녀 코드를 넣어 주세요</p>
+    <div id="ended-box"></div>
+    <div class="sec" id="kids-sec">연결된 자녀</div>
+    <div id="kid-list"></div>
+    <button class="more" id="more-btn" type="button" style="display:none" onclick="openMore()">＋ 자녀 더 연결하기</button>
+    <div id="code-area">
+      <label for="code" id="code-label">자녀 코드</label>
+      <input type="text" id="code" class="code-input" placeholder="예: JH-6S-7K2P" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="14">
+      <div id="code-box"></div>
+      <button class="btn" id="btn-link" onclick="linkChild()" disabled>
+        <span>이 자녀 연결하기</span>
+      </button>
+      <p class="note">📷 가정통신문의 <b>QR을 휴대폰 카메라로 찍으면</b> 코드가 저절로 들어가요. 자녀가 여럿이면 하나씩 연결하면 돼요.</p>
+    </div>
+    <button class="btn" id="btn-go-home" style="display:none" onclick="goHome()">홈으로 →</button>
   </div>
 
   <div class="foot">
@@ -281,362 +337,8 @@ addEventListener('resize',resize);resize();requestAnimationFrame(frame);
 }catch(e){}})();
 </script>
 <script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, signOut, signInWithEmailAndPassword, updatePassword, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
-         onAuthStateChanged, setPersistence, browserLocalPersistence }
-  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, initializeFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs,
-         addDoc, Timestamp }
-  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-
-const firebaseConfig = {
-  apiKey: "AIzaSyCtgr79jKqkec6HwqkxYNxSubWAhfEkM7g",
-  authDomain: "daniel-amatz.firebaseapp.com",
-  projectId: "daniel-amatz",
-  storageBucket: "daniel-amatz.firebasestorage.app",
-  messagingSenderId: "455744290312",
-  appId: "1:455744290312:web:3ce7e7d3e58f6f1d185bbd",
-  measurementId: "G-E91V0S88T8"
-};
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true })   /* 🔌 막히는 네트워크 자동 우회 */;
-setPersistence(auth, browserLocalPersistence).catch(()=>{});
-
-const EMAIL_KEY = 'gyosa_parent_email';
-const $ = id => document.getElementById(id);
-const show = id => { document.querySelectorAll('.step').forEach(s=>s.classList.remove('on')); $(id).classList.add('on'); };
-const alertShow = (id, msg) => { const e=$(id); e.textContent=msg; e.classList.add('on'); };
-const alertHide = id => $(id).classList.remove('on');
-
-function validEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
-
-// ── STEP 1: 로그인 링크 발송 ──
-let PW_MODE = false;
-window.togglePwMode = function(){
-  PW_MODE = !PW_MODE;
-  $('pw-wrap').style.display = PW_MODE ? '' : 'none';
-  $('btn-pw').style.display  = PW_MODE ? '' : 'none';
-  $('btn-send').style.display = PW_MODE ? 'none' : '';
-  $('btn-mode').innerHTML = PW_MODE ? '✉️ 이메일 링크로 로그인하기' : '🔑 비밀번호로 로그인하기';
-  $('mode-note').innerHTML = PW_MODE
-    ? '처음이시거나 비밀번호를 <b>잊으셨다면</b> ✉️ 이메일 링크로 로그인한 뒤 새로 만들면 돼요 — 예전 비밀번호는 자동으로 사라지고, 자녀 연결은 그대로 유지됩니다.'
-    : '비밀번호가 없어도 됩니다 — 이메일로 로그인 링크를 보내드려요. <b>홈 화면에 설치한 앱</b>에서는 비밀번호 로그인이 편해요 (아래에서 전환).';
-  if(PW_MODE) $('pw-in').focus();
-};
-window.pwLogin = async function(){
-  const email = $('email').value.trim(), pw = $('pw-in').value;
-  const err = $('email-err'); err.classList.remove('on');
-  if(!email || !pw){ err.textContent='이메일과 비밀번호를 입력해 주세요.'; err.classList.add('on'); return; }
-  const btn = $('btn-pw'); btn.disabled = true;
-  try{
-    await signInWithEmailAndPassword(auth, email, pw);
-    // 이후 흐름은 onAuthStateChanged가 처리 (자녀 있으면 홈, 없으면 연결 화면)
-  }catch(e){
-    btn.disabled = false;
-    err.textContent = (e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'||e.code==='auth/user-not-found')
-      ? '이메일 또는 비밀번호가 맞지 않아요. 잊으셨다면 ✉️ 이메일 링크로 로그인해 새 비밀번호를 만들면 됩니다.'
-      : '로그인에 실패했습니다: ' + (e.code||e.message);
-    err.classList.add('on');
-  }
-};
-window.sendLink = async function(){
-  alertHide('email-err');
-  const email = $('email').value.trim().toLowerCase();
-  if(!validEmail(email)){ alertShow('email-err','올바른 이메일 주소를 입력해 주세요.'); return; }
-  const btn = $('btn-send'); btn.disabled = true;
-  const orig = btn.innerHTML; btn.innerHTML = '<span class="spin"></span>';
-  try {
-    const actionCodeSettings = { url: location.origin + location.pathname, handleCodeInApp: true };
-    await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-    localStorage.setItem(EMAIL_KEY, email);
-    // 인증 요청 로그 (관리자 모니터링용)
-    try {
-      await addDoc(collection(db,'parentAuthLogs'), {
-        email, requestedAt: Timestamp.now(), clicked:false,
-        ua: navigator.userAgent || ''
-      });
-    } catch(e){}
-    $('sent-email').textContent = email;
-    show('step-sent');
-  } catch(e){
-    alertShow('email-err', '링크 발송에 실패했습니다: ' + (e.code || e.message));
-  } finally {
-    btn.disabled = false; btn.innerHTML = orig;
-  }
-};
-
-window.backToEmail = function(){ show('step-email'); };
-
-/* ── ⏳ 로그인 진행바: 실제 단계에 맞춰 %가 오르고,
-   단계 사이에도 조금씩 전진해 멈춘 느낌을 없앤다 ── */
-const LP = {
-  pct: 3, target: 3, timer: null,
-  labels: {},
-  start(){
-    if(this.timer) return;
-    this.timer = setInterval(()=>{
-      // 목표 직전(–1%)까지 서서히 기어간다 — 절대 멈춰 보이지 않게
-      const ceil = Math.min(this.target + 6, 97);
-      if(this.pct < ceil) this.pct = Math.min(ceil, this.pct + Math.max(0.15, (ceil - this.pct) * 0.03));
-      this.paint();
-    }, 180);
-  },
-  to(target, label, sub, icon){
-    this.target = Math.max(this.target, target);
-    if(this.pct < target - 12) this.pct = target - 12;   // 이정표 도달 시 성큼
-    if(label){ const el = document.getElementById('lp-label'); if(el) el.textContent = label; }
-    if(sub){ const el = document.getElementById('lp-sub'); if(el) el.textContent = sub; }
-    if(icon){ const el = document.getElementById('lp-icon'); if(el) el.textContent = icon; }
-    this.start(); this.paint();
-  },
-  done(){
-    this.target = 100; this.pct = 100; this.paint();
-    if(this.timer){ clearInterval(this.timer); this.timer = null; }
-  },
-  paint(){
-    const b = document.getElementById('lp-bar'), p = document.getElementById('lp-pct');
-    const v = Math.min(100, Math.floor(this.pct));
-    if(b) b.style.width = v + '%';
-    if(p) p.textContent = v + '%';
-  }
-};
-
-// ── STEP 3: 링크로 돌아왔을 때 로그인 처리 ──
-async function completeSignInFromLink(){
-  if(!isSignInWithEmailLink(auth, location.href)) return false;
-  show('step-verify');
-  window.LP_TAKEN = true;
-  LP.pct = Math.max(LP.pct, 12);
-  LP.to(15, '메일 링크 확인 중…', '링크가 진짜인지 살펴보고 있어요', '🔎');
-  let email = localStorage.getItem(EMAIL_KEY);
-  if(!email){
-    email = window.prompt('로그인을 완료하려면 링크를 요청한 이메일을 다시 입력해 주세요.');
-    if(email) email = email.trim().toLowerCase();
-  }
-  if(!email){ show('step-email'); return true; }
-  try {
-    LP.to(30, '로그인 열쇠 확인 중…', '구글 인증 서버와 악수하는 중', '🔑');
-    await signInWithEmailLink(auth, email, location.href);
-    LP.to(55, '로그인 성공! 준비 중…', '문이 열렸어요', '🔓');
-    localStorage.removeItem(EMAIL_KEY);
-    // 로그인 성공 로그 갱신
-    try {
-      const q = query(collection(db,'parentAuthLogs'), where('email','==',email), where('clicked','==',false));
-      const snap = await getDocs(q);
-      const latest = snap.docs.sort((a,b)=>(b.data().requestedAt?.seconds||0)-(a.data().requestedAt?.seconds||0))[0];
-      if(latest) await updateDoc(doc(db,'parentAuthLogs',latest.id), { clicked:true, clickedAt:Timestamp.now() });
-    } catch(e){}
-    history.replaceState(null,'',location.pathname);   // URL의 인증 파라미터 제거
-  } catch(e){
-    show('step-email');
-    alertShow('email-err','로그인에 실패했습니다. 링크가 만료되었을 수 있어요. 다시 시도해 주세요.');
-    return true;
-  }
-  return true;
-}
-
-// ── 부모 프로필 보장 + 자녀 연결 현황 ──
-async function ensureParentDoc(user){
-  const ref = doc(db,'parents',user.uid);
-  const s = await getDoc(ref);
-  if(!s.exists()){
-    await setDoc(ref, {
-      uid:user.uid, email:user.email||'', role:'parent',
-      createdAt:Timestamp.now(), lastSeen:Timestamp.now()
-    });
-  } else {
-    try { await updateDoc(ref, { lastSeen:Timestamp.now() }); } catch(e){}
-  }
-}
-
-/* 🔑 비밀번호 만들기 — 설치한 앱에서 링크 없이 로그인하기 위한 열쇠 */
-function injectPwSetup(){
-  if(document.getElementById('pwset-card')) return;
-  const host = document.getElementById('step-link'); if(!host) return;
-  const div = document.createElement('div');
-  div.id = 'pwset-card';
-  div.style.cssText = 'margin-top:16px;border-top:1px solid rgba(255,255,255,.15);padding-top:14px;text-align:left';
-  div.innerHTML = `
-    <div style="font-size:13px;font-weight:800;margin-bottom:4px">🔑 비밀번호 만들기 <span style="font-weight:400;opacity:.75">(선택)</span></div>
-    <div style="font-size:12px;opacity:.8;line-height:1.55;margin-bottom:9px">
-      만들어 두면 다음부터는 메일 링크 없이,<br><b>홈 화면에 설치한 앱 안에서</b> 이메일+비밀번호로 바로 로그인돼요.</div>
-    <input type="password" id="pwset-1" placeholder="새 비밀번호 (6자 이상)" autocomplete="new-password"
-      style="width:100%;margin-bottom:7px;padding:11px 12px;border-radius:9px;border:1.5px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:inherit;font-family:inherit">
-    <input type="password" id="pwset-2" placeholder="한 번 더" autocomplete="new-password"
-      style="width:100%;margin-bottom:9px;padding:11px 12px;border-radius:9px;border:1.5px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:inherit;font-family:inherit">
-    <button type="button" class="btn" style="width:100%" onclick="savePw()">비밀번호 저장</button>
-    <div id="pwset-msg" style="display:none;margin-top:8px;border-radius:9px;padding:8px 11px;font-size:12px;font-weight:700"></div>`;
-  host.appendChild(div);
-}
-window.savePw = async function(){
-  const p1 = document.getElementById('pwset-1').value, p2 = document.getElementById('pwset-2').value;
-  const m = document.getElementById('pwset-msg');
-  const say = (ok, t) => { m.style.display='block';
-    m.style.background = ok?'rgba(34,197,94,.18)':'rgba(220,38,38,.18)';
-    m.style.color = ok?'#86efac':'#fca5a5'; m.textContent = t; };
-  if(p1.length < 6) return say(false, '6자 이상으로 만들어 주세요.');
-  if(p1 !== p2)     return say(false, '두 칸이 서로 달라요.');
-  try{
-    await updatePassword(auth.currentUser, p1);
-    say(true, '저장했습니다 ✓ 이제 앱에서 «비밀번호로 로그인»을 쓰시면 돼요.');
-    document.getElementById('pwset-1').value=''; document.getElementById('pwset-2').value='';
-  }catch(e){
-    say(false, e.code==='auth/requires-recent-login'
-      ? '보안을 위해 방금 로그인한 상태에서만 만들 수 있어요 — 메일 링크로 다시 로그인한 뒤 설정해 주세요.'
-      : '저장 실패: ' + (e.code||e.message));
-  }
-};
-async function myActiveChildren(uid){
-  const out = [];
-  try {
-    const q = query(collection(db,'parentLinks'), where('parentUid','==',uid), where('status','==','active'));
-    const snap = await getDocs(q);
-    snap.forEach(d => out.push(d.data()));
-  } catch(e){}
-  return out;
-}
-
-function renderChildren(children){
-  const box = $('child-list');
-  if(!children.length){ box.innerHTML=''; $('btn-go-home').style.display='none'; return; }
-  box.innerHTML = '<div style="font-size:12px;color:var(--tl);margin-bottom:8px">연결된 자녀</div>'
-    + children.map(c=>`<span class="child-chip">👦 ${c.studentName||'학생'}</span>`).join('');
-  $('btn-go-home').style.display='flex';
-}
-
-// ── STEP 4: 가입코드로 자녀 연결 ──
-window.linkChild = async function(){
-  alertHide('code-err'); alertHide('code-ok');
-  const user = auth.currentUser;
-  if(!user){ alertShow('code-err','로그인이 필요합니다.'); return; }
-  const code = $('code').value.trim().toUpperCase();
-  if(!code){ alertShow('code-err','가입코드를 입력해 주세요.'); return; }
-
-  const btn = $('btn-link'); btn.disabled = true;
-  const orig = btn.innerHTML; btn.innerHTML = '<span class="spin"></span>';
-  try {
-    const cSnap = await getDoc(doc(db,'joinCodes',code));
-    if(!cSnap.exists() || cSnap.data().active === false){
-      alertShow('code-err','유효하지 않은 코드입니다. 학교에서 받은 코드를 다시 확인해 주세요.');
-      return;
-    }
-    const cd = cSnap.data();
-    // 🔒 기관 확인 — 지혜빛 선교원 코드만 이 입구에서 연결할 수 있다
-    if((cd.org||'daniel') !== 'jihyebit'){
-      alertShow('code-err','이 코드는 지혜빛 선교원 코드가 아닙니다. 다니엘 아마츠 학부모 페이지에서 연결해 주세요.');
-      return;
-    }
-    // 연결 저장 — ⚠️ 같은 문서가 이미 있으면 규칙상 «update»로 판정되므로
-    //    상황을 먼저 확인한다 (이미 활성이면 쓰기 없이 성공 처리)
-    const linkId = `${user.uid}_${cd.studentId}`;
-    const linkRef = doc(db,'parentLinks',linkId);
-    const prev = await getDoc(linkRef);
-    const payload = {
-      parentUid:user.uid, parentEmail:user.email||'',
-      studentId:cd.studentId, studentName:cd.studentName||'', org:cd.org||'',
-      grade:cd.grade||'', className:cd.className||'',   // 👨‍👩‍👧 반별 게시판용
-      status:'active', linkedVia:'code', linkedAt:Timestamp.now()
-    };
-    if(prev.exists() && prev.data().status === 'active'){
-      // 이미 연결되어 있음 — 다시 쓸 필요 없음
-    } else {
-      await setDoc(linkRef, payload);   // 신규 create 또는 (v9 규칙에서) 본인 문서 재활성화
-    }
-    // 내 프로필에 기관 기록 (게시판 읽기 권한용)
-    try { await updateDoc(doc(db,'parents',user.uid), { orgs: arrayUnion(cd.org||'') }); } catch(e){}
-    alertShow('code-ok', `${cd.studentName} 연결 완료!`);
-    $('code').value = '';
-    window.__kids = (window.__kids||[]).filter(k=>k.studentId!==cd.studentId)
-      .concat([{ studentId:cd.studentId, studentName:cd.studentName||'', grade:cd.grade||'', className:cd.className||'', org:cd.org||'' }]);
-    renderChildren(window.__kids);
-  } catch(e){
-    const why = (e.code==='permission-denied')
-      ? '연결 권한이 거부되었습니다. 잠시 후 다시 시도하시고, 계속 안 되면 학교에 «규칙 최신본(v9) 게시»를 요청해 주세요.'
-      : (e.code || e.message);
-    alertShow('code-err','연결에 실패했습니다: ' + why);
-  } finally {
-    btn.disabled = false; btn.innerHTML = orig;
-  }
-};
-
-// 로그인 후 돌아갈 주소 — 우리 사이트 안 상대주소만 허용 (바깥 주소로 새는 것 방지)
-function nextUrl(){
-  try{
-    const n = new URLSearchParams(location.search).get('next') || '';
-    if(n && !n.startsWith('http') && !n.startsWith('//') && !n.includes(':')) return n;
-  }catch(e){}
-  return '';
-}
-const ADD_MODE = new URLSearchParams(location.search).get('add') === '1';   // 자녀 추가로 들어온 경우
-window.goHome = function(){ location.replace(nextUrl() || 'home-jihyebit.html'); };
-
-try{localStorage.setItem('parent_org','jihyebit')}catch(e){}
-// ── 시작 ──
-(async () => {
-  const handled = await completeSignInFromLink();
-
-  onAuthStateChanged(auth, async (user) => {
-    if(user){
-      LP.to(70, '보호자 정보 확인 중…', '프로필을 준비하고 있어요', '👤');
-      await ensureParentDoc(user);
-      LP.to(88, '우리 아이 정보 연결 중…', '자녀 연결을 불러오는 중', '👧');
-      const childrenAll = await myActiveChildren(user.uid);
-      LP.done();
-      // ⚠️ 이 기관 자녀만으로 판단한다 — 다른 기관 자녀만 있는 계정을
-      //    이 기관 홈으로 보내면 홈↔로그인 무한 왕복이 생긴다.
-      const children = childrenAll.filter(c => (c.org||'daniel') === 'jihyebit');
-      if(children.length && !handled && !ADD_MODE){
-        // 이 기관 자녀가 있는 재방문자 → 가려던 곳(next) 또는 홈으로
-        location.replace(nextUrl() || 'home-jihyebit.html');
-        return;
-      }
-      // 👩‍🏫 교사 계정 감지 — 같은 브라우저는 교사·학부모 로그인이 한 자리를 쓴다.
-      //    교사 세션인데 학부모 연결 화면이 뜨면 혼란스러우니, 상태를 정직하게 안내한다.
-      if(!children.length && !ADD_MODE){
-        try {
-          const st = await getDoc(doc(db,'staff',user.uid));
-          if(st.exists()){
-            const tn = st.data().name || '선생님';
-            $('link-hello').innerHTML =
-              `지금 <b>교사 계정(${tn})</b>으로 로그인되어 있어요.<br>` +
-              `<span style="font-size:12.5px">같은 브라우저에서는 교사·학부모 로그인이 한 자리를 함께 씁니다.</span>`;
-            const kb = $('kids-box') || $('link-kids');
-            const host = document.getElementById('step-link');
-            const div = document.createElement('div');
-            div.style.cssText = 'display:flex;flex-direction:column;gap:9px;margin-top:14px';
-            div.innerHTML =
-              `<button type="button" class="btn" onclick="location.href='board.html?org=jihyebit&scope=org'">👩‍🏫 교사 모드로 게시판 보기</button>` +
-              `<button type="button" class="btn btn-ghost" id="tout-btn">학부모로 로그인하기 (교사 로그아웃)</button>`;
-            // 기존 코드 입력·홈 버튼은 숨긴다
-            ['code','btn-link','btn-go-home','link-kids','code-label'].forEach(i=>{
-              const el = document.getElementById(i); if(el) el.style.display='none'; });
-            host.appendChild(div);
-            document.getElementById('tout-btn').onclick = async ()=>{
-              await signOut(auth);            // 교사 세션을 내리고 —
-              location.replace('login-jihyebit.html');   // 학부모 이메일 로그인 화면으로 깨끗하게
-            };
-            show('step-link');
-            return;
-          }
-        } catch(e){}
-      }
-      // 로그인은 됐지만 연결 화면을 보여줌 (신규·자녀 추가·이 기관 자녀 없음)
-      const hasOther = childrenAll.length > children.length;
-      $('link-hello').innerHTML = children.length
-        ? '로그인되었습니다.<br>자녀를 추가하거나 홈으로 이동하세요.'
-        : (hasOther
-          ? '이 계정에는 다니엘 아마츠 자녀만 연결되어 있어요.<br>지혜빛 선교원 자녀가 있다면 가입코드로 연결해 주세요.'
-          : '로그인되었습니다.<br>자녀를 연결해 주세요.');
-      window.__kids = children;
-      renderChildren(children);
-      show('step-link');
-      injectPwSetup();
-    } else {
-      if(!handled) show('step-email');
-    }
-  });
-})();
+import { start } from './parent-login.js?v=122';
+start('jihyebit');
 </script>
 <script src="ver-badge.js" defer></script>
 </body>

@@ -80,6 +80,8 @@ a{text-decoration:none;color:inherit}
   font-size:12.5px;font-weight:700;color:var(--ink2);cursor:pointer;font-family:inherit}
 .cross{font-size:11px;color:#B0AA9C;text-align:center;padding:6px 0 0;display:none}
 .cross a{color:#5E4B8B;font-weight:700}
+.ro-note{background:#FFF8E8;border-color:#F3DDA8;font-size:12.5px;line-height:1.7;color:#5B4310}
+.ro-note small{display:block;color:#8A6A2A;margin-top:2px}
 .alert{display:none;border-radius:9px;padding:8px 11px;font-size:12px;font-weight:700;margin-top:8px}
 .alert.ok{display:block;background:#DCFCE7;color:#16A34A}
 .alert.err{display:block;background:#FDECEA;color:#C0392B}
@@ -125,6 +127,7 @@ input[type=text]{width:100%;border:1.5px solid var(--line);border-radius:10px;pa
 </div>
 
 <div class="main">
+  <div class="card ro-note" id="ro-note" style="display:none"></div>
   <div class="card" id="name-card" style="display:none">
     <div class="card-h"><b>👋 처음 오셨네요</b></div>
     <div style="font-size:12px;color:var(--ink2);margin-bottom:8px">게시판에서 쓸 보호자 성함을 알려주세요. (예: 김은혜)</div>
@@ -201,6 +204,7 @@ import { getAuth, onAuthStateChanged, signOut, setPersistence, browserLocalPersi
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, initializeFirestore, doc, getDoc, updateDoc, collection, query, where, getDocs, arrayUnion, Timestamp }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { loadPass, kidNote } from './gate.js?v=122';   // 🎫 출입증 (v122)
 
 const app = initializeApp({
   apiKey: "AIzaSyCtgr79jKqkec6HwqkxYNxSubWAhfEkM7g",
@@ -220,7 +224,7 @@ const $ = id => document.getElementById(id);
 const esc = t => String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = ts => { const d = ts?.seconds ? new Date(ts.seconds*1000) : new Date(ts); return `${d.getMonth()+1}/${d.getDate()}`; };
 
-let ME=null, LINKS=[], NEWS=[];
+let ME=null, LINKS=[], NEWS=[], PASS=null;
 // «마지막으로 확인한 시각» — 이 시각 이후 글에 ● 이 붙는다 (기기별, 서버 비용 0)
 const SEEN_KEY = 'parent_seen_daniel';
 let prevSeen = 0; try{ prevSeen = Number(localStorage.getItem(SEEN_KEY)||0); }catch(e){}
@@ -391,9 +395,10 @@ onAuthStateChanged(auth, async (user)=>{
     const pref = doc(db,'parents',user.uid);
     const ps = await getDoc(pref);
     ME = ps.exists() ? ps.data() : {};
-    const snap = await getDocs(query(collection(db,'parentLinks'),
-      where('parentUid','==',user.uid), where('status','==','active')));
-    LINKS=[]; snap.forEach(d=>LINKS.push(d.data()));
+    // 🎫 자녀 · 반은 출입증에서 (학생관리 상태 · 반편성이 반영된 «지금» 기준)
+    const PR = await loadPass(auth, db);
+    PASS = PR.pass;
+    LINKS = ((PASS && PASS.kids) || []).map(k => Object.assign({}, k, { studentName: k.name }));
     const kids = myKids();
     if(!kids.length){
       // 이 기관 자녀가 없는 계정 — 자동으로 서로 던지지 않는다 (무한 왕복 방지)
@@ -422,7 +427,7 @@ onAuthStateChanged(auth, async (user)=>{
 
     try{ localStorage.setItem('parent_org', ORG); }catch(e){}
     const orgs = [...new Set(LINKS.map(l=>l.org||'daniel'))];
-    try{ await updateDoc(pref, { orgs: arrayUnion(...orgs), lastSeen: Timestamp.now() }); }catch(e){}
+    try{ await updateDoc(pref, { lastSeen: Timestamp.now() }); }catch(e){}
 
     // 두 기관 자녀 가정에게만 교차 링크
     if(orgs.length>1) $('cross').style.display='block';
@@ -430,13 +435,21 @@ onAuthStateChanged(auth, async (user)=>{
     paintGreet();
 
     // 빠른 이동
-    const cls = kids.find(k=>k.className)?.className || '';
+    const CLS = [...new Set(kids.flatMap(k => (k.classNames && k.classNames.length) ? k.classNames : (k.className ? [k.className] : [])))];
+    const cls = CLS[0] || '';
     const addP = u => u + (u.includes('?')?'&':'?') + 'pfrom=' + ORG;   // 복귀 바 신호
     $('q-fam').href  = addP(`${GYOSA}/share-family.html?org=${ORG}`);
     $('q-board').href = cls ? `board.html?org=${ORG}&scope=class` : `board.html?org=${ORG}&scope=org`;
     $('fam-all').href = $('q-fam').href;
     $('board-all').href = $('q-board').href;
-    $('board-title').textContent = cls ? `💬 ${cls} 게시판` : '💬 전체 게시판';
+    $('board-title').textContent = CLS.length > 1 ? '💬 우리 반 게시판' : cls ? `💬 ${cls} 게시판` : '💬 전체 게시판';
+    // 🎓 보기만 하는 자녀 (휴학 · 졸업 유예) — 왜 그런지 먼저 알려 드린다
+    const ro = kids.filter(k => k.ro);
+    if(ro.length){
+      $('ro-note').innerHTML = ro.map(k => `<div>${k.state==='grace'?'🎓':'🏖'} <b>${esc(k.studentName||'')}</b> — ${esc(kidNote(k))}${k.state==='grace'?' · 그 뒤에는 연결이 저절로 끝나요':''}</div>`).join('')
+        + (ro.length === kids.length ? '<small>게시판 글은 읽을 수 있지만 새 글 · 댓글은 쓸 수 없어요.</small>' : '');
+      $('ro-note').style.display = '';
+    }
 
     // 학교 등록 링크 (학사일정·시간표)
     let PL = {};
@@ -452,15 +465,18 @@ onAuthStateChanged(auth, async (user)=>{
       famItems = items.filter(it=>(it.org||'daniel')===ORG)
         .filter(it=>{ const a=it.aud;                                   // 🎯 대상 필터: 전체 or 우리 반
           if(!a || a.t==='all') return true;
-          return !!cls && Array.isArray(a.c) && a.c.includes(cls); })
+          return CLS.length > 0 && Array.isArray(a.c) && a.c.some(c => CLS.includes(c)); })
         .slice(0,3);
     }catch(e){}
     let posts = [];
     try{
-      const conds = [where('org','==',ORG), where('scope','==', cls?'class':'org')];
-      if(cls) conds.push(where('classKey','==',cls));
-      const psnap = await getDocs(query(collection(db,'parentPosts'), ...conds));
-      psnap.forEach(d=>posts.push({id:d.id, ...d.data()}));
+      const keys = CLS.length ? CLS.slice(0, 3) : [''];
+      for(const k of keys){
+        const conds = [where('org','==',ORG), where('scope','==', k?'class':'org')];
+        if(k) conds.push(where('classKey','==',k));
+        try{ const psnap = await getDocs(query(collection(db,'parentPosts'), ...conds));
+          psnap.forEach(d=>{ if(!posts.some(x=>x.id===d.id)) posts.push({id:d.id, ...d.data()}); }); }catch(e){}
+      }
       posts.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
     }catch(e){}
 
@@ -510,7 +526,7 @@ onAuthStateChanged(auth, async (user)=>{
     $('me-name').textContent = (ME.name || '보호자') + (ME.relation?` (${ME.relation})`:'');
     setupPushRow();
     $('me-email').textContent = user.email || '';
-    $('kids').innerHTML = kids.map(k=>`<span class="kid">👦 ${esc(k.studentName||'학생')}<small>${k.grade?'· '+esc(k.grade):''} ${esc(k.className||'')}</small></span>`).join('')
+    $('kids').innerHTML = kids.map(k=>`<span class="kid">👦 ${esc(k.studentName||'학생')}<small>${k.grade?'· '+esc(k.grade):''} ${esc(k.className||'')}${k.ro?' · '+esc(kidNote(k)):''}</small></span>`).join('')
       + `<a class="kid-add" href="login-daniel.html?add=1">＋ 자녀 추가</a>`;
 
     // 이번 방문을 «확인 시각»으로 기록 → 다음 방문부터는 이 이후 글만 새 소식
