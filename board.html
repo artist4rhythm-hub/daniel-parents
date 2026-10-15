@@ -67,6 +67,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sa
 .load{text-align:center;padding:70px 0;color:var(--ink3);font-size:13px}
 .notice{background:var(--mint2);border:1px solid var(--mint);border-radius:11px;padding:10px 13px;
   font-size:11.5px;color:var(--pt);line-height:1.65;margin-bottom:12px;word-break:keep-all}
+/* 🗂 지난 학년도 (v124) */
+.arch{display:block;text-decoration:none;border:1.5px dashed #E5CF94;background:#FFFBF0;border-radius:14px;padding:12px 14px;margin:6px 0 11px;color:#7A5410}
+.arch b{font-size:13px;font-weight:900}.arch .s{font-size:11.5px;color:#9A7A3A;margin-top:3px;line-height:1.55}
+.arch .go{margin-top:7px;font-size:12px;font-weight:800;color:var(--gold)}
+.ro-arch{background:#FFF6E3;border:1px solid #F3DCA6;border-radius:12px;padding:10px 12px;margin-bottom:11px;font-size:12.5px;line-height:1.6;color:#7A5410}
+.ro-arch b{color:#5B3D06}
+.tab.old{border-style:dashed;color:var(--gold);border-color:#E5CF94;background:#FFFBF0}
+.tab.old.on{background:var(--gold);border-color:var(--gold);color:#fff;border-style:solid}
+.nocmt{font-size:11px;color:var(--ink3);padding:4px 0}
 
 /* 패드·컴퓨터 */
 @media (min-width:760px){
@@ -105,9 +114,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sa
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, initializeFirestore, doc, getDoc, updateDoc, addDoc, deleteDoc, collection, query, where, getDocs, Timestamp }
+import { getFirestore, initializeFirestore, doc, getDoc, updateDoc, addDoc, deleteDoc, collection, query, where, getDocs, Timestamp, increment, serverTimestamp }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { loadPass, canWriteOrg, canWriteClass, kidNote } from './gate.js?v=122';   // 🎫 출입증 (v122)
+import { loadPass, canWriteOrg, canWriteClass, kidNote, boardsOf, archiveOf, boardLabel, kidInBoard } from './gate.js?v=124';   // 🎫 출입증 (v122 · v124 반편성 한 칸마다)
 
 const firebaseConfig = {
   apiKey: "AIzaSyCtgr79jKqkec6HwqkxYNxSubWAhfEkM7g",
@@ -142,11 +151,13 @@ function avatarHTML(o, size){
 const qs = new URLSearchParams(location.search);
 const ORG = qs.get('org')==='jihyebit' ? 'jihyebit' : 'daniel';
 const SCOPE = qs.get('scope')==='class' ? 'class' : 'org';
+const ARCH_MODE = SCOPE==='class' && qs.get('arch')==='1';   // 🗂 지난 학년도 게시판 (보기만 · v124)
 const ORG_L = { daniel:'다니엘 아마츠', jihyebit:'지혜빛 선교원' };
 document.body.classList.toggle('org-jihyebit', ORG==='jihyebit');
 document.getElementById('back-home').href = 'home-'+ORG+'.html';
+if(ARCH_MODE) document.getElementById('back-home').href = 'board.html?org='+ORG+'&scope=class';   // 🗂 지난 학년도 → 우리 반 게시판으로
 
-let ME=null, LINKS=[], CLASSKEY='', POSTS=[], CMTS={}, PASS=null;
+let ME=null, LINKS=[], CLASSKEY='', POSTS=[], CMTS={}, PASS=null, BOARDS=[], ARCH=[], TM_OPTS=[];
 let TMODE=false, TME=null;   // 👩‍🏫 교사 모드
 
 /* ═══ 🚫 고운 말 필터 ═══
@@ -168,12 +179,14 @@ const fmt = ts => { if(!ts?.seconds) return ''; const d=new Date(ts.seconds*1000
   const p=n=>String(n).padStart(2,'0');
   return `${d.getFullYear()}.${p(d.getMonth()+1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
 
-function myClassKids(){ return LINKS.filter(l=>(l.org||'daniel')===ORG && l.className); }
-// 내 자녀들의 반 이름 (출입증 기준 — 한 자녀가 두 반이면 둘 다)
-function myClassKeys(){ return [...new Set(myClassKids().flatMap(k => (k.classNames && k.classNames.length) ? k.classNames : [k.className]))]; }
-// 지금 보는 게시판에 글 · 댓글을 쓸 수 있나 (휴학 · 졸업 유예면 읽기만)
+function myClassKids(){ return LINKS.filter(l=>(l.org||'daniel')===ORG && (l.className || (l.classes||[]).length)); }
+// 내 자녀들의 반 게시판 열쇠 (v124: 반편성 한 칸마다 «c:반 id» · 옛 출입증이면 반 이름)
+function myClassKeys(){ return BOARDS.map(b => b.key); }
+const boardOf = k => BOARDS.find(b => b.key===k) || ARCH.find(b => b.key===k) || null;
+// 지금 보는 게시판에 글 · 댓글을 쓸 수 있나 (휴학 · 졸업 유예 · 지난 학년도면 읽기만)
 function canWriteHere(){
   if(TMODE) return true;
+  if(ARCH_MODE) return false;
   if(!PASS || PASS.legacy) return true;
   return SCOPE==='class' ? canWriteClass(PASS, ORG, CLASSKEY) : canWriteOrg(PASS, ORG);
 }
@@ -182,33 +195,43 @@ function writerKids(){
   const all = LINKS.filter(l=>(l.org||'daniel')===ORG);
   const w = all.filter(l=>!l.ro); const base = w.length ? w : all;
   if(SCOPE!=='class') return base;
-  const inCls = base.filter(l=>(l.classNames||[l.className]).includes(CLASSKEY));
+  const inCls = base.filter(l=>kidInBoard(l, CLASSKEY));
   return inCls.length ? inCls : base;
 }
 function kidLabel(k){ return `${k.grade?esc(k.grade)+' ':''}${esc(k.studentName||'학생')}`; }
 
 async function setupTeacherBanner(){
-  let classes = [];
-  const set = new Set();
-  try {   // 반편성 — 올해 반 (없으면 작년 반)
+  // 반편성 — 올해 반 (없으면 작년 반) · 반 한 칸마다 (v124 열쇠 c:반 id · 이름이 같은 반은 부서 · 학년으로 구별)
+  TM_OPTS = [];
+  try {
     const y = new Date().getFullYear();
     for(const yy of [y, y-1]){
       const cs = await getDocs(query(collection(db,'classes'), where('year','==',yy)));
-      cs.forEach(d=>{ const v=d.data(); if((v.org||'daniel')===ORG && v.name) set.add(String(v.name).trim()); });
-      if(set.size) break;
+      cs.forEach(d=>{ const v=d.data(); if((v.org||'daniel')===ORG && v.name && !v.deleted)
+        TM_OPTS.push({ key:'c:'+d.id, id:d.id, name:String(v.name).trim(), grade:String(v.grade||''), dept:(v.dept&&v.dept!=='전체')?String(v.dept):'', year:Number(v.year||yy) }); });
+      if(TM_OPTS.length) break;
     }
   } catch(e){}
-  try {
-    const ss = await getDocs(query(collection(db,'students'), where('org','==',ORG)));
-    ss.forEach(d=>{ const c=(d.data().className||'').trim(); if(c) set.add(c); });
-  } catch(e){}
-  classes = [...set].sort((a,b)=>a.localeCompare(b,'ko'));
+  if(!TM_OPTS.length){   // 반편성을 안 쓰는 기관 — 예전처럼 학생의 반 이름
+    try {
+      const set = new Set();
+      const ss = await getDocs(query(collection(db,'students'), where('org','==',ORG)));
+      ss.forEach(d=>{ const c=(d.data().className||'').trim(); if(c) set.add(c); });
+      [...set].forEach(n => TM_OPTS.push({ key:n, id:'', name:n, grade:'', dept:'', year:0 }));
+    } catch(e){}
+  }
+  const dup = n => TM_OPTS.filter(o=>o.name===n).length > 1;
+  TM_OPTS.forEach(o=>{ o.label = [dup(o.name) ? [o.dept, o.grade].filter(Boolean).join(' ') : o.grade, o.name].filter(Boolean).join(' '); });
+  TM_OPTS.sort((a,b)=>a.name.localeCompare(b.name,'ko') || a.label.localeCompare(b.label,'ko',{numeric:true}));
+  if(SCOPE==='class' && CLASSKEY && !TM_OPTS.some(o=>o.key===CLASSKEY)){   // 옛 주소(반 이름) — 그 이름 반이 하나면 그 반으로
+    const same = TM_OPTS.filter(o=>o.name===CLASSKEY); if(same.length===1) CLASSKEY = same[0].key;
+  }
   const bar = document.createElement('div');
   bar.style.cssText = 'position:sticky;top:0;z-index:60;background:var(--pt,#0C2A44);color:#fff;padding:9px 14px;display:flex;align-items:center;gap:9px;font-size:12.5px;flex-wrap:wrap';
   bar.innerHTML = `👩‍🏫 <b>교사 모드</b> — 학부모에게 보이는 그대로 봅니다
     <select id="tm-cls" style="margin-left:auto;padding:5px 9px;border-radius:8px;border:none;font-size:12px">
       <option value="">📢 기관 전체</option>
-      ${classes.map(c=>`<option value="${esc(c)}" ${SCOPE==='class'&&CLASSKEY===c?'selected':''}>${esc(c)} 게시판</option>`).join('')}
+      ${TM_OPTS.map(o=>`<option value="${esc(o.key)}" ${SCOPE==='class'&&CLASSKEY===o.key?'selected':''}>${esc(o.label)} 게시판</option>`).join('')}
     </select>`;
   document.body.insertBefore(bar, document.body.firstChild);
   document.getElementById('tm-cls').addEventListener('change', e=>{
@@ -219,7 +242,8 @@ async function setupTeacherBanner(){
 }
 function renderTabs(){
   if(TMODE && SCOPE==='class'){
-    $('hd-t').childNodes[0].textContent = `💬 ${CLASSKEY||''} 게시판`;
+    const o = TM_OPTS.find(x=>x.key===CLASSKEY);
+    $('hd-t').childNodes[0].textContent = `💬 ${o ? o.label : (CLASSKEY||'')} 게시판`;
     $('hd-s').textContent = ORG_L[ORG] + ' · 교사 모드';
     $('tabs').style.display='none';
     return;
@@ -231,20 +255,27 @@ function renderTabs(){
     return;
   }
   const kids = myClassKids();
+  if(ARCH_MODE){   // 🗂 지난 학년도 — 반을 골라 보기만
+    $('hd-t').childNodes[0].textContent = '🗂 지난 학년도 게시판';
+    $('hd-s').textContent = ORG_L[ORG] + ' · 보기만';
+    if(!ARCH.length){ $('tabs').style.display='none'; return; }
+    if(!CLASSKEY || !ARCH.some(b=>b.key===CLASSKEY)) CLASSKEY = ARCH[0].key;
+    $('tabs').innerHTML = ARCH.map(b=>`<button class="tab old ${b.key===CLASSKEY?'on':''}" data-k="${esc(b.key)}" onclick="pickClass(this.dataset.k)">${esc(b.year? b.year+' ' : '')}${esc(b.name)} · ${esc(b.kids.map(x=>x.name||x.studentName||'').join('·'))}</button>`).join('');
+    $('tabs').style.display = 'flex';
+    return;
+  }
   const keys = myClassKeys();
   $('hd-t').childNodes[0].textContent = '💬 우리 반 게시판';
   $('hd-s').textContent = ORG_L[ORG];
   if(!keys.length){ $('tabs').style.display='none'; return; }
   if(!CLASSKEY || !keys.includes(CLASSKEY)) CLASSKEY = keys[0];
-  $('tabs').innerHTML = keys.map(k=>{
-    const kk = kids.filter(x=>(x.classNames||[x.className]).includes(k));
-    const g = kk[0]?.grade || '';
-    const who = kk.length && kids.length > 1 ? ' · ' + kk.map(x=>x.studentName||'').join('·') : '';
-    return `<button class="tab ${k===CLASSKEY?'on':''}" onclick="pickClass('${esc(k)}')">${g?esc(g)+' ':''}${esc(k)}${esc(who)}</button>`;
+  $('tabs').innerHTML = BOARDS.map(b=>{
+    const who = b.kids.length && kids.length > 1 ? ' · ' + b.kids.map(x=>x.studentName||x.name||'').join('·') : '';
+    return `<button class="tab ${b.key===CLASSKEY?'on':''}" data-k="${esc(b.key)}" onclick="pickClass(this.dataset.k)">${esc(boardLabel(b))}${esc(who)}</button>`;
   }).join('');
   $('tabs').style.display = keys.length>1 ? 'flex' : 'none';
 }
-window.pickClass = k => { CLASSKEY=k; renderTabs(); paintWriter(); loadPosts(); };
+window.pickClass = k => { CLASSKEY=k; renderTabs(); renderChildSelect(); paintWriter(); loadPosts(); };
 // ✍️ 쓰기 칸 — 쓸 수 없는 게시판이면 이유를 보여 준다
 function paintWriter(){
   const w = $('writer'); if(!w) return;
@@ -255,7 +286,11 @@ function paintWriter(){
     if(!n){ n = document.createElement('div'); n.id='ro-line'; n.className='card';
       n.style.cssText='background:#FFF8E8;border-color:#F3DDA8;color:#5B4310;font-size:12.5px;line-height:1.7';
       w.parentNode.insertBefore(n, w); }
-    const ro = LINKS.filter(l=>(l.org||'daniel')===ORG && l.ro && (SCOPE!=='class' || (l.classNames||[l.className]).includes(CLASSKEY)));
+    if(ARCH_MODE){ const b = boardOf(CLASSKEY);
+      n.className='ro-arch';
+      n.innerHTML = `🗂 <b>${esc(b ? [b.year ? b.year+'학년도' : '', b.dept, b.grade, b.name].filter(Boolean).join(' ') : '지난 학년도')}</b> — 보기만<br>다음 반편성 전까지 볼 수 있어요 · 새 글 · 댓글은 쓸 수 없어요`;
+      n.style.cssText=''; n.style.display=''; return; }
+    const ro = LINKS.filter(l=>(l.org||'daniel')===ORG && l.ro && (SCOPE!=='class' || kidInBoard(l, CLASSKEY)));
     n.innerHTML = (ro.length ? ro.map(k=>`${k.state==='grace'?'🎓':'🏖'} <b>${esc(k.studentName||'')}</b> — ${esc(kidNote(k))}`).join('<br>') : '이 게시판은 읽기만 할 수 있어요.')
       + '<br><small style="color:#8A6A2A">글은 읽을 수 있지만 새 글 · 댓글은 쓸 수 없어요.</small>';
     n.style.display='';
@@ -271,13 +306,29 @@ function renderChildSelect(){
     `<option value="${i}">✍️ ${kidLabel(k)} 학부모로 쓰기</option>`).join('');
 }
 
+// 옛 글을 아직 안 옮겼나 — 학부모는 출입증의 mig 표시 · 교사 모드는 학교 설정(교직원만 읽음)
+let _bm = null;
+async function beforeMove(){
+  if(_bm !== null) return _bm;
+  if(TMODE){ try{ const m = await getDoc(doc(db,'parentConfig','mig124')); _bm = !(m.exists() && m.data().first); }catch(e){ _bm = false; } }
+  else _bm = !!PASS && PASS.mig === false;
+  return _bm;
+}
 async function loadPosts(){
   $('posts').innerHTML = '<div class="load">글을 불러오는 중…</div>';
   try{
     const conds = [where('org','==',ORG), where('scope','==',SCOPE)];
     if(SCOPE==='class') conds.push(where('classKey','==',CLASSKEY));
     const snap = await getDocs(query(collection(db,'parentPosts'), ...conds));
-    POSTS = []; snap.forEach(d=>POSTS.push({id:d.id, ...d.data()}));
+    POSTS = []; snap.forEach(d=>{ const v=d.data(); if(v.hidden) return; POSTS.push({id:d.id, ...v}); });   // 🙈 선생님이 가린 글은 빼고
+    // 🔀 v124 학교가 옛 글을 반편성 반으로 옮기기 전 — 반 이름으로 올라간 글도 함께 (출입증에 그 이름 열쇠가 있을 때만)
+    if(SCOPE==='class' && !ARCH_MODE && await beforeMove()){
+      const b = TMODE ? TM_OPTS.find(o=>o.key===CLASSKEY) : boardOf(CLASSKEY);
+      if(b && b.id && b.name && (TMODE || (PASS.classKeys||[]).includes(ORG+'|'+b.name))){
+        try{ const s2 = await getDocs(query(collection(db,'parentPosts'), where('org','==',ORG), where('scope','==','class'), where('classKey','==',b.name)));
+          s2.forEach(d=>{ const v=d.data(); if(v.hidden || POSTS.some(x=>x.id===d.id)) return; POSTS.push({id:d.id, ...v}); }); }catch(e){}
+      }
+    }
     POSTS.sort((a,b)=> (b.pinned?1:0)-(a.pinned?1:0) || (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
     renderPosts();
   }catch(e){
@@ -285,9 +336,16 @@ async function loadPosts(){
   }
 }
 
+// 🗂 지난 학년도 게시판 서랍 (v124 · 올해 반 게시판 맨 아래)
+function archDrawer(){
+  if(TMODE || ARCH_MODE || SCOPE!=='class' || !ARCH.length) return '';
+  const names = ARCH.map(b=>`${b.year? b.year+' ' : ''}${[b.dept && !b.grade ? b.dept : '', b.grade, b.name].filter(Boolean).join(' ')} (${b.kids.map(x=>x.name||x.studentName||'').join('·')})`).join(' · ');
+  return `<a class="arch" id="arch-card" href="board.html?org=${ORG}&scope=class&arch=1"><b>🗂 지난 학년도 게시판</b>
+    <div class="s">${esc(names)}<br>보기만 · 다음 반편성 전까지</div><div class="go">열어 보기 →</div></a>`;
+}
 function renderPosts(){
   if(!POSTS.length){
-    $('posts').innerHTML = `<div class="empty">아직 글이 없어요.<br>첫 이야기를 남겨 보세요 ☺️</div>`;
+    $('posts').innerHTML = (ARCH_MODE ? `<div class="empty">이 반 게시판에 남은 글이 없어요.</div>` : `<div class="empty">아직 글이 없어요.<br>첫 이야기를 남겨 보세요 ☺️</div>`) + archDrawer();
     return;
   }
   $('posts').innerHTML = POSTS.map(p=>`
@@ -305,12 +363,16 @@ function renderPosts(){
       </div>
       <div class="cmts" id="cmts-${p.id}">
         <div id="cmt-list-${p.id}"></div>
-        <div class="cmt-in" ${canWriteHere()?'':'style="display:none"'}>
+        ${p.noComment && !TMODE ? '<div class="nocmt">💬 이 글은 댓글을 받지 않아요.</div>' : ''}
+        <div class="cmt-in" ${canWriteHere() && (!p.noComment || TMODE)?'':'style="display:none"'}>
           <input id="cmt-in-${p.id}" placeholder="따뜻한 댓글을 남겨 주세요" maxlength="500">
           <button class="bs" onclick="submitCmt('${p.id}')">등록</button>
         </div>
       </div>
-    </div>`).join('');
+    </div>`).join('') + archDrawer();
+  // 홈의 «새 글» 링크(#post-…)로 들어왔으면 그 글로
+  const h = location.hash && location.hash.startsWith('#post-') ? document.getElementById(location.hash.slice(1)) : null;
+  if(h) setTimeout(()=>h.scrollIntoView({ block:'start' }), 50);
 }
 
 window.toggleCmts = async (pid)=>{
@@ -327,7 +389,7 @@ async function loadCmts(pid){
     const cc = [where('org','==',ORG), where('postId','==',pid), where('scope','==',P0.scope||'org')];
     if((P0.scope||'org')==='class') cc.push(where('classKey','==',P0.classKey||''));
     const snap = await getDocs(query(collection(db,'parentComments'), ...cc));
-    const arr=[]; snap.forEach(d=>arr.push({id:d.id, ...d.data()}));
+    const arr=[]; snap.forEach(d=>{ const v=d.data(); if(v.hidden) return; arr.push({id:d.id, ...v}); });   // 🙈 가린 댓글은 빼고
     arr.sort((a,b)=>(a.createdAt?.seconds||0)-(b.createdAt?.seconds||0));
     CMTS[pid]=arr; renderCmts(pid);
   }catch(e){ list.innerHTML = `<div style="font-size:11px;color:var(--danger)">댓글을 불러오지 못했어요.</div>`; }
@@ -340,7 +402,7 @@ function renderCmts(pid){
         <span><b>${esc(c.authorName||'학부모')}</b>${c.childLabel?` · ${esc(c.childLabel)} 학부모`:''} · ${fmt(c.createdAt)}</span>
         ${c.authorUid===auth.currentUser?.uid?` <button class="pbtn" style="padding:0 3px" onclick="delCmt('${pid}','${c.id}')">지우기</button>`:''}</span></div>
       <div class="cmt-b">${esc(c.body)}</div>
-    </div>`).join('') || '<div style="font-size:11px;color:var(--ink3);padding:4px 0">첫 댓글을 남겨 보세요.</div>';
+    </div>`).join('') || (((POSTS.find(x=>x.id===pid)||{}).noComment && !TMODE) || !canWriteHere() ? '' : '<div style="font-size:11px;color:var(--ink3);padding:4px 0">첫 댓글을 남겨 보세요.</div>');
 }
 
 function authorBits(){
@@ -376,10 +438,12 @@ window.submitPost = async ()=>{
   const btn=$('w-go'); btn.disabled=true;
   try{
     const a = authorBits();
+    const B = SCOPE==='class' ? (TMODE ? TM_OPTS.find(o=>o.key===CLASSKEY) : boardOf(CLASSKEY)) : null;
+    const cinfo = (B && B.id) ? { classId: B.id, className: B.name, classYear: B.year || 0 } : {};   // 반편성 반이면 반 정보도 (교사 화면 · 연혁에서 씀)
     await addDoc(collection(db,'parentPosts'), {
-      org: ORG, scope: SCOPE, classKey: SCOPE==='class'?CLASSKEY:'',
+      org: ORG, scope: SCOPE, classKey: SCOPE==='class'?CLASSKEY:'', ...cinfo,
       title, body, ...a,
-      pinned:false, byStaff: TMODE, commentCount:0, createdAt: Timestamp.now()
+      pinned:false, byStaff: TMODE, commentCount:0, createdAt: serverTimestamp()   // 규칙 v31: 학부모 글 시각은 «지금» — 휴대폰 시계가 틀려도 되게 서버 시각
     });
     // 🔔 교사 공지 → 학부모 푸시 (교사 모드에서만, 발송 서버 설정이 있을 때만)
     if(TMODE){
@@ -388,11 +452,12 @@ window.submitPost = async ()=>{
         if(pc.exists() && pc.data().url){
           const idToken = await auth.currentUser.getIdToken();
           const link = 'https://artist4rhythm-hub.github.io/daniel-parents/board.html?org='+ORG+
-            (SCOPE==='class' ? '&scope=class' : '&scope=org');
+            (SCOPE==='class' ? '&scope=class&cls='+encodeURIComponent(CLASSKEY) : '&scope=org');
+          const cn = B ? B.name : CLASSKEY;   // 알림 서버는 반 이름으로 받는 사람을 찾는다
           const r = await fetch(pc.data().url.replace(/\/$/,'')+'/notify', { method:'POST',
             headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+idToken },
-            body: JSON.stringify({ org: ORG, classKeys: SCOPE==='class' ? [CLASSKEY] : null,
-              title: `📢 ${SCOPE==='class' ? CLASSKEY+' ' : ''}선생님 공지`, body: title, link }) });
+            body: JSON.stringify({ org: ORG, classKeys: SCOPE==='class' ? [cn] : null, classIds: (SCOPE==='class' && B && B.id) ? [B.id] : null,
+              title: `📢 ${SCOPE==='class' ? (B && B.label ? B.label : cn)+' ' : ''}선생님 공지`, body: title, link }) });
           const j = await r.json().catch(()=>({}));
           if(r.ok) msg.textContent = `올렸습니다 ✓ 🔔 알림 ${j.sent||0}명`;
         }
@@ -416,9 +481,9 @@ window.submitCmt = async (pid)=>{
     const p = POSTS.find(x=>x.id===pid);
     await addDoc(collection(db,'parentComments'), {
       postId: pid, org: ORG, scope: (p&&p.scope)||'org', classKey: (p&&p.scope)==='class' ? (p.classKey||'') : '',
-      body, ...a, createdAt: Timestamp.now()
+      body, ...a, byStaff: TMODE, createdAt: serverTimestamp()
     });
-    try{ await updateDoc(doc(db,'parentPosts',pid), { commentCount:(p?.commentCount||0)+1 }); }catch(e){}
+    try{ await updateDoc(doc(db,'parentPosts',pid), { commentCount: increment(1) }); }catch(e){}
     inp.value=''; delete CMTS[pid]; await loadCmts(pid);
     if(p){ p.commentCount=(p.commentCount||0)+1; }
     const btn = document.querySelector(`#post-${pid} .pbtn`); if(btn) btn.textContent=`💬 댓글 ${p?.commentCount||1}`;
@@ -435,7 +500,7 @@ window.delCmt = async (pid, cid)=>{
   try{
     await deleteDoc(doc(db,'parentComments',cid));
     const p=POSTS.find(x=>x.id===pid);
-    try{ await updateDoc(doc(db,'parentPosts',pid), { commentCount: Math.max(0,(p?.commentCount||1)-1) }); }catch(e){}
+    try{ if((p?.commentCount||0) > 0) await updateDoc(doc(db,'parentPosts',pid), { commentCount: increment(-1) }); }catch(e){}
     delete CMTS[pid]; await loadCmts(pid);
   }catch(e){ alert('지우지 못했습니다: '+(e.message||'')); }
 };
@@ -448,6 +513,8 @@ onAuthStateChanged(auth, async (user)=>{
     // 🎫 자녀 · 반은 출입증에서 (휴학 · 졸업 유예면 읽기만)
     const PR = await loadPass(auth, db); PASS = PR.pass;
     LINKS = ((PASS && PASS.kids) || []).map(k => Object.assign({}, k, { studentName: k.name }));
+    BOARDS = boardsOf(PASS, ORG); ARCH = archiveOf(PASS, ORG);
+    { const want = qs.get('cls'); if(SCOPE==='class' && want && (BOARDS.concat(ARCH)).some(b=>b.key===want)) CLASSKEY = want; }   // 홈 · 알림에서 그 반으로
     // 👩‍🏫 교사 모드 — 교직원 계정이면 학부모 연결 없이도 «학부모에게 보이는 그대로» 열람·참여
     if(!LINKS.some(l=>(l.org||'daniel')===ORG)){
       let isTeacher = false;
@@ -470,10 +537,11 @@ onAuthStateChanged(auth, async (user)=>{
     renderTabs(); renderChildSelect();
     $('loading').style.display='none'; $('main').style.display='';
     paintWriter();
-    if(SCOPE==='class' && !myClassKids().length){
+    if(SCOPE==='class' && !TMODE && (ARCH_MODE ? !ARCH.length : !BOARDS.length)){
       $('writer').style.display='none'; if($('ro-line')) $('ro-line').style.display='none';
-      $('posts').innerHTML = `<div class="empty">아직 반 정보가 연결된 자녀가 없어요.<br>
-        담임 선생님께 <b>새 가입 코드</b>를 받아 자녀를 다시 연결하면<br>우리 반 게시판이 열립니다 ☺️</div>`;
+      $('posts').innerHTML = ARCH_MODE ? `<div class="empty">볼 수 있는 지난 학년도 게시판이 없어요.<br><a href="board.html?org=${ORG}&scope=class" style="color:var(--pt);font-weight:800">우리 반 게시판으로 →</a></div>`
+        : `<div class="empty">아직 반 정보가 연결된 자녀가 없어요.<br>
+        올해 반편성이 끝나면 우리 반 게시판이 저절로 열려요.<br>궁금하시면 담임 선생님께 여쭤 주세요 ☺️</div>` + archDrawer();
       return;
     }
     await loadPosts();

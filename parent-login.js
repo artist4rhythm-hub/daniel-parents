@@ -12,7 +12,7 @@ import { getAuth, signOut, signInWithEmailAndPassword, updatePassword, sendSignI
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { initializeFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc, Timestamp }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { loadPass, callGate, gateUrl, normPass, kidsOf, endedOf, kidNote, endedText, maskEmail, inAppBrowser, openExternal, ORG_NAME } from './gate.js?v=122';
+import { loadPass, callGate, gateUrl, normPass, kidsOf, endedOf, kidNote, endedText, maskEmail, inAppBrowser, openExternal, ORG_NAME } from './gate.js?v=124';
 
 export function start(ORG){
 const OTHER = ORG === 'daniel' ? 'jihyebit' : 'daniel';

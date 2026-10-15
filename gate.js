@@ -1,8 +1,9 @@
 /* ═══════════════════════════════════════════════
-   gate.js — 🎫 학부모 출입증 (v122 · 학부모 공용)
+   gate.js — 🎫 학부모 출입증 (v122 · v124 · 학부모 공용)
    · 출입증(parentAccess/{내 uid})은 학교 «출입 서버»만 만듭니다 — 여기서는 읽고, 오래되면 새로 받습니다
    · 자녀 · 반 · 기간이 적혀 있어 게시판은 이 출입증으로만 열립니다 (보안 규칙 v30)
    · 출입 서버 주소는 parentConfig/gate 의 url (교사 선교사 › 학부모 관리 › 연결 현황에서 넣음)
+   · v124 — 반 게시판은 «반편성 한 칸»마다 (열쇠 c:<반 id>) · 바로 전 학년도 반은 «보기만» 서랍
    ═══════════════════════════════════════════════ */
 import { doc, getDoc, collection, query, where, getDocs }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
@@ -17,10 +18,12 @@ export function normPass(d){
   if(!d) return null;
   return {
     kids: (d.kids || []).map(k => Object.assign({}, k, { org: k.org || 'daniel', viewUntil: msOf(k.viewUntil),
-      classNames: Array.isArray(k.classNames) ? k.classNames : (k.className ? [k.className] : []) })),
+      classNames: Array.isArray(k.classNames) ? k.classNames : (k.className ? [k.className] : []),
+      classes: Array.isArray(k.classes) ? k.classes : [], archive: Array.isArray(k.archive) ? k.archive : [] })),
     orgs: d.orgs || [], writeOrgs: d.writeOrgs || [], classKeys: d.classKeys || [], writeClassKeys: d.writeClassKeys || [],
     ended: (d.ended || []).map(e => Object.assign({}, e, { at: msOf(e.at), viewUntil: msOf(e.viewUntil) })),
     until: msOf(d.until), issuedAt: msOf(d.issuedAt), legacy: !!d.legacy,
+    mig: d.mig === undefined ? undefined : !!d.mig,   // v124: 학교가 옛 반 게시글을 반편성 반으로 옮겼나 (옮기기 전이면 옛 이름 글도 함께 봄)
   };
 }
 
@@ -84,6 +87,34 @@ export const endedOf = (pass, org) => ((pass && pass.ended) || []).filter(e => (
 export const canWriteOrg = (pass, org) => !!pass && (pass.writeOrgs || []).includes(org);
 export const canWriteClass = (pass, org, cls) => !!pass && (pass.writeClassKeys || []).includes(org + '|' + cls);
 export const kidClassLine = k => [k.grade, k.className].filter(Boolean).join(' ');
+
+/* ── 🏫 반 게시판 목록 (v124) ──
+   반편성 한 칸 = 게시판 하나 (열쇠 «c:반 id» · 이름이 같은 반도 따로)
+   출입증이 옛 모양(반 정보 없음)이거나 반편성을 안 쓰는 학생이면 예전처럼 반 이름이 열쇠 */
+function addBoard(map, b, k){ const e = map.get(b.key) || Object.assign(b, { kids: [] }); if(!e.kids.includes(k)) e.kids.push(k); map.set(b.key, e); }
+const cBoard = (c, ro) => ({ key: 'c:' + c.id, id: c.id, name: c.name || '', grade: c.grade || '', dept: c.dept || '', year: Number(c.year || 0), ro: !!ro });
+export function boardsOf(pass, org){
+  const map = new Map();
+  kidsOf(pass, org).forEach(k => {
+    const cs = (k.classes || []).filter(c => c && c.id);
+    if(cs.length) cs.forEach(c => addBoard(map, cBoard(c, k.ro), k));
+    else (k.classNames || []).filter(Boolean).forEach(n => addBoard(map, { key: n, id: '', name: n, grade: k.grade || '', dept: '', year: 0, ro: !!k.ro }, k));
+  });
+  // 학년 순 (1학년 → 7학년) · 같으면 반 이름
+  const nat = (a, b) => String(a || '').localeCompare(String(b || ''), 'ko', { numeric: true });
+  return [...map.values()].sort((a, b) => nat(a.grade || a.dept, b.grade || b.dept) || nat(a.name, b.name));
+}
+// 바로 전 학년도 반 — 보기만 (다음 반편성 전까지)
+export function archiveOf(pass, org){
+  const map = new Map();
+  kidsOf(pass, org).forEach(k => (k.archive || []).filter(c => c && c.id).forEach(c => addBoard(map, cBoard(c, true), k)));
+  return [...map.values()].sort((a, b) => b.year - a.year || a.name.localeCompare(b.name, 'ko'));
+}
+// 게시판 이름: «1학년 닛시반» (학년이 없으면 부서)
+export const boardLabel = b => [b.grade || b.dept, b.name].filter(Boolean).join(' ');
+// 이 자녀가 이 게시판(열쇠)의 반인가
+export const kidInBoard = (k, key) => (k.classes || []).some(c => 'c:' + c.id === key) || (k.archive || []).some(c => 'c:' + c.id === key)
+  || (!(k.classes || []).length && (k.classNames || [k.className]).includes(key));
 
 const md = t => { const d = new Date(t); return `${d.getMonth() + 1}월 ${d.getDate()}일`; };
 /* 자녀 한 명의 상태 한 줄 (보기만 · 졸업 유예) */

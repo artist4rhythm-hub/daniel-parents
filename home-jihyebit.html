@@ -204,7 +204,7 @@ import { getAuth, onAuthStateChanged, signOut, setPersistence, browserLocalPersi
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, initializeFirestore, doc, getDoc, updateDoc, collection, query, where, getDocs, arrayUnion, Timestamp }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { loadPass, kidNote } from './gate.js?v=122';   // 🎫 출입증 (v122)
+import { loadPass, kidNote, boardsOf, boardLabel } from './gate.js?v=124';   // 🎫 출입증 (v122 · v124 반편성 한 칸마다)
 
 const app = initializeApp({
   apiKey: "AIzaSyCtgr79jKqkec6HwqkxYNxSubWAhfEkM7g",
@@ -435,14 +435,16 @@ onAuthStateChanged(auth, async (user)=>{
     paintGreet();
 
     // 빠른 이동
-    const CLS = [...new Set(kids.flatMap(k => (k.classNames && k.classNames.length) ? k.classNames : (k.className ? [k.className] : [])))];
-    const cls = CLS[0] || '';
+    const CLS = [...new Set(kids.flatMap(k => (k.classNames && k.classNames.length) ? k.classNames : (k.className ? [k.className] : [])))];   // 반 이름 (통신문 대상 · 옛 글)
+    const BRD = boardsOf(PASS, ORG);                     // 🏫 v124 반 게시판 — 반편성 한 칸마다 (열쇠 c:반 id)
+    const BKEYS = BRD.map(b => b.key);
+    const cls = BKEYS[0] || '';
     const addP = u => u + (u.includes('?')?'&':'?') + 'pfrom=' + ORG;   // 복귀 바 신호
     $('q-fam').href  = addP(`${GYOSA}/share-family.html?org=${ORG}`);
     $('q-board').href = cls ? `board.html?org=${ORG}&scope=class` : `board.html?org=${ORG}&scope=org`;
     $('fam-all').href = $('q-fam').href;
     $('board-all').href = $('q-board').href;
-    $('board-title').textContent = CLS.length > 1 ? '💬 우리 반 게시판' : cls ? `💬 ${cls} 게시판` : '💬 전체 게시판';
+    $('board-title').textContent = BRD.length > 1 ? '💬 우리 반 게시판' : cls ? `💬 ${boardLabel(BRD[0])} 게시판` : '💬 전체 게시판';
     // 🎓 보기만 하는 자녀 (휴학 · 졸업 유예) — 왜 그런지 먼저 알려 드린다
     const ro = kids.filter(k => k.ro);
     if(ro.length){
@@ -465,17 +467,24 @@ onAuthStateChanged(auth, async (user)=>{
       famItems = items.filter(it=>(it.org||'daniel')===ORG)
         .filter(it=>{ const a=it.aud;                                   // 🎯 대상 필터: 전체 or 우리 반
           if(!a || a.t==='all') return true;
+          if(Array.isArray(a.ids) && a.ids.length) return a.ids.some(k => BKEYS.includes(k));   // v124: 반편성 반(id)으로 고른 통신문
           return CLS.length > 0 && Array.isArray(a.c) && a.c.some(c => CLS.includes(c)); })
         .slice(0,3);
     }catch(e){}
     let posts = [];
     try{
-      const keys = CLS.length ? CLS.slice(0, 3) : [''];
+      const keys = BKEYS.length ? BKEYS.slice(0, 3) : [''];
       for(const k of keys){
         const conds = [where('org','==',ORG), where('scope','==', k?'class':'org')];
         if(k) conds.push(where('classKey','==',k));
         try{ const psnap = await getDocs(query(collection(db,'parentPosts'), ...conds));
-          psnap.forEach(d=>{ if(!posts.some(x=>x.id===d.id)) posts.push({id:d.id, ...d.data()}); }); }catch(e){}
+          psnap.forEach(d=>{ const v=d.data(); if(v.hidden) return; if(!posts.some(x=>x.id===d.id)) posts.push({id:d.id, ...v}); }); }catch(e){}
+        // 🔀 v124 옛 글을 반편성 반으로 옮기기 전 — 반 이름으로 올라간 글도 (출입증에 그 이름 열쇠가 있을 때만)
+        const b = BRD.find(x=>x.key===k);
+        if(k && b && b.id && PASS && PASS.mig === false && (PASS.classKeys||[]).includes(ORG+'|'+b.name)){
+          try{ const s2 = await getDocs(query(collection(db,'parentPosts'), where('org','==',ORG), where('scope','==','class'), where('classKey','==',b.name)));
+            s2.forEach(d=>{ const v=d.data(); if(v.hidden) return; if(!posts.some(x=>x.id===d.id)) posts.push({id:d.id, ...v, classKey:k}); }); }catch(e){}
+        }
       }
       posts.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
     }catch(e){}
@@ -490,8 +499,9 @@ onAuthStateChanged(auth, async (user)=>{
       : '<div class="empty-line">아직 발행된 통신문이 없어요.</div>';
 
     const isNewP = p => ((p.createdAt?.seconds||0)*1000) > prevSeen;
+    const postHref = p => `board.html?org=${ORG}&scope=${p.scope==='class'?'class&cls='+encodeURIComponent(p.classKey||''):'org'}#post-${encodeURIComponent(p.id)}`;
     $('board-list').innerHTML = posts.length ? posts.slice(0,2).map(p=>`
-      <a class="item ${isNewP(p)?'':'read'}" href="board.html?org=${ORG}&scope=${cls?'class':'org'}#post-${esc(p.id)}">
+      <a class="item ${isNewP(p)?'':'read'}" href="${postHref(p)}">
         <div class="t">${p.pinned?'📌 ':''}${esc(p.title)}${isNewP(p)?'<span class="dot">●</span>':''}</div>
         <div class="m">${esc(p.authorName||'')}${p.byStaff?' 선생님':''} · 💬 ${p.commentCount||0} · ${fmt(p.createdAt)}</div>
       </a>`).join('')
@@ -502,7 +512,7 @@ onAuthStateChanged(auth, async (user)=>{
       ...famItems.filter(isNewF).map(it=>({ icon:'📨', t:it.title||'가정통신문', at:it.at,
         href:addP(`${GYOSA}/share-family.html?id=${it.id}`) })),
       ...posts.filter(isNewP).slice(0,3).map(p=>({ icon:'💬', t:p.title, at:(p.createdAt?.seconds||0)*1000,
-        href:`board.html?org=${ORG}&scope=${cls?'class':'org'}#post-${p.id}` })),
+        href: postHref(p) })),
     ].sort((a,b)=>(b.at||0)-(a.at||0)).slice(0,4);
     if(NEWS.length){
       $('news-t').textContent = `🔔 새 소식 ${NEWS.length}건이 도착했어요`;
