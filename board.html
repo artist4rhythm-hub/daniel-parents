@@ -405,6 +405,26 @@ function renderCmts(pid){
     </div>`).join('') || (((POSTS.find(x=>x.id===pid)||{}).noComment && !TMODE) || !canWriteHere() ? '' : '<div style="font-size:11px;color:var(--ink3);padding:4px 0">첫 댓글을 남겨 보세요.</div>');
 }
 
+/* 🔔 v135 — 학부모가 글 · 댓글을 올리면 담임 선생님 휴대폰으로 알림
+   (화면은 «글 번호»만 알리고, 받는 선생님은 학교 알림 서버가 반편성을 보고 정함 · 실패해도 글쓰기에는 지장 없음)
+   서버 주소: parentConfig/gate 의 dailyUrl (수퍼관리자만 고침) — 없으면 기본 주소 · …run.app 이 아니면 쓰지 않음 */
+const DAILY_DEFAULT = 'https://gyosa-daily-455744290312.asia-northeast3.run.app';
+let _dUrl = null;
+async function dailyUrl(){
+  if(_dUrl !== null) return _dUrl;
+  let u = '';
+  try{ const g = await getDoc(doc(db,'parentConfig','gate')); u = (g.exists() && typeof g.data().dailyUrl === 'string') ? g.data().dailyUrl.trim().replace(/\/+$/,'') : ''; }catch(e){}
+  _dUrl = /^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.run\.app$/i.test(u) ? u : DAILY_DEFAULT;
+  return _dUrl;
+}
+async function teacherPing(ev, payload){
+  try{
+    const user = auth.currentUser; if(!user) return;
+    const url = await dailyUrl(); const tok = await user.getIdToken();
+    await fetch(url + '/?action=event', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + tok },
+      body: JSON.stringify(Object.assign({ ev }, payload || {})) });
+  }catch(e){}
+}
 function authorBits(){
   if(TMODE){
     return { authorUid: auth.currentUser.uid, authorName: (TME?.name||'선생님'),
@@ -440,11 +460,12 @@ window.submitPost = async ()=>{
     const a = authorBits();
     const B = SCOPE==='class' ? (TMODE ? TM_OPTS.find(o=>o.key===CLASSKEY) : boardOf(CLASSKEY)) : null;
     const cinfo = (B && B.id) ? { classId: B.id, className: B.name, classYear: B.year || 0 } : {};   // 반편성 반이면 반 정보도 (교사 화면 · 연혁에서 씀)
-    await addDoc(collection(db,'parentPosts'), {
+    const pref = await addDoc(collection(db,'parentPosts'), {
       org: ORG, scope: SCOPE, classKey: SCOPE==='class'?CLASSKEY:'', ...cinfo,
       title, body, ...a,
       pinned:false, byStaff: TMODE, commentCount:0, createdAt: serverTimestamp()   // 규칙 v31: 학부모 글 시각은 «지금» — 휴대폰 시계가 틀려도 되게 서버 시각
     });
+    if(!TMODE) teacherPing('parent-post', { postId: pref.id });   // 🔔 v135 담임 선생님 휴대폰으로
     // 🔔 교사 공지 → 학부모 푸시 (교사 모드에서만, 발송 서버 설정이 있을 때만)
     if(TMODE){
       try{
@@ -479,10 +500,11 @@ window.submitCmt = async (pid)=>{
   try{
     const a = authorBits();
     const p = POSTS.find(x=>x.id===pid);
-    await addDoc(collection(db,'parentComments'), {
+    const cref = await addDoc(collection(db,'parentComments'), {
       postId: pid, org: ORG, scope: (p&&p.scope)||'org', classKey: (p&&p.scope)==='class' ? (p.classKey||'') : '',
       body, ...a, byStaff: TMODE, createdAt: serverTimestamp()
     });
+    if(!TMODE) teacherPing('parent-comment', { commentId: cref.id });   // 🔔 v135
     try{ await updateDoc(doc(db,'parentPosts',pid), { commentCount: increment(1) }); }catch(e){}
     inp.value=''; delete CMTS[pid]; await loadCmts(pid);
     if(p){ p.commentCount=(p.commentCount||0)+1; }
